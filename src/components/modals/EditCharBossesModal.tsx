@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS } from '@/data/bosses';
+import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
@@ -67,6 +67,16 @@ export function EditCharBossesModal({
 
   if (!character) return null;
 
+  // 計算有效重置券數量 (只計入常態仍有挑戰的 BOSS)
+  const currentResetIds = (character.resetBossIds || []).filter((rId) => {
+    const rGroup = getBossGroupKey(rId);
+    return selectedBossIds.some((bId) => getBossGroupKey(bId) === rGroup);
+  });
+  const normalCount = selectedBossIds.length;
+  const resetCount = currentResetIds.length;
+  const totalCount = normalCount + resetCount;
+  const isFull = totalCount >= 12;
+
   const handleSearchNexon = async () => {
     const clean = charName.trim();
     if (!clean) return;
@@ -103,15 +113,19 @@ export function EditCharBossesModal({
   const handleToggleBoss = (bossId: string, groupKey: string) => {
     if (selectedBossIds.includes(bossId)) {
       // 點擊已選中的：取消選取
-      setSelectedBossIds(selectedBossIds.filter((id) => id !== bossId));
+      const nextNormal = selectedBossIds.filter((id) => id !== bossId);
+      setSelectedBossIds(nextNormal);
       setErrorMsg('');
     } else {
-      // 同組互斥切換難度 (不重複計入 12 隻)
+      // 同組互斥切換難度 (替換同 group 的舊難度)
       const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
       const withoutGroup = selectedBossIds.filter((id) => !otherBossIdsInGroup.includes(id));
 
-      if (withoutGroup.length >= 12) {
-        setErrorMsg('每隻角色最多只能勾選 12 隻每週 BOSS 結晶！');
+      // 若加入這隻常態 BOSS，計算未來的總數量 (常態 + 重置券)
+      const futureTotal = withoutGroup.length + 1 + resetCount;
+
+      if (futureTotal > 12) {
+        setErrorMsg(`每週攻略總額度已達 12 隻上限！（常態 ${withoutGroup.length} 隻 ＋ 重置券 ${resetCount} 隻 ＝ 已達 12 隻）`);
         return;
       }
       setErrorMsg('');
@@ -125,11 +139,17 @@ export function EditCharBossesModal({
     setErrorMsg('');
 
     try {
+      // 自動同步清理已取消常態挑戰的重置券
+      const activeResetIds = (character.resetBossIds || []).filter((rId) =>
+        selectedBossIds.some((bId) => getBossGroupKey(bId) === getBossGroupKey(rId))
+      );
+
       const updated: Character = {
         ...character,
         name: charName.trim() || character.name,
         characterImage,
         bossIds: selectedBossIds,
+        resetBossIds: activeResetIds,
       };
 
       await updateCharacter(playerName, updated);
@@ -202,13 +222,25 @@ export function EditCharBossesModal({
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  每週常態討伐 BOSS ({selectedBossIds.length} / 12)
-                </span>
-                <span className={selectedBossIds.length >= 12 ? 'text-xs font-black text-red-500' : 'text-xs font-bold text-slate-400'}>
-                  {selectedBossIds.length >= 12 ? '⚠️ 已達 12 隻上限' : '最多 12 隻'}
-                </span>
+              {/* 額度統計列 (包含常態 + 重置券) */}
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+                <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span>每週常態討伐 BOSS ({normalCount} 隻)</span>
+                  {resetCount > 0 && (
+                    <span className="text-purple-600 dark:text-purple-400 font-bold">
+                      ＋ 重置券 {resetCount} 隻
+                    </span>
+                  )}
+                </div>
+                <div className={isFull ? 'text-xs font-black text-red-500' : 'text-xs font-bold text-slate-400'}>
+                  {isFull ? (
+                    <span>⚠️ 總額度已達 12 / 12 隻上限</span>
+                  ) : (
+                    <span>
+                      總計 {totalCount} / 12 隻 <strong className="text-emerald-600 dark:text-emerald-400 font-bold">(尚可選 {12 - totalCount} 隻)</strong>
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* V1 風格的 BOSS 圖像大卡片與滑塊開關切換器 */}

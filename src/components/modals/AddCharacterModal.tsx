@@ -136,6 +136,8 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
   };
 
   const hasNexonKey = Boolean(getNexonApiKey());
+  const normalCount = selectedBossIds.length;
+  const isFull = normalCount >= 12;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -212,12 +214,12 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  選擇每週常態討伐 BOSS ({selectedBossIds.length} / 12)
+                  選擇每週常態討伐 BOSS ({normalCount} / 12)
                 </span>
-                <span className={selectedBossIds.length >= 12 ? 'text-xs font-black text-red-500' : 'text-xs font-bold text-slate-400'}>
-                  {selectedBossIds.length >= 12 ? '⚠️ 已達 12 隻上限' : '最多 12 隻'}
+                <span className={isFull ? 'text-xs font-black text-red-500' : 'text-xs font-bold text-slate-400'}>
+                  {isFull ? '⚠️ 已達 12 隻上限' : `尚可選 ${12 - normalCount} 隻`}
                 </span>
               </div>
 
