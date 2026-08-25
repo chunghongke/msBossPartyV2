@@ -19,27 +19,27 @@ interface EditCharBossesModalProps {
 const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; inactiveStyle: string; glow: string }> = {
   easy: {
     label: '簡',
-    activeStyle: 'bg-gradient-to-b from-[#4A4E54] to-[#2E3236] text-white border-2 border-white shadow-[0_0_8px_rgba(255,255,255,0.75)] font-black',
-    inactiveStyle: 'bg-[#23262A] text-stone-300 border-2 border-[#3F444D] hover:border-stone-400 hover:text-white',
-    glow: 'ring-1 ring-white/80',
+    activeStyle: 'bg-gradient-to-b from-[#64748B] to-[#334155] text-white border-2 border-white shadow-[0_0_14px_rgba(255,255,255,0.9)] scale-105 ring-2 ring-white/60 font-black z-10',
+    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-slate-400',
+    glow: '',
   },
   normal: {
     label: '普',
-    activeStyle: 'bg-gradient-to-b from-[#2E608F] to-[#1A3854] text-white border-2 border-white shadow-[0_0_10px_rgba(56,189,248,0.85)] font-black',
-    inactiveStyle: 'bg-[#1C2836] text-[#A5C9EB] border-2 border-[#2E4763] hover:border-sky-400 hover:text-white',
-    glow: 'ring-1 ring-sky-300',
+    activeStyle: 'bg-gradient-to-b from-[#0284C7] to-[#0369A1] text-white border-2 border-white shadow-[0_0_16px_rgba(56,189,248,0.95)] scale-105 ring-2 ring-sky-400 font-black z-10',
+    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-sky-500',
+    glow: '',
   },
   hard: {
     label: '困',
-    activeStyle: 'bg-gradient-to-b from-[#3E2D20] to-[#241910] text-[#FFE8C2] border-2 border-[#FFDF9E] shadow-[0_0_10px_rgba(245,158,11,0.8)] font-black',
-    inactiveStyle: 'bg-[#241A12] text-[#E8C79B] border-2 border-[#C5A070] hover:border-amber-300 hover:text-[#FFF0D4]',
-    glow: 'ring-1 ring-amber-300',
+    activeStyle: 'bg-gradient-to-b from-[#D97706] to-[#B45309] text-[#FFFBEB] border-2 border-[#FEF08A] shadow-[0_0_16px_rgba(245,158,11,0.95)] scale-105 ring-2 ring-amber-400 font-black z-10',
+    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-amber-600',
+    glow: '',
   },
   extreme: {
     label: '極',
-    activeStyle: 'bg-gradient-to-b from-[#401217] to-[#22090C] text-[#FF5722] border-2 border-[#FF3358] shadow-[0_0_12px_rgba(255,51,88,0.9)] font-black',
-    inactiveStyle: 'bg-[#260D10] text-[#FF6E40] border-2 border-[#E11D48] hover:border-rose-400 hover:text-[#FF8A65]',
-    glow: 'ring-1 ring-rose-400',
+    activeStyle: 'bg-gradient-to-b from-[#E11D48] to-[#9F1239] text-white border-2 border-[#FFE4E6] shadow-[0_0_18px_rgba(244,63,94,1)] scale-105 ring-2 ring-rose-500 font-black z-10',
+    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-rose-600',
+    glow: '',
   },
 };
 
@@ -56,7 +56,12 @@ const EditBossGroupCard = memo(function EditBossGroupCard({
   const hasSelected = Boolean(selectedBossId);
 
   return (
-    <div className="flex flex-col bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-2 items-center gap-2 shadow-xs">
+    <div className={cn(
+        'flex flex-col rounded-2xl border-2 p-2 items-center gap-2 transition-all duration-150',
+        hasSelected
+          ? 'bg-white dark:bg-slate-800 border-amber-400/90 dark:border-amber-400 shadow-[0_4px_12px_rgba(245,158,11,0.22)] ring-1 ring-amber-400/40'
+          : 'bg-white/80 dark:bg-slate-850 border-slate-200 dark:border-slate-800 opacity-60'
+      )}>
       {/* BOSS 形象大圖相框 */}
       <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
         <img
