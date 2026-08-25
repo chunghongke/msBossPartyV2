@@ -302,8 +302,8 @@ export function CompactCharacterRow({
       )}
     >
       {/* 角色橫向極窄標題列 (高度僅 ~26px) */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        {/* 左側：角色小圓頭像 (Hover 放大立繪) ＋ 名稱 ＋ 操作工具 */}
+      <div className="flex items-center justify-between gap-2 flex-wrap select-none">
+        {/* 左側：角色小圓頭像 ＋ 名稱 ＋ 操作工具 ＋ 🪙 結晶錢 ＋ ✨ 碎片數量 (V1 經典左側排版) */}
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <div className="relative group/avatar shrink-0">
             <div className="w-7 h-7 rounded-full bg-slate-900 border-1.5 border-amber-400 overflow-hidden flex items-center justify-center shadow-xs cursor-pointer">
@@ -380,36 +380,35 @@ export function CompactCharacterRow({
               </button>
             </div>
           )}
-        </div>
 
-        {/* 右側：收益與進度條微型膠囊 */}
-        <div className="flex items-center gap-1.5 text-[10.5px] select-none flex-wrap">
-          <div className="flex items-center gap-1 px-2 py-0.2 bg-[#FFF8E7] dark:bg-slate-800 rounded border border-[#D4B982] dark:border-slate-700">
+          {/* 🪙 結晶楓幣膠囊 (V1 經典放置在左側) */}
+          <div className="flex items-center gap-1 px-2 py-0.2 bg-[#FFF8E7] dark:bg-slate-800 rounded border border-[#D4B982] dark:border-slate-700 text-[10.5px] ml-1">
             <span>🪙</span>
             <span className="font-fredoka font-black text-[#5C3E14] dark:text-amber-300">
               {formatCrystal(crystalStats.earned)} / {formatCrystal(crystalStats.expected)}
             </span>
           </div>
 
+          {/* ✨ 艾里溫碎片膠囊 (V1 經典放置在左側) */}
           {shardStats.expected > 0 && (
-            <div className="flex items-center gap-0.5 px-1.5 py-0.2 bg-[#F7EFFF] dark:bg-purple-950/40 rounded border border-purple-300 dark:border-purple-800">
+            <div className="flex items-center gap-0.5 px-1.5 py-0.2 bg-[#F7EFFF] dark:bg-purple-950/40 rounded border border-purple-300 dark:border-purple-800 text-[10.5px]">
               <Sparkles className="w-2 h-2 text-purple-600 dark:text-purple-400" />
               <span className="font-fredoka font-black text-purple-900 dark:text-purple-200">
-                {formatShardNumber(shardStats.earned)} / {formatShardNumber(shardStats.expected)}
+                {formatShardNumber(shardStats.earned)} / {formatShardNumber(shardStats.expected)} 碎片
               </span>
             </div>
           )}
+        </div>
 
-          {/* 綠色進度徽章 */}
-          <div className="flex items-center gap-1 px-2 py-0.2 bg-[#EEF8EE] dark:bg-emerald-950/40 rounded border border-emerald-400/60 dark:border-emerald-800 font-black text-emerald-800 dark:text-emerald-300">
-            <span>🍃</span>
-            <span className="font-fredoka text-[11px]">{progressStats.completed} / {progressStats.total}</span>
-            <div className="w-10 h-1.5 bg-black/10 dark:bg-black/40 rounded-full overflow-hidden ml-0.5">
-              <div
-                className="h-full bg-emerald-500 rounded-full transition-all"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+        {/* 右側：綠色擊破進度徽章 */}
+        <div className="flex items-center gap-1 px-2 py-0.2 bg-[#EEF8EE] dark:bg-emerald-950/40 rounded border border-emerald-400/60 dark:border-emerald-800 font-black text-emerald-800 dark:text-emerald-300 text-[10.5px]">
+          <span>🍃</span>
+          <span className="font-fredoka text-[11px]">{progressStats.completed} / {progressStats.total}</span>
+          <div className="w-10 h-1.5 bg-black/10 dark:bg-black/40 rounded-full overflow-hidden ml-0.5">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
         </div>
       </div>
