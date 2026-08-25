@@ -1,7 +1,7 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS } from '@/data/bosses';
+import { BOSS_GROUPS, BossGroup } from '@/data/bosses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
@@ -17,25 +17,87 @@ interface AddCharacterModalProps {
 const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; glow: string }> = {
   easy: {
     label: '簡',
-    activeStyle: 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md',
     glow: 'ring-2 ring-sky-300',
   },
   normal: {
     label: '普',
-    activeStyle: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md',
     glow: 'ring-2 ring-blue-300',
   },
   hard: {
     label: '困',
-    activeStyle: 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md',
     glow: 'ring-2 ring-amber-300',
   },
   extreme: {
     label: '極',
-    activeStyle: 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md',
     glow: 'ring-2 ring-red-300',
   },
 };
+
+const AddBossGroupCard = memo(function AddBossGroupCard({
+  group,
+  selectedBossId,
+  onToggleBoss,
+}: {
+  group: BossGroup;
+  selectedBossId?: string;
+  onToggleBoss: (bossId: string, groupKey: string) => void;
+}) {
+  const hasSelected = Boolean(selectedBossId);
+
+  return (
+    <div className="flex flex-col bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-2 items-center gap-2 shadow-xs">
+      <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+        <img
+          src={'./images/bosses/' + group.groupKey + '.png'}
+          alt={group.displayName}
+          loading="lazy"
+          className={
+            'max-w-full max-h-full object-contain pointer-events-none ' +
+            (hasSelected ? 'brightness-105' : 'grayscale opacity-35')
+          }
+          onError={(e: any) => {
+            e.target.src = './icon.png';
+          }}
+        />
+        <span className="absolute bottom-1 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[11px] font-black text-white shadow-xs max-w-[90%] truncate pointer-events-none">
+          {group.displayName}
+        </span>
+      </div>
+
+      <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
+        {group.bosses.map((boss) => {
+          const isSelected = selectedBossId === boss.id;
+          const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
+            label: boss.difficulty,
+            activeStyle: 'bg-amber-500 text-slate-900 border-amber-600 shadow-md',
+            glow: 'ring-2 ring-amber-300',
+          };
+
+          return (
+            <button
+              key={boss.id}
+              type="button"
+              onClick={() => onToggleBoss(boss.id, group.groupKey)}
+              className={
+                'flex-1 py-1 rounded-lg text-xs font-black border-2 select-none active:scale-95 transition-colors duration-75 flex items-center justify-center ' +
+                (isSelected
+                  ? conf.activeStyle + ' ' + conf.glow
+                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
+              }
+              title={boss.name}
+            >
+              <span>{conf.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyModal }: AddCharacterModalProps) {
   const { addCharacter } = useStore();
@@ -83,22 +145,24 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
     }
   };
 
-  const handleToggleBoss = (bossId: string, groupKey: string) => {
-    if (selectedBossIds.includes(bossId)) {
-      setSelectedBossIds(selectedBossIds.filter((id) => id !== bossId));
-      setErrorMsg('');
-    } else {
-      const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
-      const withoutGroup = selectedBossIds.filter((id) => !otherBossIdsInGroup.includes(id));
+  const handleToggleBoss = useCallback((bossId: string, groupKey: string) => {
+    setSelectedBossIds((prev) => {
+      if (prev.includes(bossId)) {
+        setErrorMsg('');
+        return prev.filter((id) => id !== bossId);
+      } else {
+        const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
+        const withoutGroup = prev.filter((id) => !otherBossIdsInGroup.includes(id));
 
-      if (withoutGroup.length >= 12) {
-        setErrorMsg('每隻角色最多只能勾選 12 隻每週 BOSS 結晶！');
-        return;
+        if (withoutGroup.length >= 12) {
+          setErrorMsg('每隻角色最多只能勾選 12 隻每週 BOSS 結晶！');
+          return prev;
+        }
+        setErrorMsg('');
+        return [...withoutGroup, bossId];
       }
-      setErrorMsg('');
-      setSelectedBossIds([...withoutGroup, bossId]);
-    }
-  };
+    });
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -223,63 +287,18 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
                 </span>
               </div>
 
-              {/* V1 風格的 BOSS 圖像大卡片與滑塊開關切換器 */}
+              {/* V1 風格的 BOSS 圖像大卡片與極速滑塊開關切換器 */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[380px] overflow-y-auto p-2.5 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
                 {BOSS_GROUPS.map((group) => {
-                  const hasSelectedInGroup = group.bosses.some((b) => selectedBossIds.includes(b.id));
+                  const selectedBoss = group.bosses.find((b) => selectedBossIds.includes(b.id));
 
                   return (
-                    <div
+                    <AddBossGroupCard
                       key={group.groupKey}
-                      className="flex flex-col bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-2 items-center gap-2 shadow-xs transition-all"
-                    >
-                      {/* BOSS 形象大圖相框 */}
-                      <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
-                        <img
-                          src={'./images/bosses/' + group.groupKey + '.png'}
-                          alt={group.displayName}
-                          onError={(e: any) => {
-                            e.target.src = './icon.png';
-                          }}
-                          className={
-                            'max-w-full max-h-full object-contain transition-all duration-200 ' +
-                            (hasSelectedInGroup ? 'scale-105 brightness-105' : 'grayscale opacity-40')
-                          }
-                        />
-                        <span className="absolute bottom-1 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[11px] font-black text-white shadow-xs max-w-[90%] truncate">
-                          {group.displayName}
-                        </span>
-                      </div>
-
-                      {/* 滑塊開關切換組 (只顯示一次難度字樣，點選切換/點選關閉) */}
-                      <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
-                        {group.bosses.map((boss) => {
-                          const isSelected = selectedBossIds.includes(boss.id);
-                          const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
-                            label: boss.difficulty,
-                            activeStyle: 'bg-amber-500 text-slate-900 border-amber-600 shadow-md',
-                            glow: 'ring-2 ring-amber-300',
-                          };
-
-                          return (
-                            <button
-                              key={boss.id}
-                              type="button"
-                              onClick={() => handleToggleBoss(boss.id, group.groupKey)}
-                              className={
-                                'flex-1 py-1 rounded-lg text-xs font-black border-2 transition-all flex items-center justify-center select-none ' +
-                                (isSelected
-                                  ? conf.activeStyle + ' ' + conf.glow
-                                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
-                              }
-                              title={boss.name}
-                            >
-                              <span>{conf.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      group={group}
+                      selectedBossId={selectedBoss?.id}
+                      onToggleBoss={handleToggleBoss}
+                    />
                   );
                 })}
               </div>

@@ -1,7 +1,7 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
+import { BOSS_GROUPS, getBossGroupKey, BossGroup } from '@/data/bosses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Ticket, AlertCircle } from 'lucide-react';
@@ -16,25 +16,87 @@ interface ResetConfigModalProps {
 const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; glow: string }> = {
   easy: {
     label: '簡',
-    activeStyle: 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md',
     glow: 'ring-2 ring-sky-300',
   },
   normal: {
     label: '普',
-    activeStyle: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md',
     glow: 'ring-2 ring-blue-300',
   },
   hard: {
     label: '困',
-    activeStyle: 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md',
     glow: 'ring-2 ring-amber-300',
   },
   extreme: {
     label: '極',
-    activeStyle: 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md scale-105',
+    activeStyle: 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md',
     glow: 'ring-2 ring-red-300',
   },
 };
+
+const ResetBossGroupCard = memo(function ResetBossGroupCard({
+  group,
+  selectedBossId,
+  onToggleResetBoss,
+}: {
+  group: BossGroup;
+  selectedBossId?: string;
+  onToggleResetBoss: (bossId: string, groupKey: string) => void;
+}) {
+  const hasSelected = Boolean(selectedBossId);
+
+  return (
+    <div className="flex flex-col bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-2 items-center gap-2 shadow-xs">
+      <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+        <img
+          src={'./images/bosses/' + group.groupKey + '.png'}
+          alt={group.displayName}
+          loading="lazy"
+          className={
+            'max-w-full max-h-full object-contain pointer-events-none ' +
+            (hasSelected ? 'brightness-105' : 'grayscale opacity-35')
+          }
+          onError={(e: any) => {
+            e.target.src = './icon.png';
+          }}
+        />
+        <span className="absolute bottom-1 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[11px] font-black text-white shadow-xs max-w-[90%] truncate pointer-events-none">
+          {group.displayName}
+        </span>
+      </div>
+
+      <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
+        {group.bosses.map((boss) => {
+          const isSelected = selectedBossId === boss.id;
+          const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
+            label: boss.difficulty,
+            activeStyle: 'bg-amber-500 text-slate-900 border-amber-600 shadow-md',
+            glow: 'ring-2 ring-amber-300',
+          };
+
+          return (
+            <button
+              key={boss.id}
+              type="button"
+              onClick={() => onToggleResetBoss(boss.id, group.groupKey)}
+              className={
+                'flex-1 py-1 rounded-lg text-xs font-black border-2 select-none active:scale-95 transition-colors duration-75 flex items-center justify-center ' +
+                (isSelected
+                  ? conf.activeStyle + ' ' + conf.glow
+                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
+              }
+              title={'2刷 ' + boss.name}
+            >
+              <span>{conf.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 export function ResetConfigModal({ isOpen, onClose, character, playerName }: ResetConfigModalProps) {
   const { updateCharacter, players } = useStore();
@@ -49,36 +111,38 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
     }
   }, [character]);
 
-  if (!character) return null;
-
-  const normalCount = character.bossIds ? character.bossIds.length : 0;
+  const normalCount = character?.bossIds ? character.bossIds.length : 0;
   const resetCount = selectedResetBossIds.length;
   const totalCount = normalCount + resetCount;
   const isFull = totalCount >= 12;
 
   // 篩選出該角色原本常態有攻略 (bossIds) 且支援重置券 (allowReset) 的 BOSS 組別
-  const normalGroupKeys = new Set((character.bossIds || []).map((id) => getBossGroupKey(id)));
+  const normalGroupKeys = new Set((character?.bossIds || []).map((id) => getBossGroupKey(id)));
   const availableResetGroups = BOSS_GROUPS.map((g) => ({
     ...g,
     bosses: g.bosses.filter((b) => b.allowReset && normalGroupKeys.has(g.groupKey)),
   })).filter((g) => g.bosses.length > 0);
 
-  const handleToggleResetBoss = (bossId: string, groupKey: string) => {
-    if (selectedResetBossIds.includes(bossId)) {
-      setSelectedResetBossIds(selectedResetBossIds.filter((id) => id !== bossId));
-      setErrorMsg('');
-    } else {
-      const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
-      const withoutGroup = selectedResetBossIds.filter((id) => !otherBossIdsInGroup.includes(id));
+  const handleToggleResetBoss = useCallback((bossId: string, groupKey: string) => {
+    setSelectedResetBossIds((prev) => {
+      if (prev.includes(bossId)) {
+        setErrorMsg('');
+        return prev.filter((id) => id !== bossId);
+      } else {
+        const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
+        const withoutGroup = prev.filter((id) => !otherBossIdsInGroup.includes(id));
 
-      if (normalCount + withoutGroup.length >= 12) {
-        setErrorMsg('攻略總額度（常態 + 重置券）已達 12 隻上限！');
-        return;
+        if (normalCount + withoutGroup.length >= 12) {
+          setErrorMsg('攻略總額度（常態 + 重置券）已達 12 隻上限！');
+          return prev;
+        }
+        setErrorMsg('');
+        return [...withoutGroup, bossId];
       }
-      setErrorMsg('');
-      setSelectedResetBossIds([...withoutGroup, bossId]);
-    }
-  };
+    });
+  }, [normalCount]);
+
+  if (!character) return null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -135,60 +199,15 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[420px] overflow-y-auto p-2.5 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
                 {availableResetGroups.map((group) => {
-                  const hasSelectedInGroup = group.bosses.some((b) => selectedResetBossIds.includes(b.id));
+                  const selectedBoss = group.bosses.find((b) => selectedResetBossIds.includes(b.id));
 
                   return (
-                    <div
+                    <ResetBossGroupCard
                       key={group.groupKey}
-                      className="flex flex-col bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-2 items-center gap-2 shadow-xs transition-all"
-                    >
-                      {/* BOSS 形象大圖相框 */}
-                      <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
-                        <img
-                          src={'./images/bosses/' + group.groupKey + '.png'}
-                          alt={group.displayName}
-                          onError={(e: any) => {
-                            e.target.src = './icon.png';
-                          }}
-                          className={
-                            'max-w-full max-h-full object-contain transition-all duration-200 ' +
-                            (hasSelectedInGroup ? 'scale-105 brightness-105' : 'grayscale opacity-40')
-                          }
-                        />
-                        <span className="absolute bottom-1 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[11px] font-black text-white shadow-xs max-w-[90%] truncate">
-                          {group.displayName}
-                        </span>
-                      </div>
-
-                      {/* 滑塊開關：遵循各難度原本的標準色彩 (簡: 藍天 / 普: 深藍 / 困: 琥珀金橘 / 極: 赤紅) */}
-                      <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
-                        {group.bosses.map((boss) => {
-                          const isSelected = selectedResetBossIds.includes(boss.id);
-                          const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
-                            label: boss.difficulty,
-                            activeStyle: 'bg-amber-500 text-slate-900 border-amber-600 shadow-md',
-                            glow: 'ring-2 ring-amber-300',
-                          };
-
-                          return (
-                            <button
-                              key={boss.id}
-                              type="button"
-                              onClick={() => handleToggleResetBoss(boss.id, group.groupKey)}
-                              className={
-                                'flex-1 py-1 rounded-lg text-xs font-black border-2 transition-all flex items-center justify-center select-none ' +
-                                (isSelected
-                                  ? conf.activeStyle + ' ' + conf.glow
-                                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
-                              }
-                              title={'2刷 ' + boss.name}
-                            >
-                              <span>{conf.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      group={group}
+                      selectedBossId={selectedBoss?.id}
+                      onToggleResetBoss={handleToggleResetBoss}
+                    />
                   );
                 })}
               </div>
