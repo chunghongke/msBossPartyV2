@@ -24,7 +24,7 @@ function AppContent() {
         onOpenShardModal={controller.openShardModal}
         onOpenEditBosses={(char, pName) => controller.openEditBosses(char, pName || char.playerName || '')}
         onOpenResetConfig={(char, pName) => controller.openResetConfig(char, pName || char.playerName || '')}
-        onOpenRenameModal={(char, pName) => controller.openRenameModal(char, pName || char.playerName || '')}
+        onOpenRenameModal={(char) => controller.openRenameModal(char)}
         onDeleteCharacter={() => {}}
         onShowScheduleInfo={controller.openScheduleInfo}
       />
