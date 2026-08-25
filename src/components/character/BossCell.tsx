@@ -177,10 +177,10 @@ export function BossCell({
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
       className={cn(
-        'group relative flex flex-col justify-between rounded-2xl border-2.5 transition-all duration-150 select-none cursor-pointer overflow-hidden',
+        'group relative flex flex-col justify-between rounded-2xl border-2.5 transition-all duration-200 select-none cursor-pointer overflow-hidden',
         isCompleted
-          ? 'bg-[#EAE2D2] dark:bg-slate-800/80 border-emerald-600/80 dark:border-emerald-500/70 shadow-none'
-          : 'bg-[#FFFDF9] dark:bg-slate-800 border-kerning-stroke hover:border-amber-400 shadow-[0_3px_0_#D4B982] dark:shadow-[0_3px_0_#0F172A] active:translate-y-[2px] active:shadow-none'
+          ? 'bg-[#DDD6C8]/60 dark:bg-slate-900/45 border-slate-400/30 dark:border-slate-800/50 opacity-45 grayscale contrast-80 shadow-none hover:opacity-85'
+          : 'bg-[#FFFDF9] dark:bg-slate-800 border-amber-500/90 dark:border-amber-400/90 shadow-[0_4px_14px_rgba(245,158,11,0.22)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-amber-400 hover:shadow-[0_6px_20px_rgba(245,158,11,0.38)] active:translate-y-[2px] active:shadow-none ring-1 ring-amber-400/30'
       )}
     >
       {/* 上半部：BOSS 圖片滿版區 (Full-cover Image Area) */}
@@ -192,7 +192,7 @@ export function BossCell({
           loading="lazy"
           className={cn(
             'w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300',
-            isCompleted && 'grayscale contrast-125 brightness-75'
+            isCompleted ? 'grayscale contrast-90 brightness-50' : 'brightness-105 contrast-105 saturate-110'
           )}
           onError={(e) => {
             (e.target as HTMLElement).style.display = 'none';

@@ -62,6 +62,17 @@ export function CharacterCard({
     });
 
     return entries.sort((a, b) => {
+      // 方案 ①：未完成 (Undone) 自動排在前面，已完成 (Completed) 自動沉到後面
+      const aRecKey = `rec_${character.id}_${a.boss.id}_${a.entryIndex}`;
+      const bRecKey = `rec_${character.id}_${b.boss.id}_${b.entryIndex}`;
+      const aDone = Boolean(store.weeklyRecords[aRecKey]?.isCompleted);
+      const bDone = Boolean(store.weeklyRecords[bRecKey]?.isCompleted);
+
+      if (aDone !== bDone) {
+        return aDone ? 1 : -1;
+      }
+
+      // 同完成狀態下，依 BOSS 難度與資料庫順序排列
       const groupA = getBossGroupKey(a.boss.id);
       const groupB = getBossGroupKey(b.boss.id);
 
@@ -80,7 +91,7 @@ export function CharacterCard({
 
       return a.entryIndex - b.entryIndex;
     });
-  }, [character.bossIds, character.resetBossIds]);
+  }, [character.bossIds, character.resetBossIds, character.id, store.weeklyRecords]);
 
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
