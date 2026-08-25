@@ -196,7 +196,7 @@ export function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
                     className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 text-xs"
                   >
                     <div className="font-bold text-[#3E2F20] dark:text-slate-100 truncate">
-                      {team.memberTargets.map((m) => getCharName(m.charId)).join('、')}
+                      {(team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex: 1 }))).map((m) => getCharName(m.charId)).join('、')}
                     </div>
                     <span className="px-2 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 font-fredoka font-black text-[11px] shrink-0">
                       {daysOfWeek[schedule!.dayOfWeek]} {schedule!.timeStr}

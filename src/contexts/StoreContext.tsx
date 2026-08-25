@@ -169,7 +169,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (targetTeamId && store.teams[targetTeamId]) {
         const team = store.teams[targetTeamId];
-        const bossId = targetRecord?.bossId || recordKey.split('_')[2];
+        const bossId = targetRecord?.bossId || (typeof recordKey === 'string' ? recordKey.split('_')[2] : '');
 
         const members = team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex: 1 }));
         members.forEach((member) => {
@@ -185,7 +185,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         });
       } else {
-        const parts = recordKey.split('_');
+        const parts = typeof recordKey === 'string' ? recordKey.split('_') : [];
         nextRecords[recordKey] = {
           ...(targetRecord || {
             charId: parts[1],

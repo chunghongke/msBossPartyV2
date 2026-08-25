@@ -77,15 +77,41 @@ export const NotifProvider: React.FC<{
     }
   };
 
-  const getTeamEffectiveSchedule = useCallback((team: Team): (RaidSchedule & { isTemp: boolean }) | null => {
-    if (!team?.schedule) return null;
+    const getTeamEffectiveSchedule = useCallback((team: Team): (RaidSchedule & { isTemp: boolean }) | null => {
+    if (!team || !team.schedule) return null;
+    let s: any = null;
+    let isTemp = false;
+
     if (team.schedule.tempOverride) {
-      return { ...team.schedule.tempOverride, isTemp: true };
+      s = team.schedule.tempOverride;
+      isTemp = true;
+    } else if (team.schedule.recurring) {
+      s = team.schedule.recurring;
+      isTemp = false;
+    } else if (typeof team.schedule === 'object') {
+      s = team.schedule;
     }
-    if (team.schedule.recurring) {
-      return { ...team.schedule.recurring, isTemp: false };
+
+    if (!s) return null;
+
+    let timeStr = typeof s.timeStr === 'string' ? s.timeStr : (typeof s.time === 'string' ? s.time : '');
+    if (!timeStr && (s.recurringHour !== undefined || s.hour !== undefined)) {
+      const h = String(s.recurringHour ?? s.hour ?? 21).padStart(2, '0');
+      const m = String(s.recurringMin ?? s.minute ?? s.min ?? 0).padStart(2, '0');
+      timeStr = `${h}:${m}`;
     }
-    return null;
+
+    if (!timeStr || !timeStr.includes(':')) {
+      return null;
+    }
+
+    const dayOfWeek = typeof s.dayOfWeek === 'number' ? s.dayOfWeek : (typeof s.day === 'number' ? s.day : 4);
+
+    return {
+      dayOfWeek,
+      timeStr,
+      isTemp,
+    };
   }, []);
 
   const checkIfTeamCompleted = useCallback(
@@ -101,7 +127,7 @@ export const NotifProvider: React.FC<{
     [store.weeklyRecords]
   );
 
-  const checkRaidReminders = useCallback(() => {
+    const checkRaidReminders = useCallback(() => {
     if (!settings.enabled || permission !== 'granted') return;
 
     const now = new Date();
@@ -110,14 +136,18 @@ export const NotifProvider: React.FC<{
     const currentMin = now.getMinutes();
 
     Object.values(store.teams || {}).forEach((team) => {
+      if (!team) return;
       const schedule = getTeamEffectiveSchedule(team);
-      if (!schedule) return;
+      if (!schedule || !schedule.timeStr || typeof schedule.timeStr !== 'string') return;
 
       if (checkIfTeamCompleted(team)) return;
 
-      const [targetHourStr, targetMinStr] = schedule.timeStr.split(':');
-      const targetHour = parseInt(targetHourStr, 10);
-      const targetMin = parseInt(targetMinStr, 10);
+      const timeParts = schedule.timeStr.split(':');
+      if (timeParts.length < 2) return;
+
+      const targetHour = parseInt(timeParts[0], 10);
+      const targetMin = parseInt(timeParts[1], 10);
+      if (isNaN(targetHour) || isNaN(targetMin)) return;
 
       const targetTotalMins = targetHour * 60 + targetMin;
       const currentTotalMins = currentHour * 60 + currentMin;

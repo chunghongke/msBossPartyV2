@@ -69,7 +69,8 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       if (currentTeam?.schedule?.recurring) {
         setHasRecurring(true);
         setRecurringDay(currentTeam.schedule.recurring.dayOfWeek);
-        const [h, m] = (currentTeam.schedule.recurring.timeStr || '21:00').split(':');
+        const recurringTimeStr = currentTeam?.schedule?.recurring?.timeStr || (currentTeam?.schedule?.recurring as any)?.time || '21:00';
+    const [h, m] = (typeof recurringTimeStr === 'string' ? recurringTimeStr : '21:00').split(':');
         setRecurringHour(h || '21');
         setRecurringMin(m || '00');
       } else {
@@ -79,7 +80,8 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       if (currentTeam?.schedule?.tempOverride) {
         setHasTemp(true);
         setTempDay(currentTeam.schedule.tempOverride.dayOfWeek);
-        const [th, tm] = (currentTeam.schedule.tempOverride.timeStr || '21:00').split(':');
+        const tempTimeStr = currentTeam?.schedule?.tempOverride?.timeStr || (currentTeam?.schedule?.tempOverride as any)?.time || '21:00';
+    const [th, tm] = (typeof tempTimeStr === 'string' ? tempTimeStr : '21:00').split(':');
         setTempHour(th || '21');
         setTempMin(tm || '00');
       } else {

@@ -133,7 +133,7 @@ export function EditCharBossesModal({
 
   // 取得有效重置券數量
   const currentResetIds = (character?.resetBossIds || []).filter((rId) => {
-    return selectedBossIds.some((bId) => bId.startsWith(rId.split('_')[0]));
+    return typeof rId === 'string' && selectedBossIds.some((bId) => typeof bId === 'string' && bId.startsWith(rId.split('_')[0]));
   });
   const normalCount = selectedBossIds.length;
   const resetCount = currentResetIds.length;
@@ -201,7 +201,7 @@ export function EditCharBossesModal({
 
     try {
       const activeResetIds = (character.resetBossIds || []).filter((rId) =>
-        selectedBossIds.some((bId) => bId.startsWith(rId.split('_')[0]))
+        typeof rId === 'string' && selectedBossIds.some((bId) => typeof bId === 'string' && bId.startsWith(rId.split('_')[0]))
       );
 
       const updated: Character = {
