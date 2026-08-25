@@ -2,6 +2,7 @@ import { useRef, MouseEvent } from 'react';
 import { Boss, Difficulty } from '@/types/boss';
 import { getBossCleanName } from '@/data/bosses';
 import { WeeklyRecord, Team } from '@/types/party';
+import { useStore } from '@/contexts/StoreContext';
 import { cn } from '@/utils/cn';
 import { Users, Clock, Sparkles, Check, MoreVertical } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export function BossCell({
   onOpenShardModal,
   onShowScheduleInfo,
 }: BossCellProps) {
+  const { getCharName } = useStore();
   const recordKey = `rec_${charId}_${boss.id}_${entryIndex}`;
   const isCompleted = Boolean(record?.isCompleted);
 
@@ -61,6 +63,18 @@ export function BossCell({
   });
   const teamSize = validMembers.length > 0 ? validMembers.length : (rawMembers.length > 0 ? rawMembers.length : 1);
   const isMultiParty = teamSize > 1;
+
+  // 排除當前角色自己，取得其他隊友名冊 (完整呈現)
+  const otherTeammates = validMembers.filter(
+    (m: any) => !(m.charId === charId && m.entryIndex === entryIndex)
+  );
+
+  const teammatesDisplayText = otherTeammates
+    .map((m: any) => {
+      const name = getCharName(m.charId);
+      return m.entryIndex === 2 ? `${name}(2刷)` : name;
+    })
+    .join('、');
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressTriggered = useRef(false);
@@ -143,10 +157,8 @@ export function BossCell({
   const shardTagText = (() => {
     if (!boss.erionVestiges) return '';
     if (!isMultiParty) {
-      // 單人隊伍固定顯示全拿
       return isQuantityMode ? `${totalShards}個 (全拿)` : `${maxPartySize}/${maxPartySize}份 (全拿)`;
     }
-    // 多人隊伍
     if (isQuantityMode) {
       const hasChosen = record?.shardQuantity !== null && record?.shardQuantity !== undefined;
       const currentQty = hasChosen ? record.shardQuantity : Math.floor(totalShards / teamSize);
@@ -187,8 +199,8 @@ export function BossCell({
           }}
         />
 
-        {/* 漸層陰影遮罩：確保頂部文字清晰 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/50 pointer-events-none" />
+        {/* 漸層陰影遮罩：確保頂部與底部文字清晰 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/55 pointer-events-none" />
 
         {/* 頂部左側：BOSS 名稱 (英文/中文) */}
         <div className="absolute top-2 left-2.5 z-10 flex items-baseline gap-1 pointer-events-none">
@@ -210,6 +222,24 @@ export function BossCell({
           {getDifficultyBadge(boss.difficulty)}
         </div>
 
+        {/* 圖片底部左側：方案 A - 多人團隊友名稱半透明懸浮帶 (Teammates Floating Overlay) */}
+        {isMultiParty && teammatesDisplayText && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenPartyModal(charId, boss.id, entryIndex);
+            }}
+            className="absolute bottom-1.5 left-2 z-10 max-w-[85%] px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-xs border border-amber-400/50 text-white text-[11px] font-bold shadow-md flex items-center gap-1.5 truncate hover:bg-black/95 hover:border-amber-300 transition-all cursor-pointer"
+            title={`隊伍成員：${validMembers.map((m: any) => getCharName(m.charId) + (m.entryIndex === 2 ? '(2刷)' : '')).join('、')} (點擊開啟組隊設定)`}
+          >
+            <Users className="w-3 h-3 text-amber-400 shrink-0" />
+            <span className="truncate">
+              <span className="text-amber-300 font-black mr-0.5">隊友:</span>
+              <span className="text-slate-100">{teammatesDisplayText}</span>
+            </span>
+          </div>
+        )}
+
         {/* 右側中央：3D 綠色勾勾完成印章 (DONE Stamp) */}
         {isCompleted && (
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 via-green-500 to-emerald-600 border-3 border-emerald-950 shadow-[0_4px_12px_rgba(16,185,129,0.7)] flex items-center justify-center animate-in zoom-in-75 duration-150 pointer-events-none">
@@ -222,17 +252,23 @@ export function BossCell({
       <div className="px-2.5 py-1.5 bg-[#F6ECD5] dark:bg-slate-900/90 border-t-2 border-kerning-stroke flex items-center justify-between gap-1 text-xs">
         {/* 左側：隊友身分/人數緞帶徽章 + 艾里溫碎片 */}
         <div className="flex items-center gap-1.5 min-w-0">
-          <span
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenPartyModal(charId, boss.id, entryIndex);
+            }}
             className={cn(
-              'px-2 py-0.5 rounded-md font-black text-[11px] flex items-center gap-1 shadow-xs border',
+              'px-2 py-0.5 rounded-md font-black text-[11px] flex items-center gap-1 shadow-xs border transition-all',
               isMultiParty
-                ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 border-amber-600'
-                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 border-amber-600 hover:brightness-105'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-slate-400'
             )}
+            title="點擊設定組隊成員"
           >
             <Users className="w-3 h-3" />
             <span>{isMultiParty ? `${teamSize} 人團` : '單人'}</span>
-          </span>
+          </button>
 
           {boss.erionVestiges > 0 && onOpenShardModal && (
             <button
