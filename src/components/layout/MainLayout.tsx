@@ -285,8 +285,7 @@ export function MainLayout({
           <div className="space-y-8">
             {/* 逐一渲染當前玩家區塊 */}
             {displayPlayers.map((player) => {
-              const rawChars = player.characters || [];
-              const characters = useMemo(() => sortCharactersByLocalOrder(player.name, rawChars), [player.name, rawChars, orderVersion]);
+              const characters = sortCharactersByLocalOrder(player.name, player.characters || []);
 
               // 計算該玩家名下所有角色的結晶楓幣總和
               const playerCrystalStats = characters.reduce(
