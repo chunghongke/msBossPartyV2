@@ -45,7 +45,7 @@ export function EditCharBossesModal({
   playerName,
   onOpenNexonKeyModal,
 }: EditCharBossesModalProps) {
-  const { updateCharacter } = useStore();
+  const { updateCharacter, players } = useStore();
 
   const [charName, setCharName] = useState('');
   const [characterImage, setCharacterImage] = useState('');
@@ -152,7 +152,8 @@ export function EditCharBossesModal({
         resetBossIds: activeResetIds,
       };
 
-      await updateCharacter(playerName, updated);
+      const targetPlayerName = playerName || players.find((p) => (p.characters || []).some((c) => c.id === character.id))?.name || '';
+      await updateCharacter(targetPlayerName, updated);
       onClose();
     } catch (err: any) {
       setErrorMsg(err?.message || '更新失敗！');

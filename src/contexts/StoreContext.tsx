@@ -321,7 +321,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateCharacter = useCallback(
     async (playerName: string, updatedChar: Character) => {
       const updated = players.map((p) => {
-        if (p.name === playerName) {
+        const isTarget = p.name === playerName || (p.characters || []).some((c) => c.id === updatedChar.id);
+        if (isTarget) {
           return {
             ...p,
             characters: (p.characters || []).map((c) => (c.id === updatedChar.id ? updatedChar : c)),

@@ -23,10 +23,10 @@ interface MainLayoutProps {
   onOpenAddCharacterModal: (playerName: string) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal: (recordKey: string, boss: Boss, team: any) => void;
-  onOpenEditBosses: (character: Character) => void;
-  onOpenResetConfig: (character: Character) => void;
-  onOpenRenameModal: (character: Character) => void;
-  onDeleteCharacter: (charId: string) => void;
+  onOpenEditBosses: (character: Character, playerName: string) => void;
+  onOpenResetConfig: (character: Character, playerName: string) => void;
+  onOpenRenameModal: (character: Character, playerName: string) => void;
+  onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo: (team: any) => void;
 }
 

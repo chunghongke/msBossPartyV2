@@ -17,10 +17,10 @@ interface CharacterCardProps {
   onToggleStatus: (recordKey: string) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal?: (recordKey: string, boss: Boss, team: any) => void;
-  onOpenEditBosses: (character: Character) => void;
-  onOpenResetConfig: (character: Character) => void;
-  onOpenRenameModal: (character: Character) => void;
-  onDeleteCharacter: (charId: string) => void;
+  onOpenEditBosses: (character: Character, playerName: string) => void;
+  onOpenResetConfig: (character: Character, playerName: string) => void;
+  onOpenRenameModal: (character: Character, playerName: string) => void;
+  onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: any) => void;
 }
 
@@ -123,7 +123,7 @@ export function CharacterCard({
                 <Button
                   size="icon"
                   variant="parchment"
-                  onClick={() => onOpenEditBosses(character)}
+                  onClick={() => onOpenEditBosses(character, playerName)}
                   className="w-7 h-7"
                   title="編輯 BOSS 清單"
                 >
@@ -133,7 +133,7 @@ export function CharacterCard({
                 <Button
                   size="icon"
                   variant="parchment"
-                  onClick={() => onOpenResetConfig(character)}
+                  onClick={() => onOpenResetConfig(character, playerName)}
                   className="w-7 h-7"
                   title="設定每週重置券"
                 >
@@ -143,7 +143,7 @@ export function CharacterCard({
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => onOpenRenameModal(character)}
+                  onClick={() => onOpenRenameModal(character, playerName)}
                   className="w-7 h-7 text-stone-500 hover:text-stone-800 dark:hover:text-slate-200"
                   title="重新命名角色"
                 >
@@ -153,7 +153,7 @@ export function CharacterCard({
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => onDeleteCharacter(character.id)}
+                  onClick={() => onDeleteCharacter(character.id, playerName)}
                   className="w-7 h-7 text-red-500 hover:bg-red-500/10"
                   title="刪除角色"
                 >
@@ -273,7 +273,7 @@ export function CharacterCard({
                 尚未設定 {character.name} 的每週 BOSS 討伐清單
               </p>
               {isOwnerOrAdmin && (
-                <Button size="md" variant="gold" onClick={() => onOpenEditBosses(character)}>
+                <Button size="md" variant="gold" onClick={() => onOpenEditBosses(character, playerName)}>
                   <Edit2 className="w-4 h-4" />
                   <span>點擊勾選討伐 BOSS (最多 12 隻)</span>
                 </Button>

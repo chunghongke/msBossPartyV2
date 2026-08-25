@@ -37,7 +37,7 @@ const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; gl
 };
 
 export function ResetConfigModal({ isOpen, onClose, character, playerName }: ResetConfigModalProps) {
-  const { updateCharacter } = useStore();
+  const { updateCharacter, players } = useStore();
   const [selectedResetBossIds, setSelectedResetBossIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -89,7 +89,8 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
         ...character,
         resetBossIds: selectedResetBossIds,
       };
-      await updateCharacter(playerName, updated);
+      const targetPlayerName = playerName || players.find((p) => (p.characters || []).some((c) => c.id === character.id))?.name || '';
+      await updateCharacter(targetPlayerName, updated);
       onClose();
     } catch (err: any) {
       setErrorMsg(err?.message || '儲存重置券設定失敗！');
