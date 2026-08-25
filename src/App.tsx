@@ -1,6 +1,7 @@
+import React from 'react';
 import { GroupProvider } from './contexts/GroupContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { StoreProvider } from './contexts/StoreContext';
+import { StoreProvider, useStore } from './contexts/StoreContext';
 import { NotifProvider } from './contexts/NotifContext';
 import { AlertProvider } from './contexts/AlertContext';
 import { MainLayout } from './components/layout/MainLayout';
@@ -32,18 +33,27 @@ function AppContent() {
   );
 }
 
+function StoreDependentProviders({ children }: { children: React.ReactNode }) {
+  const { players, store } = useStore();
+  return (
+    <AuthProvider players={players}>
+      <NotifProvider store={store} players={players}>
+        {children}
+      </NotifProvider>
+    </AuthProvider>
+  );
+}
+
 export function App() {
   return (
     <ErrorBoundary>
       <GroupProvider>
         <StoreProvider>
-          <AuthProvider>
-            <NotifProvider>
-              <AlertProvider>
-                <AppContent />
-              </AlertProvider>
-            </NotifProvider>
-          </AuthProvider>
+          <StoreDependentProviders>
+            <AlertProvider>
+              <AppContent />
+            </AlertProvider>
+          </StoreDependentProviders>
         </StoreProvider>
       </GroupProvider>
     </ErrorBoundary>
