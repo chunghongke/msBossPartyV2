@@ -21,6 +21,7 @@ interface StoreContextType {
   addPlayer: (newPlayer: Player) => Promise<void>;
   updatePlayer: (updatedPlayer: Player) => Promise<void>;
   deletePlayer: (playerName: string) => Promise<void>;
+  reorderCharacters: (playerName: string, reorderedChars: Character[]) => Promise<void>;
   addCharacter: (playerName: string, newChar: Character) => Promise<void>;
   updateCharacter: (playerName: string, updatedChar: Character) => Promise<void>;
   renameCharacter: (charId: string, newName: string) => Promise<void>;
@@ -302,6 +303,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [players, savePlayersToCloud]
   );
 
+  const reorderCharacters = useCallback(
+    async (playerName: string, reorderedCharacters: Character[]) => {
+      const updated = players.map((p) => {
+        if (p.name === playerName) {
+          return {
+            ...p,
+            characters: reorderedCharacters,
+          };
+        }
+        return p;
+      });
+      await savePlayersToCloud(updated);
+    },
+    [players, savePlayersToCloud]
+  );
+
   const addCharacter = useCallback(
     async (playerName: string, newChar: Character) => {
       const updated = players.map((p) => {
@@ -360,6 +377,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addPlayer,
         updatePlayer,
         deletePlayer,
+        reorderCharacters,
         addCharacter,
         updateCharacter,
         renameCharacter,

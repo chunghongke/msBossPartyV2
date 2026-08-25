@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
-import { Player } from '@/types/player';
+import { useMemo, useState, DragEvent } from 'react';
+import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
-import { UserPlus, Users, Crown, PlusCircle } from 'lucide-react';
+import { UserPlus, Users, Crown, PlusCircle, GripVertical } from 'lucide-react';
 
 interface PlayerNavBarProps {
   players: Player[];
@@ -13,6 +13,7 @@ interface PlayerNavBarProps {
   onOpenAddCharacterModal?: (playerName: string) => void;
   onScrollToGuests?: () => void;
   onScrollToCharacter?: (charId: string) => void;
+  onReorderCharacters?: (playerName: string, reorderedChars: Character[]) => void;
 }
 
 export function PlayerNavBar({
@@ -23,8 +24,11 @@ export function PlayerNavBar({
   onOpenAddCharacterModal,
   onScrollToGuests,
   onScrollToCharacter,
+  onReorderCharacters,
 }: PlayerNavBarProps) {
-  const { currentPlayer } = useAuth();
+  const { currentPlayer, canManageChar } = useAuth();
+  const [draggingCharId, setDraggingCharId] = useState<string | null>(null);
+  const [dragOverCharId, setDragOverCharId] = useState<string | null>(null);
 
   // 1. 當前登入者一律排序在最前面
   const sortedPlayers = useMemo(() => {
@@ -41,11 +45,66 @@ export function PlayerNavBar({
   }, [players, selectedPlayerName, sortedPlayers]);
 
   const selectedCharacters = selectedPlayer?.characters || [];
+  const isManageable = selectedPlayer ? canManageChar(selectedPlayer.name) : false;
+
+  // 角色拖曳排序處理函式 (DnD Event Handlers)
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, charId: string) => {
+    if (!isManageable) return;
+    setDraggingCharId(charId);
+    e.dataTransfer.setData('text/plain', charId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, targetCharId: string) => {
+    if (!isManageable || !draggingCharId || draggingCharId === targetCharId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverCharId !== targetCharId) {
+      setDragOverCharId(targetCharId);
+    }
+  };
+
+  const handleDragLeave = (_e: DragEvent<HTMLDivElement>, targetCharId: string) => {
+    if (dragOverCharId === targetCharId) {
+      setDragOverCharId(null);
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>, targetCharId: string) => {
+    e.preventDefault();
+    const sourceCharId = draggingCharId || e.dataTransfer.getData('text/plain');
+    if (!isManageable || !sourceCharId || sourceCharId === targetCharId || !selectedPlayer) {
+      setDraggingCharId(null);
+      setDragOverCharId(null);
+      return;
+    }
+
+    const currentChars = [...selectedCharacters];
+    const fromIdx = currentChars.findIndex((c) => c.id === sourceCharId);
+    const toIdx = currentChars.findIndex((c) => c.id === targetCharId);
+
+    if (fromIdx !== -1 && toIdx !== -1) {
+      const [movedChar] = currentChars.splice(fromIdx, 1);
+      currentChars.splice(toIdx, 0, movedChar);
+
+      if (onReorderCharacters) {
+        onReorderCharacters(selectedPlayer.name, currentChars);
+      }
+    }
+
+    setDraggingCharId(null);
+    setDragOverCharId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingCharId(null);
+    setDragOverCharId(null);
+  };
 
   return (
     <div className="sticky top-16 z-30 w-full bg-[#EBD8B8]/95 dark:bg-slate-900/95 backdrop-blur-md border-b-2.5 border-kerning-stroke shadow-md transition-colors select-none">
       <div className="max-w-[1880px] w-full mx-auto px-2.5 sm:px-4">
-        {/* 第一列：玩家切換標籤列 (具有足夠的內距防止滾動容器裁切邊框) */}
+        {/* 第一列：玩家切換標籤列 */}
         <div className="py-2 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
           <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
             {sortedPlayers.map((p) => {
@@ -109,7 +168,7 @@ export function PlayerNavBar({
           </div>
         </div>
 
-        {/* 第二列：當前選中玩家所擁有的角色圓形頭像快速切換列 */}
+        {/* 第二列：當前選中玩家所擁有的角色圓形頭像列 (支援 DnD 拖曳排序) */}
         {selectedPlayer && (
           <div className="py-2 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
             <div className="flex items-center gap-2.5 shrink-0 py-1 pl-1 pr-1">
@@ -118,24 +177,41 @@ export function PlayerNavBar({
               </span>
 
               {selectedCharacters.map((char) => {
+                const isDragging = draggingCharId === char.id;
+                const isDragOver = dragOverCharId === char.id;
+
                 return (
-                  <button
+                  <div
                     key={char.id}
-                    type="button"
+                    draggable={isManageable}
+                    onDragStart={(e) => handleDragStart(e, char.id)}
+                    onDragOver={(e) => handleDragOver(e, char.id)}
+                    onDragLeave={(e) => handleDragLeave(e, char.id)}
+                    onDrop={(e) => handleDrop(e, char.id)}
+                    onDragEnd={handleDragEnd}
                     onClick={() => {
-                      if (onScrollToCharacter) {
+                      if (!isDragging && onScrollToCharacter) {
                         onScrollToCharacter(char.id);
                       }
                     }}
-                    className="group flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#FFFDF9]/90 dark:bg-slate-800/90 hover:bg-amber-100 dark:hover:bg-slate-700 border-2 border-kerning-stroke/70 hover:border-amber-500 shadow-xs transition-all shrink-0 active:scale-95"
+                    className={cn(
+                      'group flex items-center gap-1.5 px-2.5 py-1 rounded-full border-2 shadow-xs transition-all shrink-0 select-none',
+                      isManageable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+                      isDragging
+                        ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
+                        : isDragOver
+                        ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
+                        : 'bg-[#FFFDF9]/90 dark:bg-slate-800/90 hover:bg-amber-100 dark:hover:bg-slate-700 border-kerning-stroke/70 hover:border-amber-500 active:scale-95'
+                    )}
+                    title={isManageable ? "左右拖曳可調整角色顯示順序，點擊可直接定位至該角色" : "點擊可直接定位至該角色"}
                   >
                     {/* 圓形立繪頭像 */}
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#FFF5DC] to-[#ECD2A8] dark:from-slate-700 dark:to-slate-900 border border-amber-600/50 overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#FFF5DC] to-[#ECD2A8] dark:from-slate-700 dark:to-slate-900 border border-amber-600/50 overflow-hidden flex items-center justify-center shrink-0 shadow-inner pointer-events-none">
                       {char.characterImage ? (
                         <img
                           src={char.characterImage}
                           alt={char.name}
-                          className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform"
+                          className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform pointer-events-none"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none';
                           }}
@@ -145,10 +221,14 @@ export function PlayerNavBar({
                       )}
                     </div>
 
-                    <span className="text-xs font-black text-[#3E2F20] dark:text-slate-200 truncate max-w-[110px]">
+                    <span className="text-xs font-black text-[#3E2F20] dark:text-slate-200 truncate max-w-[110px] pointer-events-none">
                       {char.name}
                     </span>
-                  </button>
+
+                    {isManageable && (
+                      <GripVertical className="w-3 h-3 text-stone-400 group-hover:text-amber-600 opacity-40 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
+                    )}
+                  </div>
                 );
               })}
 

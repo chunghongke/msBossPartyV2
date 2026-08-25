@@ -240,6 +240,7 @@ export function MainLayout({
         onOpenAddCharacterModal={onOpenAddCharacterModal}
         onScrollToGuests={scrollToGuests}
         onScrollToCharacter={scrollToCharacter}
+        onReorderCharacters={reorderCharacters}
       />
 
       {/* 主要內容區 */}
