@@ -5,17 +5,24 @@ import { BOSS_GROUPS, getBossCleanName } from '@/data/bosses';
 import { DifficultyBadge } from '@/components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { fetchNexonCharacterInfo } from '@/services/nexon';
-import { Edit2, Search, AlertCircle } from 'lucide-react';
+import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
+import { Edit2, Search, AlertCircle, Key, Sparkles } from 'lucide-react';
 
 interface EditCharBossesModalProps {
   isOpen: boolean;
   onClose: () => void;
   character: Character | null;
   playerName: string;
+  onOpenNexonKeyModal?: () => void;
 }
 
-export function EditCharBossesModal({ isOpen, onClose, character, playerName }: EditCharBossesModalProps) {
+export function EditCharBossesModal({
+  isOpen,
+  onClose,
+  character,
+  playerName,
+  onOpenNexonKeyModal,
+}: EditCharBossesModalProps) {
   const { updateCharacter } = useStore();
 
   const [charName, setCharName] = useState('');
@@ -24,6 +31,7 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
   const [isSearchingNexon, setIsSearchingNexon] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [noticeMsg, setNoticeMsg] = useState('');
 
   useEffect(() => {
     if (character) {
@@ -31,6 +39,7 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
       setCharacterImage(character.characterImage || '');
       setSelectedBossIds(character.bossIds || []);
       setErrorMsg('');
+      setNoticeMsg('');
     }
   }, [character]);
 
@@ -39,12 +48,31 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
   const handleSearchNexon = async () => {
     const clean = charName.trim();
     if (!clean) return;
+
+    const storedKey = getNexonApiKey();
+    if (!storedKey) {
+      if (onOpenNexonKeyModal) {
+        onOpenNexonKeyModal();
+      } else {
+        setErrorMsg('尚未設定 Nexon API Key，請先設定金鑰以啟用官方立繪查詢！');
+      }
+      return;
+    }
+
     setIsSearchingNexon(true);
+    setErrorMsg('');
+    setNoticeMsg('');
+
     try {
       const info = await fetchNexonCharacterInfo(clean);
-      if (info) {
+      if (info && info.characterImage) {
         setCharacterImage(info.characterImage);
+        setNoticeMsg('✨ 成功獲取 ' + info.characterName + ' 官方最新立繪！');
+      } else {
+        setErrorMsg('找不到該角色的官方資料，請確認名稱是否正確，或檢查 Nexon API Key 是否有效。');
       }
+    } catch {
+      setErrorMsg('查詢失敗，請檢查網路或 Nexon API Key。');
     } finally {
       setIsSearchingNexon(false);
     }
@@ -85,6 +113,8 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
     }
   };
 
+  const hasNexonKey = Boolean(getNexonApiKey());
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent maxWidthClass="max-w-2xl">
@@ -106,21 +136,40 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
                 )}
               </div>
 
-              <div className="flex-1">
-                <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100">
-                  {character.name}
+              <div className="space-y-1">
+                <div className="text-sm font-black text-[#3E2F20] dark:text-slate-100">{charName}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant="parchment"
+                    size="sm"
+                    onClick={handleSearchNexon}
+                    isLoading={isSearchingNexon}
+                    className="text-xs h-7 px-2.5"
+                    title={hasNexonKey ? '從 Nexon 官方獲取角色最新立繪' : '尚未設定 Nexon Key，點擊前往設定'}
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>更新 Nexon 立繪</span>
+                  </Button>
+
+                  {onOpenNexonKeyModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenNexonKeyModal}
+                      className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 font-bold"
+                    >
+                      <Key className="w-3 h-3" />
+                      <span>{hasNexonKey ? '變更 Key' : '🔑 設定 Nexon Key'}</span>
+                    </button>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  variant="parchment"
-                  size="sm"
-                  onClick={handleSearchNexon}
-                  isLoading={isSearchingNexon}
-                  className="mt-1 h-7 text-xs"
-                >
-                  <Search className="w-3 h-3" />
-                  <span>更新 Nexon 立繪</span>
-                </Button>
+
+                {noticeMsg && (
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    <span>{noticeMsg}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -129,7 +178,7 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
                 <span className="text-xs font-black text-slate-700 dark:text-slate-300">
                   每週常態討伐 BOSS ({selectedBossIds.length}/12)
                 </span>
-                <span className="text-[10px] text-slate-400">上限 12 隻</span>
+                <span className="text-[10px] text-slate-400">最多 12 隻</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-2 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
@@ -146,11 +195,12 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
                             key={boss.id}
                             type="button"
                             onClick={() => handleToggleBoss(boss.id)}
-                            className={`px-2 py-1 rounded-lg text-xs font-bold border-1.5 flex items-center gap-1 transition-all ${
-                              isSelected
+                            className={
+                              'px-2 py-1 rounded-lg text-xs font-bold border-1.5 flex items-center gap-1 transition-all ' +
+                              (isSelected
                                 ? 'bg-amber-500 text-slate-900 border-amber-600 shadow-sm scale-105'
-                                : 'bg-black/5 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-transparent hover:border-slate-400'
-                            }`}
+                                : 'bg-black/5 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-transparent hover:border-slate-400')
+                            }
                           >
                             <DifficultyBadge difficulty={boss.difficulty} />
                             <span>{getBossCleanName(boss.name)}</span>
@@ -176,7 +226,7 @@ export function EditCharBossesModal({ isOpen, onClose, character, playerName }: 
               取消
             </Button>
             <Button type="submit" variant="gold" size="md" isLoading={isSubmitting}>
-              <span>儲存修改</span>
+              <span>儲存設定</span>
             </Button>
           </DialogFooter>
         </form>

@@ -110,6 +110,7 @@ export function useModalState() {
         onClose={() => setEditBossChar(null)}
         character={editBossChar?.char || null}
         playerName={editBossChar?.playerName || ''}
+        onOpenNexonKeyModal={() => setIsNexonKeyOpen(true)}
       />
 
       <ResetConfigModal
