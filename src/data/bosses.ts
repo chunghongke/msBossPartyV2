@@ -87,7 +87,7 @@ export const BOSSES: Boss[] = [
   { id: 'youpiter_hard', name: '(困)尤比太', groupKey: 'youpiter', maxPartySize: 3, difficulty: 'hard', allowReset: false, crystalValue: 1368000000, erionVestiges: 600, image: './images/bosses/youpiter.png' },
 
   // 瑪麗西亞
-  { id: 'maricia_normal', name: '(普)瑪麗西亞', groupKey: 'maricia', maxPartySize: 3, difficulty: 'normal', allowReset: false, crystalValue: 150000000, erionVestiges: 0, image: './images/bosses/maricia.png' },
+  { id: 'maricia_normal', name: '(普)瑪麗西亞', groupKey: 'maricia', maxPartySize: 3, difficulty: 'normal', allowReset: true, crystalValue: 150000000, erionVestiges: 0, image: './images/bosses/maricia.png' },
 ];
 
 export const BOSS_MAP = new Map<string, Boss>(BOSSES.map((b) => [b.id, b]));
