@@ -2,7 +2,6 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Character } from '@/types/player';
 import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
-import { DifficultyBadge } from '@/components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Ticket, AlertCircle } from 'lucide-react';
@@ -13,6 +12,13 @@ interface ResetConfigModalProps {
   character: Character | null;
   playerName: string;
 }
+
+const DIFFICULTY_LABELS: Record<string, string> = {
+  easy: '簡',
+  normal: '普',
+  hard: '困',
+  extreme: '極',
+};
 
 export function ResetConfigModal({ isOpen, onClose, character, playerName }: ResetConfigModalProps) {
   const { updateCharacter } = useStore();
@@ -41,17 +47,20 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
     bosses: g.bosses.filter((b) => b.allowReset && normalGroupKeys.has(g.groupKey)),
   })).filter((g) => g.bosses.length > 0);
 
-  const handleToggleResetBoss = (bossId: string) => {
+  const handleToggleResetBoss = (bossId: string, groupKey: string) => {
     if (selectedResetBossIds.includes(bossId)) {
       setSelectedResetBossIds(selectedResetBossIds.filter((id) => id !== bossId));
       setErrorMsg('');
     } else {
-      if (totalCount >= 12) {
+      const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
+      const withoutGroup = selectedResetBossIds.filter((id) => !otherBossIdsInGroup.includes(id));
+
+      if (normalCount + withoutGroup.length >= 12) {
         setErrorMsg('攻略總額度（常態 + 重置券）已達 12 隻上限！');
         return;
       }
       setErrorMsg('');
-      setSelectedResetBossIds([...selectedResetBossIds, bossId]);
+      setSelectedResetBossIds([...withoutGroup, bossId]);
     }
   };
 
@@ -134,26 +143,27 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
                         </span>
                       </div>
 
-                      {/* 2刷難度選取按鈕 */}
-                      <div className="flex flex-wrap gap-1.5 w-full justify-center">
+                      {/* 滑塊開關 2刷難度選取按鈕 */}
+                      <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
                         {group.bosses.map((boss) => {
                           const isSelected = selectedResetBossIds.includes(boss.id);
+                          const label = DIFFICULTY_LABELS[boss.difficulty] || boss.difficulty;
 
                           return (
                             <button
                               key={boss.id}
                               type="button"
-                              onClick={() => handleToggleResetBoss(boss.id)}
+                              onClick={() => handleToggleResetBoss(boss.id, group.groupKey)}
                               className={
-                                'px-2 py-1 rounded-xl text-xs font-black border-2 transition-all flex items-center gap-1 ' +
+                                'flex-1 py-1 rounded-lg text-xs font-black border-2 transition-all flex items-center justify-center select-none gap-1 ' +
                                 (isSelected
-                                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white border-purple-800 shadow-md scale-105 ring-2 ring-purple-400'
-                                  : 'bg-black/10 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 opacity-60 hover:opacity-100')
+                                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white border-purple-800 shadow-md ring-2 ring-purple-400'
+                                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
                               }
                               title={'2刷 ' + boss.name}
                             >
-                              <DifficultyBadge difficulty={boss.difficulty} />
-                              <span className="text-[11px]">🎟️ 2刷</span>
+                              <span>🎟️</span>
+                              <span>{label}</span>
                             </button>
                           );
                         })}

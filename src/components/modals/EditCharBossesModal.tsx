@@ -2,7 +2,6 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Character } from '@/types/player';
 import { BOSS_GROUPS } from '@/data/bosses';
-import { DifficultyBadge } from '@/components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
@@ -15,6 +14,29 @@ interface EditCharBossesModalProps {
   playerName: string;
   onOpenNexonKeyModal?: () => void;
 }
+
+const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; glow: string }> = {
+  easy: {
+    label: '簡',
+    activeStyle: 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md scale-105',
+    glow: 'ring-2 ring-sky-300',
+  },
+  normal: {
+    label: '普',
+    activeStyle: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md scale-105',
+    glow: 'ring-2 ring-blue-300',
+  },
+  hard: {
+    label: '困',
+    activeStyle: 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md scale-105',
+    glow: 'ring-2 ring-amber-300',
+  },
+  extreme: {
+    label: '極',
+    activeStyle: 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md scale-105',
+    glow: 'ring-2 ring-red-300',
+  },
+};
 
 export function EditCharBossesModal({
   isOpen,
@@ -78,16 +100,22 @@ export function EditCharBossesModal({
     }
   };
 
-  const handleToggleBoss = (bossId: string) => {
+  const handleToggleBoss = (bossId: string, groupKey: string) => {
     if (selectedBossIds.includes(bossId)) {
+      // 點擊已選中的：取消選取
       setSelectedBossIds(selectedBossIds.filter((id) => id !== bossId));
+      setErrorMsg('');
     } else {
-      if (selectedBossIds.length >= 12) {
+      // 同組互斥切換難度 (不重複計入 12 隻)
+      const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
+      const withoutGroup = selectedBossIds.filter((id) => !otherBossIdsInGroup.includes(id));
+
+      if (withoutGroup.length >= 12) {
         setErrorMsg('每隻角色最多只能勾選 12 隻每週 BOSS 結晶！');
         return;
       }
       setErrorMsg('');
-      setSelectedBossIds([...selectedBossIds, bossId]);
+      setSelectedBossIds([...withoutGroup, bossId]);
     }
   };
 
@@ -114,24 +142,6 @@ export function EditCharBossesModal({
   };
 
   const hasNexonKey = Boolean(getNexonApiKey());
-
-  const getDifficultyBtnStyle = (difficulty: string, isSelected: boolean) => {
-    if (!isSelected) {
-      return 'bg-black/10 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 opacity-60 hover:opacity-100';
-    }
-    switch (difficulty) {
-      case 'easy':
-        return 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md scale-105 ring-2 ring-sky-300';
-      case 'normal':
-        return 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md scale-105 ring-2 ring-blue-300';
-      case 'hard':
-        return 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md scale-105 ring-2 ring-amber-300';
-      case 'extreme':
-        return 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md scale-105 ring-2 ring-red-300';
-      default:
-        return 'bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-105';
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -201,7 +211,7 @@ export function EditCharBossesModal({
                 </span>
               </div>
 
-              {/* V1 風格的 BOSS 圖像大卡片網格 */}
+              {/* V1 風格的 BOSS 圖像大卡片與滑塊開關切換器 */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[440px] overflow-y-auto p-2.5 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
                 {BOSS_GROUPS.map((group) => {
                   const hasSelectedInGroup = group.bosses.some((b) => selectedBossIds.includes(b.id));
@@ -229,25 +239,30 @@ export function EditCharBossesModal({
                         </span>
                       </div>
 
-                      {/* 難度圓形切換按鈕組 (簡/普/困/極) */}
-                      <div className="flex flex-wrap gap-1.5 w-full justify-center">
+                      {/* 滑塊開關切換組 (只顯示一次難度字樣，點選切換/點選關閉) */}
+                      <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
                         {group.bosses.map((boss) => {
                           const isSelected = selectedBossIds.includes(boss.id);
-                          const btnStyle = getDifficultyBtnStyle(boss.difficulty, isSelected);
+                          const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
+                            label: boss.difficulty,
+                            activeStyle: 'bg-amber-500 text-slate-900 border-amber-600 shadow-md',
+                            glow: 'ring-2 ring-amber-300',
+                          };
 
                           return (
                             <button
                               key={boss.id}
                               type="button"
-                              onClick={() => handleToggleBoss(boss.id)}
+                              onClick={() => handleToggleBoss(boss.id, group.groupKey)}
                               className={
-                                'px-2 py-1 rounded-xl text-xs font-black border-2 transition-all flex items-center gap-1 ' +
-                                btnStyle
+                                'flex-1 py-1 rounded-lg text-xs font-black border-2 transition-all flex items-center justify-center select-none ' +
+                                (isSelected
+                                  ? conf.activeStyle + ' ' + conf.glow
+                                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
                               }
                               title={boss.name}
                             >
-                              <DifficultyBadge difficulty={boss.difficulty} />
-                              <span className="text-[11px]">{boss.difficulty === 'easy' ? '簡' : boss.difficulty === 'normal' ? '普' : boss.difficulty === 'hard' ? '困' : '極'}</span>
+                              <span>{conf.label}</span>
                             </button>
                           );
                         })}
