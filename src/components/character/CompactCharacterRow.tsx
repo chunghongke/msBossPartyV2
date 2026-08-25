@@ -142,7 +142,7 @@ function SingleRowBossPill({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       className={cn(
-        'group relative flex items-center gap-1.5 p-1 rounded-xl border-1.5 transition-all duration-150 select-none cursor-pointer overflow-hidden min-h-[46px] min-w-0',
+        'group relative flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border-1.5 transition-all duration-150 select-none cursor-pointer overflow-hidden min-h-[46px] min-w-0',
         isCompleted
           ? 'bg-[#EAE2D2]/50 dark:bg-slate-900/40 border-slate-300/40 dark:border-slate-800/40 opacity-30 grayscale contrast-75 brightness-75 shadow-none hover:opacity-60'
           : 'bg-white dark:bg-slate-800 border-amber-400/80 dark:border-amber-400/80 shadow-[0_2px_6px_rgba(245,158,11,0.15)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400 hover:shadow-[0_3px_10px_rgba(245,158,11,0.25)] active:translate-y-[1px]'
@@ -297,7 +297,7 @@ export function CompactCharacterRow({
     <div
       id={`compact-char-row-${character.id}`}
       className={cn(
-        'parchment-card rounded-2xl border-2 border-kerning-stroke p-2 sm:p-2.5 shadow-sm transition-all bg-[#FDF6E9] dark:bg-[#1E293B] space-y-1.5',
+        'parchment-card rounded-2xl border-2 border-kerning-stroke px-2.5 py-1.5 sm:px-3 sm:py-2 shadow-sm transition-all bg-[#FDF6E9] dark:bg-[#1E293B] space-y-1.5',
         isSelf && 'ring-2 ring-amber-400 dark:ring-amber-500/80 shadow-gold'
       )}
     >
@@ -417,7 +417,7 @@ export function CompactCharacterRow({
       {/* 單列 12 格 BOSS 排版 (Single Row: 12 Columns Grid) */}
       {hasBosses ? (
         <div className="overflow-x-auto pb-0.5">
-          <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 min-w-[960px] lg:min-w-0">
+          <div className="grid grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 min-w-[960px] lg:min-w-0">
             {orderedBossEntries.map(({ boss, entryIndex }) => {
               const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
               const rec = store.weeklyRecords[recKey];

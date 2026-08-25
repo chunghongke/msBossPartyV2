@@ -243,7 +243,7 @@ export function MainLayout({
       />
 
       {/* 主要內容區 */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-6">
+      <main className="flex-1 max-w-[1880px] w-full mx-auto p-2 sm:p-3.5">
         {isStoreLoading ? (
           <div className="py-24 text-center parchment-card max-w-sm mx-auto rounded-3xl border-3 border-kerning-stroke p-8 shadow-2xl space-y-4">
             <div className="relative w-16 h-16 mx-auto flex items-center justify-center">

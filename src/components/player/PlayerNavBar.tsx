@@ -44,7 +44,7 @@ export function PlayerNavBar({
 
   return (
     <div className="sticky top-16 z-30 w-full bg-[#EBD8B8]/95 dark:bg-slate-900/95 backdrop-blur-md border-b-2.5 border-kerning-stroke shadow-md transition-colors select-none">
-      <div className="max-w-[1600px] mx-auto px-3 sm:px-6">
+      <div className="max-w-[1880px] w-full mx-auto px-2.5 sm:px-4">
         {/* 第一列：玩家切換標籤列 (具有足夠的內距防止滾動容器裁切邊框) */}
         <div className="py-2 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
           <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">

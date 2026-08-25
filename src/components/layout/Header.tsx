@@ -71,7 +71,7 @@ export function Header({
   return (
     <TooltipProvider>
       <header className="sticky top-0 z-40 w-full bg-[#3B2C1A]/95 dark:bg-[#151C2C]/95 backdrop-blur-md border-b-2.5 border-kerning-stroke text-white shadow-lg transition-colors">
-        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="max-w-[1880px] w-full mx-auto px-2.5 sm:px-4 h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 border-2 border-kerning-stroke flex items-center justify-center text-2xl shrink-0 shadow-md">
               🍁
