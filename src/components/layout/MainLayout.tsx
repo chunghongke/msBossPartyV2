@@ -156,7 +156,7 @@ export function MainLayout({
   }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
-  const [orderVersion, setOrderVersion] = useState(0);
+  const [, setOrderVersion] = useState(0);
 
   const handleReorderCharacters = (playerName: string, reorderedChars: Character[]) => {
     saveLocalCharacterOrder(playerName, reorderedChars.map((c) => c.id));
