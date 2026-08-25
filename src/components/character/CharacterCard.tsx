@@ -1,14 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useLayoutEffect } from 'react';
 import { Character } from '@/types/player';
-import { StoreData } from '@/types/party';
 import { Boss } from '@/types/boss';
-import { getBoss, getBossGroupKey, getBossCleanName, BOSSES } from '@/data/bosses';
+import { StoreData, Team } from '@/types/party';
+import { getBoss, getBossGroupKey, BOSSES } from '@/data/bosses';
 import { useCalculator } from '@/hooks/useCalculator';
 import { useAuth } from '@/contexts/AuthContext';
 import { BossCell } from './BossCell';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
-import { Edit2, Ticket, Trash2, MoreHorizontal, Sparkles } from 'lucide-react';
+import { Edit2, Ticket, Sparkles, UserX } from 'lucide-react';
 
 interface CharacterCardProps {
   character: Character;
@@ -16,12 +16,12 @@ interface CharacterCardProps {
   store: StoreData;
   onToggleStatus: (recordKey: string) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
-  onOpenShardModal?: (recordKey: string, boss: Boss, team: any) => void;
+  onOpenShardModal: (recordKey: string, boss: Boss, team: Team | null) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
   onOpenResetConfig: (character: Character, playerName: string) => void;
-  onOpenRenameModal: (character: Character, playerName: string) => void;
-  onDeleteCharacter: (charId: string, playerName: string) => void;
-  onShowScheduleInfo?: (team: any) => void;
+  onOpenRenameModal: (character: Character) => void;
+  onDeleteCharacter: (character: Character, playerName: string) => void;
+  onShowScheduleInfo?: (team: Team) => void;
 }
 
 export function CharacterCard({
@@ -47,7 +47,10 @@ export function CharacterCard({
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
 
-  // 依據 BOSS 資料庫順序排序，相同 BOSS 之首刷與 2 刷緊鄰排列
+  const gridRef = useRef<HTMLDivElement>(null);
+  const prevPositionsRef = useRef<Map<string, DOMRect>>(new Map());
+
+  // 方案 ①：依完成狀態排序（未完成排在最前，已完成排在最後）
   const orderedBossEntries = useMemo(() => {
     const entries: { boss: Boss; entryIndex: 1 | 2 }[] = [];
 
@@ -62,6 +65,17 @@ export function CharacterCard({
     });
 
     return entries.sort((a, b) => {
+      // 1. 優先依完成狀態排序：未完成排前，已完成排後
+      const aRecKey = `rec_${character.id}_${a.boss.id}_${a.entryIndex}`;
+      const bRecKey = `rec_${character.id}_${b.boss.id}_${b.entryIndex}`;
+      const aDone = Boolean(store.weeklyRecords[aRecKey]?.isCompleted);
+      const bDone = Boolean(store.weeklyRecords[bRecKey]?.isCompleted);
+
+      if (aDone !== bDone) {
+        return aDone ? 1 : -1;
+      }
+
+      // 同完成狀態下，依原本資料庫難度順序排列
       const groupA = getBossGroupKey(a.boss.id);
       const groupB = getBossGroupKey(b.boss.id);
 
@@ -80,35 +94,61 @@ export function CharacterCard({
 
       return a.entryIndex - b.entryIndex;
     });
-  }, [character.bossIds, character.resetBossIds]);
+  }, [character.bossIds, character.resetBossIds, character.id, store.weeklyRecords]);
 
-  // 方案 ③：點擊標籤使右側對應的 BOSS 卡片平滑滾動並閃爍聚焦
-  const handleFocusBoss = (bossId: string, entryIndex: number) => {
-    const el = document.getElementById(`boss-cell-${character.id}-${bossId}-${entryIndex}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      el.classList.remove('boss-cell-focused');
-      // 強制觸發 DOM 重繪以重新啟動 CSS Keyframe 動畫
-      void el.offsetWidth;
-      el.classList.add('boss-cell-focused');
-      setTimeout(() => {
-        el.classList.remove('boss-cell-focused');
-      }, 1600);
+  // ⚡ 絲滑 FLIP 動畫：在狀態改變導致 DOM 節點重新排序時，平滑移動每張卡片
+  useLayoutEffect(() => {
+    if (!gridRef.current) return;
+    const oldPositions = prevPositionsRef.current;
+    const elements = gridRef.current.querySelectorAll<HTMLElement>('[data-flip-key]');
+
+    if (oldPositions.size > 0) {
+      elements.forEach((el) => {
+        const key = el.dataset.flipKey;
+        if (!key) return;
+        const oldRect = oldPositions.get(key);
+        if (!oldRect) return;
+
+        const newRect = el.getBoundingClientRect();
+        const dx = oldRect.left - newRect.left;
+        const dy = oldRect.top - newRect.top;
+
+        if (dx !== 0 || dy !== 0) {
+          // 瞬間回到上一幀的位置 (Invert)
+          el.style.transform = `translate(${dx}px, ${dy}px)`;
+          el.style.transition = 'none';
+
+          // 強制觸發重繪 (Reflow)
+          void el.offsetHeight;
+
+          // 絲滑流體過渡滑向新位置 (Play)
+          el.style.transition = 'transform 0.42s cubic-bezier(0.2, 0.9, 0.3, 1)';
+          el.style.transform = '';
+
+          const cleanup = () => {
+            el.style.transition = '';
+            el.removeEventListener('transitionend', cleanup);
+          };
+          el.addEventListener('transitionend', cleanup);
+        }
+      });
     }
-  };
+
+    // 記錄當前幀的所有元素位置
+    const newPositions = new Map<string, DOMRect>();
+    elements.forEach((el) => {
+      const key = el.dataset.flipKey;
+      if (key) {
+        newPositions.set(key, el.getBoundingClientRect());
+      }
+    });
+    prevPositionsRef.current = newPositions;
+  });
 
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
     ? Math.min(100, Math.round((progressStats.completed / progressStats.total) * 100))
     : 0;
-
-  // 方案 ③：計算本週尚未攻略的 BOSS 清單
-  const pendingBosses = useMemo(() => {
-    return orderedBossEntries.filter(({ boss, entryIndex }) => {
-      const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
-      return !store.weeklyRecords[recKey]?.isCompleted;
-    });
-  }, [orderedBossEntries, character.id, store.weeklyRecords]);
 
   return (
     <div
@@ -118,7 +158,7 @@ export function CharacterCard({
         isSelf && 'ring-3 ring-amber-400 dark:ring-amber-500/80 shadow-gold'
       )}
     >
-      <div className="flex flex-col lg:flex-row items-stretch gap-4 sm:gap-5">
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-5 items-stretch">
         {/* ========================================================
             左側：角色資訊與大立繪卡片 (Left Column: Profile & Stats)
             ======================================================== */}
@@ -165,29 +205,29 @@ export function CharacterCard({
 
                 <Button
                   size="icon"
-                  variant="ghost"
-                  onClick={() => onOpenRenameModal(character, playerName)}
-                  className="w-7 h-7 text-stone-500 hover:text-stone-800 dark:hover:text-slate-200"
+                  variant="parchment"
+                  onClick={() => onOpenRenameModal(character)}
+                  className="w-7 h-7"
                   title="重新命名角色"
                 >
-                  <MoreHorizontal className="w-3.5 h-3.5" />
+                  <span className="text-xs">🏷️</span>
                 </Button>
 
                 <Button
                   size="icon"
-                  variant="ghost"
-                  onClick={() => onDeleteCharacter(character.id, playerName)}
-                  className="w-7 h-7 text-red-500 hover:bg-red-500/10"
+                  variant="danger"
+                  onClick={() => onDeleteCharacter(character, playerName)}
+                  className="w-7 h-7"
                   title="刪除角色"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <UserX className="w-3.5 h-3.5" />
                 </Button>
               </div>
             )}
           </div>
 
-          {/* 中間：金色典雅大立繪相框 (Avatar Box) */}
-          <div className="gold-frame rounded-2xl p-1 bg-gradient-to-b from-[#FFF5DC] via-[#F8E2C2] to-[#ECD2A8] dark:from-slate-800 dark:to-slate-900 flex items-center justify-center h-48 sm:h-52 overflow-hidden relative shadow-inner">
+          {/* 中間：官方高清大立繪展示相框 */}
+          <div className="w-full h-36 sm:h-40 rounded-2xl bg-gradient-to-b from-[#FFFDF9] to-[#EAE0CA] dark:from-slate-800 dark:to-slate-900/90 border-2 border-[#D4B982] dark:border-slate-700 shadow-inner flex items-center justify-center p-2 overflow-hidden relative group select-none">
             {character.characterImage ? (
               <img
                 src={character.characterImage}
@@ -258,38 +298,6 @@ export function CharacterCard({
                 </div>
               </div>
             </div>
-
-            {/* 4. 方案 ③：待討伐 BOSS 快速標籤清單 */}
-            {hasBosses && (
-              pendingBosses.length > 0 ? (
-                <div className="p-2 bg-[#FFF3DC] dark:bg-amber-950/35 rounded-xl border border-amber-400/50 space-y-1 select-none">
-                  <div className="flex items-center justify-between text-[10px] font-black text-amber-900 dark:text-amber-300">
-                    <span className="flex items-center gap-1">
-                      <span className="animate-pulse">⚔️</span>
-                      <span>待討伐 BOSS ({pendingBosses.length} 隻)：</span>
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                    {pendingBosses.map(({ boss, entryIndex }) => (
-                      <button
-                        key={`${boss.id}_${entryIndex}`}
-                        type="button"
-                        onClick={() => handleFocusBoss(boss.id, entryIndex)}
-                        className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-amber-400 dark:hover:bg-amber-400 hover:text-slate-900 dark:hover:text-slate-900 text-slate-800 dark:text-slate-200 border border-amber-300/80 dark:border-amber-500/50 text-[10px] font-bold shadow-2xs hover:shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-0.5 select-none"
-                        title={`點擊立即聚焦並高亮右側 ${boss.name} 卡片`}
-                      >
-                        <span>{getBossCleanName(boss.name)}</span>
-                        {entryIndex === 2 && <span className="text-purple-600 dark:text-purple-400 font-extrabold text-[9px]">(2刷)</span>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-2 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-xl border border-emerald-400/40 text-center text-[11px] font-black text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-1 select-none">
-                  <span>🎉 本週全部 BOSS 已攻略完成！</span>
-                </div>
-              )
-            )}
           </div>
         </div>
 
@@ -298,7 +306,7 @@ export function CharacterCard({
             ======================================================== */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           {hasBosses ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 sm:gap-3.5">
+            <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 sm:gap-3.5">
               {orderedBossEntries.map(({ boss, entryIndex }) => {
                 const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
                 const rec = store.weeklyRecords[recKey];

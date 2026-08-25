@@ -172,6 +172,7 @@ export function BossCell({
   return (
     <div
       id={`boss-cell-${charId}-${boss.id}-${entryIndex}`}
+      data-flip-key={recordKey}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
