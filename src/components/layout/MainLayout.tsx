@@ -153,6 +153,20 @@ export function MainLayout({
   }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'compact' | 'detailed'>(() => {
+    try {
+      return (localStorage.getItem('boss_party_view_mode') as 'compact' | 'detailed') || 'compact';
+    } catch {
+      return 'compact';
+    }
+  });
+
+  const handleSetViewMode = (mode: 'compact' | 'detailed') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('boss_party_view_mode', mode);
+    } catch {}
+  };
 
   // 當登入者變更 (例如剛登入成功或身分切換) 時，立即將主視覺與導覽列切換為該登入者
   useEffect(() => {
@@ -306,7 +320,39 @@ export function MainLayout({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* 檢視版面切換器: 緊湊條列 / 詳細大圖 */}
+                      <div className="flex items-center p-0.5 bg-black/10 dark:bg-slate-800 rounded-xl border border-kerning-stroke/50 select-none">
+                        <button
+                          type="button"
+                          onClick={() => handleSetViewMode('compact')}
+                          className={cn(
+                            'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                            viewMode === 'compact'
+                              ? 'bg-amber-400 text-slate-950 shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                          )}
+                          title="V1 經典緊湊條列模式：一屏容納 6~8 隻多角色"
+                        >
+                          <LayoutList className="w-3.5 h-3.5" />
+                          <span>緊湊條列</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetViewMode('detailed')}
+                          className={cn(
+                            'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                            viewMode === 'detailed'
+                              ? 'bg-amber-400 text-slate-950 shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                          )}
+                          title="詳細大圖模式：寬鬆大立繪卡片"
+                        >
+                          <LayoutGrid className="w-3.5 h-3.5" />
+                          <span>詳細大圖</span>
+                        </button>
+                      </div>
+
                       {characters.length > 0 && (
                         <Button
                           size="sm"
@@ -332,25 +378,42 @@ export function MainLayout({
                     </div>
                   </div>
 
-                  {/* 角色卡片列表 */}
-                  <div className="space-y-4">
+                  {/* 角色卡片列表 (支援 緊湊條列 / 詳細大圖 切換) */}
+                  <div className={viewMode === 'compact' ? 'space-y-2.5' : 'space-y-4'}>
                     {characters.length > 0 ? (
-                      characters.map((char) => (
-                        <CharacterCard
-                          key={char.id}
-                          character={char}
-                          playerName={player.name}
-                          store={store}
-                          onToggleStatus={toggleBossStatus}
-                          onOpenPartyModal={onOpenPartyModal}
-                          onOpenShardModal={onOpenShardModal}
-                          onOpenEditBosses={onOpenEditBosses}
-                          onOpenResetConfig={onOpenResetConfig}
-                          onOpenRenameModal={onOpenRenameModal}
-                          onDeleteCharacter={onDeleteCharacter}
-                          onShowScheduleInfo={onShowScheduleInfo}
-                        />
-                      ))
+                      characters.map((char) =>
+                        viewMode === 'compact' ? (
+                          <CompactCharacterRow
+                            key={char.id}
+                            character={char}
+                            playerName={player.name}
+                            store={store}
+                            onToggleStatus={toggleBossStatus}
+                            onOpenPartyModal={onOpenPartyModal}
+                            onOpenShardModal={onOpenShardModal}
+                            onOpenEditBosses={onOpenEditBosses}
+                            onOpenResetConfig={onOpenResetConfig}
+                            onOpenRenameModal={onOpenRenameModal}
+                            onDeleteCharacter={onDeleteCharacter}
+                            onShowScheduleInfo={onShowScheduleInfo}
+                          />
+                        ) : (
+                          <CharacterCard
+                            key={char.id}
+                            character={char}
+                            playerName={player.name}
+                            store={store}
+                            onToggleStatus={toggleBossStatus}
+                            onOpenPartyModal={onOpenPartyModal}
+                            onOpenShardModal={onOpenShardModal}
+                            onOpenEditBosses={onOpenEditBosses}
+                            onOpenResetConfig={onOpenResetConfig}
+                            onOpenRenameModal={onOpenRenameModal}
+                            onDeleteCharacter={onDeleteCharacter}
+                            onShowScheduleInfo={onShowScheduleInfo}
+                          />
+                        )
+                      )
                     ) : (
                       <div className="py-6 text-center bg-black/5 dark:bg-black/20 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700">
                         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
