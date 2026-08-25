@@ -4,7 +4,7 @@ import { getBossCleanName } from '@/data/bosses';
 import { WeeklyRecord, Team } from '@/types/party';
 import { useStore } from '@/contexts/StoreContext';
 import { cn } from '@/utils/cn';
-import { Users, Clock, Sparkles, Check, MoreVertical } from 'lucide-react';
+import { Users, Clock, Sparkles, MoreVertical } from 'lucide-react';
 
 interface BossCellProps {
   boss: Boss;
@@ -237,12 +237,7 @@ export function BossCell({
           </div>
         )}
 
-        {/* 右側中央：3D 綠色勾勾完成印章 (DONE Stamp) */}
-        {isCompleted && (
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 via-green-500 to-emerald-600 border-3 border-emerald-950 shadow-[0_4px_12px_rgba(16,185,129,0.7)] flex items-center justify-center animate-in zoom-in-75 duration-150 pointer-events-none">
-            <Check className="w-6 h-6 text-white stroke-[3.5]" />
-          </div>
-        )}
+        
       </div>
 
       {/* 下半部：底部資訊列 (Bottom Info Strip) */}

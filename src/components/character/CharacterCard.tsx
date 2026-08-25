@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Character } from '@/types/player';
 import { StoreData } from '@/types/party';
 import { Boss } from '@/types/boss';
-import { getBoss, getBossGroupKey, BOSSES } from '@/data/bosses';
+import { getBoss, getBossGroupKey, getBossCleanName, BOSSES } from '@/data/bosses';
 import { useCalculator } from '@/hooks/useCalculator';
 import { useAuth } from '@/contexts/AuthContext';
 import { BossCell } from './BossCell';
@@ -62,17 +62,6 @@ export function CharacterCard({
     });
 
     return entries.sort((a, b) => {
-      // 方案 ①：未完成 (Undone) 自動排在前面，已完成 (Completed) 自動沉到後面
-      const aRecKey = `rec_${character.id}_${a.boss.id}_${a.entryIndex}`;
-      const bRecKey = `rec_${character.id}_${b.boss.id}_${b.entryIndex}`;
-      const aDone = Boolean(store.weeklyRecords[aRecKey]?.isCompleted);
-      const bDone = Boolean(store.weeklyRecords[bRecKey]?.isCompleted);
-
-      if (aDone !== bDone) {
-        return aDone ? 1 : -1;
-      }
-
-      // 同完成狀態下，依 BOSS 難度與資料庫順序排列
       const groupA = getBossGroupKey(a.boss.id);
       const groupB = getBossGroupKey(b.boss.id);
 
@@ -91,12 +80,20 @@ export function CharacterCard({
 
       return a.entryIndex - b.entryIndex;
     });
-  }, [character.bossIds, character.resetBossIds, character.id, store.weeklyRecords]);
+  }, [character.bossIds, character.resetBossIds]);
 
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
     ? Math.min(100, Math.round((progressStats.completed / progressStats.total) * 100))
     : 0;
+
+  // 方案 ③：計算本週尚未攻略的 BOSS 清單
+  const pendingBosses = useMemo(() => {
+    return orderedBossEntries.filter(({ boss, entryIndex }) => {
+      const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
+      return !store.weeklyRecords[recKey]?.isCompleted;
+    });
+  }, [orderedBossEntries, character.id, store.weeklyRecords]);
 
   return (
     <div
@@ -246,6 +243,36 @@ export function CharacterCard({
                 </div>
               </div>
             </div>
+
+            {/* 4. 方案 ③：待討伐 BOSS 快速標籤清單 */}
+            {hasBosses && (
+              pendingBosses.length > 0 ? (
+                <div className="p-2 bg-[#FFF3DC] dark:bg-amber-950/35 rounded-xl border border-amber-400/50 space-y-1 select-none">
+                  <div className="flex items-center justify-between text-[10px] font-black text-amber-900 dark:text-amber-300">
+                    <span className="flex items-center gap-1">
+                      <span className="animate-pulse">⚔️</span>
+                      <span>待討伐 BOSS ({pendingBosses.length} 隻)：</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    {pendingBosses.map(({ boss, entryIndex }) => (
+                      <span
+                        key={`${boss.id}_${entryIndex}`}
+                        className="px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-amber-300/70 dark:border-amber-500/40 text-[10px] font-bold shadow-2xs flex items-center gap-0.5"
+                        title={`${boss.name}${entryIndex === 2 ? ' (2刷)' : ''}`}
+                      >
+                        <span>{getBossCleanName(boss.name)}</span>
+                        {entryIndex === 2 && <span className="text-purple-600 dark:text-purple-400 font-extrabold text-[9px]">(2刷)</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-xl border border-emerald-400/40 text-center text-[11px] font-black text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-1 select-none">
+                  <span>🎉 本週全部 BOSS 已攻略完成！</span>
+                </div>
+              )
+            )}
           </div>
         </div>
 
