@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useGroup } from '@/contexts/GroupContext';
 import { useStore } from '@/contexts/StoreContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
+import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
 import { useWeeklyReset } from '@/hooks/useWeeklyReset';
 import { useCalculator } from '@/hooks/useCalculator';
 import { Header } from './Header';
@@ -12,7 +14,7 @@ import { GuestSection } from '@/components/guest/GuestSection';
 import { Button } from '@/components/ui/Button';
 import { Character, Player } from '@/types/player';
 import { Boss } from '@/types/boss';
-import { UserPlus, PlusCircle, ArrowUp } from 'lucide-react';
+import { UserPlus, PlusCircle, ArrowUp, RefreshCw } from 'lucide-react';
 
 interface MainLayoutProps {
   onOpenLoginModal: () => void;
@@ -50,6 +52,93 @@ export function MainLayout({
   const { players, store, isLoading: isStoreLoading, toggleBossStatus, addGuest, deleteGuest, saveStoreToCloud } = useStore();
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
   const { calculateCrystal, formatCrystal } = useCalculator(store);
+
+  const { showAlert } = useAlert();
+  const [isSyncingPlayer, setIsSyncingPlayer] = useState<string | null>(null);
+
+  // 一鍵連線 Nexon 官方伺服器，批次同步該玩家所有角色的最新立繪
+  const handleSyncAllCharImages = async (player: Player) => {
+    const chars = player.characters || [];
+    if (chars.length === 0) return;
+
+    const key = getNexonApiKey();
+    if (!key) {
+      if (onOpenNexonKeyModal) {
+        onOpenNexonKeyModal();
+      } else {
+        showAlert({ title: '尚未設定金鑰', message: '請先在右上角設定 Nexon API Key 以啟用立繪同步功能！', type: 'info' });
+      }
+      return;
+    }
+
+    setIsSyncingPlayer(player.name);
+    let updatedCount = 0;
+    const failedNames: string[] = [];
+
+    try {
+      const updatedChars = [...chars];
+
+      for (let i = 0; i < updatedChars.length; i++) {
+        const char = updatedChars[i];
+        try {
+          const info = await fetchNexonCharacterInfo(char.name, key);
+          if (info && info.characterImage) {
+            updatedChars[i] = {
+              ...char,
+              characterImage: info.characterImage,
+              ocid: info.ocid || char.ocid,
+            };
+            updatedCount++;
+          } else {
+            failedNames.push(char.name);
+          }
+        } catch {
+          failedNames.push(char.name);
+        }
+      }
+
+      if (updatedCount > 0) {
+        const nextPlayers = players.map((p) => {
+          if (p.name === player.name) {
+            return {
+              ...p,
+              characters: updatedChars,
+            };
+          }
+          return p;
+        });
+        await savePlayersToCloud(nextPlayers);
+
+        if (failedNames.length === 0) {
+          showAlert({
+            title: '立繪同步成功',
+            message: `🎉 已成功為「${player.name}」旗下的 ${updatedCount} 隻角色同步官方最新高清立繪！`,
+            type: 'success',
+          });
+        } else {
+          showAlert({
+            title: '立繪部分同步成功',
+            message: `✨ 已為 ${updatedCount} 隻角色更新立繪。\n（${failedNames.join(', ')} 未在 Nexon 官方找到資料或名稱有誤）`,
+            type: 'info',
+          });
+        }
+      } else {
+        showAlert({
+          title: '未找到角色資料',
+          message: '未能從 Nexon 官方獲取立繪，請確認角色名稱是否為有效的新楓之谷角色，或檢查 API Key 是否有效。',
+          type: 'warning',
+        });
+      }
+    } catch (err: any) {
+      showAlert({
+        title: '同步失敗',
+        message: err?.message || '連線 Nexon 伺服器失敗，請稍後再試。',
+        type: 'error',
+      });
+    } finally {
+      setIsSyncingPlayer(null);
+    }
+  };
 
   // 當使用者透過邀請連結加入且尚未登入時，在資料庫載入後自動彈出登入/加入引導
   useEffect(() => {
@@ -216,15 +305,30 @@ export function MainLayout({
                       )}
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="gold"
-                      onClick={() => onOpenAddCharacterModal(player.name)}
-                      className="h-7 px-2.5 text-xs"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      <span>新增角色</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {characters.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="parchment"
+                          onClick={() => handleSyncAllCharImages(player)}
+                          isLoading={isSyncingPlayer === player.name}
+                          className="h-7 px-2.5 text-xs font-bold"
+                          title="一鍵連線 Nexon 官方，同步該玩家名下所有角色的最新官方立繪"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>同步全角色立繪</span>
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="gold"
+                        onClick={() => onOpenAddCharacterModal(player.name)}
+                        className="h-7 px-2.5 text-xs font-bold"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>新增角色</span>
+                      </Button>
+                    </div>
                   </div>
 
                   {/* 角色卡片列表 */}

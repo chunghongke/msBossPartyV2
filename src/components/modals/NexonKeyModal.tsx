@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useStore } from '@/contexts/StoreContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { getNexonApiKey, setNexonApiKey, removeNexonApiKey, testNexonApiKey } from '@/services/nexon';
-import { Key, ExternalLink, CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { getNexonApiKey, setNexonApiKey, removeNexonApiKey, testNexonApiKey, fetchNexonCharacterInfo } from '@/services/nexon';
+import { Key, ExternalLink, CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, ShieldCheck, RefreshCw, Sparkles } from 'lucide-react';
 
 interface NexonKeyModalProps {
   isOpen: boolean;
@@ -11,9 +14,14 @@ interface NexonKeyModalProps {
 }
 
 export function NexonKeyModal({ isOpen, onClose, onSuccess }: NexonKeyModalProps) {
+  const { currentPlayer } = useAuth();
+  const { players, savePlayersToCloud } = useStore();
+  const { showAlert } = useAlert();
+
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [testResult, setTestResult] = useState<{ success?: boolean; msg?: string } | null>(null);
 
   useEffect(() => {
@@ -63,6 +71,76 @@ export function NexonKeyModal({ isOpen, onClose, onSuccess }: NexonKeyModalProps
     setApiKey('');
     setTestResult({ success: true, msg: '已清除本機儲存的 Nexon API Key。' });
   };
+
+  // 一鍵同步當前玩家所有角色
+  const handleSyncCurrentPlayerChars = async () => {
+    const cleanKey = apiKey.trim() || getNexonApiKey();
+    if (!cleanKey) {
+      setTestResult({ success: false, msg: '請先輸入並儲存 Nexon API Key！' });
+      return;
+    }
+
+    if (!currentPlayer || !currentPlayer.characters || currentPlayer.characters.length === 0) {
+      showAlert({ title: '無角色可同步', message: '目前登入的玩家尚未建立任何角色！', type: 'info' });
+      return;
+    }
+
+    setIsSyncingAll(true);
+    let updatedCount = 0;
+    const failedNames: string[] = [];
+
+    try {
+      setNexonApiKey(cleanKey);
+      const updatedChars = [...currentPlayer.characters];
+
+      for (let i = 0; i < updatedChars.length; i++) {
+        const char = updatedChars[i];
+        try {
+          const info = await fetchNexonCharacterInfo(char.name, cleanKey);
+          if (info && info.characterImage) {
+            updatedChars[i] = {
+              ...char,
+              characterImage: info.characterImage,
+              ocid: info.ocid || char.ocid,
+            };
+            updatedCount++;
+          } else {
+            failedNames.push(char.name);
+          }
+        } catch {
+          failedNames.push(char.name);
+        }
+      }
+
+      if (updatedCount > 0) {
+        const nextPlayers = players.map((p) => {
+          if (p.name === currentPlayer.name) {
+            return {
+              ...p,
+              characters: updatedChars,
+            };
+          }
+          return p;
+        });
+        await savePlayersToCloud(nextPlayers);
+
+        showAlert({
+          title: '全角色立繪同步成功',
+          message: `🎉 已成功為「${currentPlayer.name}」旗下的 ${updatedCount} 隻角色更新官方最新高清立繪！`,
+          type: 'success',
+        });
+        onClose();
+      } else {
+        setTestResult({ success: false, msg: '未能從 Nexon 獲取角色資料，請確認角色名稱是否正確。' });
+      }
+    } catch (err: any) {
+      setTestResult({ success: false, msg: err?.message || '同步失敗，請檢查網路或金鑰。' });
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
+
+  const currentCharCount = currentPlayer?.characters?.length || 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -139,6 +217,32 @@ export function NexonKeyModal({ isOpen, onClose, onSuccess }: NexonKeyModalProps
               </div>
             </div>
           </div>
+
+          {/* 當前登入者一鍵批次同步卡片 */}
+          {currentPlayer && currentCharCount > 0 && (
+            <div className="p-3 bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl flex items-center justify-between gap-3">
+              <div className="space-y-0.5 min-w-0">
+                <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>批次同步【{currentPlayer.name}】全角色立繪</span>
+                </div>
+                <div className="text-[11px] text-stone-500 dark:text-slate-400 truncate">
+                  名下共 {currentCharCount} 隻角色，一鍵同步官方最新立繪
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                onClick={handleSyncCurrentPlayerChars}
+                isLoading={isSyncingAll}
+                className="text-xs shrink-0 h-8"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>立即全體同步</span>
+              </Button>
+            </div>
+          )}
 
           {/* 測試結果狀態列 */}
           {testResult && (
