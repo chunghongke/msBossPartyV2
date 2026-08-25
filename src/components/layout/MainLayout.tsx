@@ -49,7 +49,7 @@ export function MainLayout({
 }: MainLayoutProps) {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
   const { currentPlayer } = useAuth();
-  const { players, store, isLoading: isStoreLoading, toggleBossStatus, addGuest, deleteGuest, saveStoreToCloud } = useStore();
+  const { players, store, isLoading: isStoreLoading, toggleBossStatus, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud } = useStore();
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
   const { calculateCrystal, formatCrystal } = useCalculator(store);
 
