@@ -78,7 +78,7 @@ const ResetBossGroupCard = memo(function ResetBossGroupCard({
         </span>
       </div>
 
-      <div className="flex p-1 bg-slate-900/90 dark:bg-black/80 rounded-xl border-1.5 border-slate-700/80 gap-1 w-full justify-center shadow-inner">
+      <div className="flex gap-1.5 w-full justify-center p-0.5">
         {group.bosses.map((boss) => {
           const isSelected = selectedBossId === boss.id;
           const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
