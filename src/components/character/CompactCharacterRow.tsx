@@ -6,7 +6,6 @@ import { getBoss, getBossGroupKey, getBossCleanName, BOSSES } from '@/data/bosse
 import { useCalculator } from '@/hooks/useCalculator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
-import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
 import { Edit2, Ticket, Sparkles, UserX, Users, Clock } from 'lucide-react';
 

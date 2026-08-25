@@ -10,11 +10,13 @@ import { Header } from './Header';
 import { SetupWizard } from '@/components/group/SetupWizard';
 import { PlayerNavBar } from '@/components/player/PlayerNavBar';
 import { CharacterCard } from '@/components/character/CharacterCard';
+import { CompactCharacterRow } from '@/components/character/CompactCharacterRow';
+import { cn } from '@/utils/cn';
 import { GuestSection } from '@/components/guest/GuestSection';
 import { Button } from '@/components/ui/Button';
 import { Character, Player } from '@/types/player';
 import { Boss } from '@/types/boss';
-import { UserPlus, PlusCircle, ArrowUp, RefreshCw } from 'lucide-react';
+import { UserPlus, PlusCircle, ArrowUp, RefreshCw, LayoutList, LayoutGrid } from 'lucide-react';
 
 interface MainLayoutProps {
   onOpenLoginModal: () => void;
