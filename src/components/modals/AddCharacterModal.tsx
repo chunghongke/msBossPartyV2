@@ -15,26 +15,30 @@ interface AddCharacterModalProps {
   onOpenNexonKeyModal?: () => void;
 }
 
-const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; glow: string }> = {
+const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; inactiveStyle: string; glow: string }> = {
   easy: {
     label: '簡',
-    activeStyle: 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md',
-    glow: 'ring-2 ring-sky-300',
+    activeStyle: 'bg-gradient-to-b from-[#4A4E54] to-[#2E3236] text-white border-2 border-white shadow-[0_0_8px_rgba(255,255,255,0.75)] font-black',
+    inactiveStyle: 'bg-[#23262A] text-stone-300 border-2 border-[#3F444D] hover:border-stone-400 hover:text-white',
+    glow: 'ring-1 ring-white/80',
   },
   normal: {
     label: '普',
-    activeStyle: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md',
-    glow: 'ring-2 ring-blue-300',
+    activeStyle: 'bg-gradient-to-b from-[#2E608F] to-[#1A3854] text-white border-2 border-white shadow-[0_0_10px_rgba(56,189,248,0.85)] font-black',
+    inactiveStyle: 'bg-[#1C2836] text-[#A5C9EB] border-2 border-[#2E4763] hover:border-sky-400 hover:text-white',
+    glow: 'ring-1 ring-sky-300',
   },
   hard: {
     label: '困',
-    activeStyle: 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md',
-    glow: 'ring-2 ring-amber-300',
+    activeStyle: 'bg-gradient-to-b from-[#3E2D20] to-[#241910] text-[#FFE8C2] border-2 border-[#FFDF9E] shadow-[0_0_10px_rgba(245,158,11,0.8)] font-black',
+    inactiveStyle: 'bg-[#241A12] text-[#E8C79B] border-2 border-[#C5A070] hover:border-amber-300 hover:text-[#FFF0D4]',
+    glow: 'ring-1 ring-amber-300',
   },
   extreme: {
     label: '極',
-    activeStyle: 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md',
-    glow: 'ring-2 ring-red-300',
+    activeStyle: 'bg-gradient-to-b from-[#401217] to-[#22090C] text-[#FF5722] border-2 border-[#FF3358] shadow-[0_0_12px_rgba(255,51,88,0.9)] font-black',
+    inactiveStyle: 'bg-[#260D10] text-[#FF6E40] border-2 border-[#E11D48] hover:border-rose-400 hover:text-[#FF8A65]',
+    glow: 'ring-1 ring-rose-400',
   },
 };
 
@@ -87,7 +91,7 @@ const AddBossGroupCard = memo(function AddBossGroupCard({
                 'flex-1 py-1 rounded-lg text-xs font-black border-2 select-none active:scale-95 transition-colors duration-75 flex items-center justify-center ' +
                 (isSelected
                   ? conf.activeStyle + ' ' + conf.glow
-                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
+                  : conf.inactiveStyle)
               }
               title={boss.name}
             >

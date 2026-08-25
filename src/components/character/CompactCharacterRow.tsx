@@ -26,23 +26,23 @@ interface CompactCharacterRowProps {
 const DIFFICULTY_BADGES: Record<Difficulty, { label: string; tagClass: string; ringClass: string }> = {
   extreme: {
     label: '極',
-    tagClass: 'bg-red-600 text-white border-red-400',
-    ringClass: 'border-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]',
+    tagClass: 'bg-[#380E13] text-[#FF5722] border-[#FF3358] shadow-[0_0_6px_rgba(255,51,88,0.7)]',
+    ringClass: 'border-[#FF3358] shadow-[0_0_6px_rgba(255,51,88,0.6)]',
   },
   hard: {
     label: '困',
-    tagClass: 'bg-rose-500 text-white border-rose-300',
-    ringClass: 'border-rose-400 shadow-[0_0_5px_rgba(244,63,94,0.4)]',
+    tagClass: 'bg-[#2D2117] text-[#FFE3B3] border-[#C5A070] shadow-[0_0_5px_rgba(245,158,11,0.5)]',
+    ringClass: 'border-[#C5A070] shadow-[0_0_5px_rgba(245,158,11,0.4)]',
   },
   normal: {
     label: '普',
-    tagClass: 'bg-sky-500 text-white border-sky-300',
-    ringClass: 'border-sky-400 shadow-[0_0_5px_rgba(14,165,233,0.4)]',
+    tagClass: 'bg-[#1D3D5E] text-white border-white shadow-[0_0_5px_rgba(56,189,248,0.6)]',
+    ringClass: 'border-sky-400 shadow-[0_0_5px_rgba(56,189,248,0.4)]',
   },
   easy: {
     label: '簡',
-    tagClass: 'bg-emerald-500 text-white border-emerald-300',
-    ringClass: 'border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.4)]',
+    tagClass: 'bg-[#35393E] text-white border-white shadow-[0_0_4px_rgba(255,255,255,0.5)]',
+    ringClass: 'border-white/80 shadow-[0_0_4px_rgba(255,255,255,0.3)]',
   },
 };
 

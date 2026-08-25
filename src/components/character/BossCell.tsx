@@ -124,29 +124,29 @@ export function BossCell({
   const isQuantityMode = record?.shardMode === 'quantity';
 
   // 難度火漆印章樣式
-  const getDifficultyBadge = (diff: Difficulty) => {
+    const getDifficultyBadge = (diff: Difficulty) => {
     switch (diff) {
       case 'extreme':
         return (
-          <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-red-600 via-rose-700 to-purple-800 text-white font-fredoka font-black text-[10px] uppercase tracking-wider border border-red-400 shadow-sm">
+          <span className="px-2 py-0.5 rounded-md bg-[#380E13] text-[#FF5722] font-fredoka font-black text-[10px] uppercase tracking-wider border-1.5 border-[#FF3358] shadow-[0_0_8px_rgba(255,51,88,0.8)]">
             Extreme
           </span>
         );
       case 'hard':
         return (
-          <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-red-500 to-rose-600 text-white font-fredoka font-black text-[10px] uppercase tracking-wider border border-red-300 shadow-sm">
+          <span className="px-2 py-0.5 rounded-md bg-[#2D2117] text-[#FFE3B3] font-fredoka font-black text-[10px] uppercase tracking-wider border-1.5 border-[#C5A070] shadow-[0_0_6px_rgba(245,158,11,0.6)]">
             Hard
           </span>
         );
       case 'normal':
         return (
-          <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-sky-500 to-blue-600 text-white font-fredoka font-black text-[10px] uppercase tracking-wider border border-sky-300 shadow-sm">
+          <span className="px-2 py-0.5 rounded-md bg-[#1D3D5E] text-white font-fredoka font-black text-[10px] uppercase tracking-wider border-1.5 border-white shadow-[0_0_8px_rgba(56,189,248,0.8)]">
             Normal
           </span>
         );
       case 'easy':
         return (
-          <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-500 to-green-600 text-white font-fredoka font-black text-[10px] uppercase tracking-wider border border-emerald-300 shadow-sm">
+          <span className="px-2 py-0.5 rounded-md bg-[#35393E] text-white font-fredoka font-black text-[10px] uppercase tracking-wider border-1.5 border-white shadow-[0_0_6px_rgba(255,255,255,0.6)]">
             Easy
           </span>
         );
