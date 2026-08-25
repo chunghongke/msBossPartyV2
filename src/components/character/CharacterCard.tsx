@@ -1,4 +1,4 @@
-import { useMemo, useRef, useLayoutEffect } from 'react';
+import { useMemo } from 'react';
 import { Character } from '@/types/player';
 import { Boss } from '@/types/boss';
 import { StoreData, Team } from '@/types/party';
@@ -47,10 +47,7 @@ export function CharacterCard({
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
 
-  const gridRef = useRef<HTMLDivElement>(null);
-  const prevPositionsRef = useRef<Map<string, DOMRect>>(new Map());
-
-  // 方案 ①：依完成狀態排序（未完成排在最前，已完成排在最後）
+  // 100% 固定原本 BOSS 順序（永不跳動重排，保留完美空間記憶與消除畫面撕裂感）
   const orderedBossEntries = useMemo(() => {
     const entries: { boss: Boss; entryIndex: 1 | 2 }[] = [];
 
@@ -65,17 +62,6 @@ export function CharacterCard({
     });
 
     return entries.sort((a, b) => {
-      // 1. 優先依完成狀態排序：未完成排前，已完成排後
-      const aRecKey = `rec_${character.id}_${a.boss.id}_${a.entryIndex}`;
-      const bRecKey = `rec_${character.id}_${b.boss.id}_${b.entryIndex}`;
-      const aDone = Boolean(store.weeklyRecords[aRecKey]?.isCompleted);
-      const bDone = Boolean(store.weeklyRecords[bRecKey]?.isCompleted);
-
-      if (aDone !== bDone) {
-        return aDone ? 1 : -1;
-      }
-
-      // 同完成狀態下，依原本資料庫難度順序排列
       const groupA = getBossGroupKey(a.boss.id);
       const groupB = getBossGroupKey(b.boss.id);
 
@@ -94,56 +80,7 @@ export function CharacterCard({
 
       return a.entryIndex - b.entryIndex;
     });
-  }, [character.bossIds, character.resetBossIds, character.id, store.weeklyRecords]);
-
-  // ⚡ 絲滑 FLIP 動畫：在狀態改變導致 DOM 節點重新排序時，平滑移動每張卡片
-  useLayoutEffect(() => {
-    if (!gridRef.current) return;
-    const oldPositions = prevPositionsRef.current;
-    const elements = gridRef.current.querySelectorAll<HTMLElement>('[data-flip-key]');
-
-    if (oldPositions.size > 0) {
-      elements.forEach((el) => {
-        const key = el.dataset.flipKey;
-        if (!key) return;
-        const oldRect = oldPositions.get(key);
-        if (!oldRect) return;
-
-        const newRect = el.getBoundingClientRect();
-        const dx = oldRect.left - newRect.left;
-        const dy = oldRect.top - newRect.top;
-
-        if (dx !== 0 || dy !== 0) {
-          // 瞬間回到上一幀的位置 (Invert)
-          el.style.transform = `translate(${dx}px, ${dy}px)`;
-          el.style.transition = 'none';
-
-          // 強制觸發重繪 (Reflow)
-          void el.offsetHeight;
-
-          // 絲滑流體過渡滑向新位置 (Play)
-          el.style.transition = 'transform 0.42s cubic-bezier(0.2, 0.9, 0.3, 1)';
-          el.style.transform = '';
-
-          const cleanup = () => {
-            el.style.transition = '';
-            el.removeEventListener('transitionend', cleanup);
-          };
-          el.addEventListener('transitionend', cleanup);
-        }
-      });
-    }
-
-    // 記錄當前幀的所有元素位置
-    const newPositions = new Map<string, DOMRect>();
-    elements.forEach((el) => {
-      const key = el.dataset.flipKey;
-      if (key) {
-        newPositions.set(key, el.getBoundingClientRect());
-      }
-    });
-    prevPositionsRef.current = newPositions;
-  });
+  }, [character.bossIds, character.resetBossIds]);
 
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
@@ -306,7 +243,7 @@ export function CharacterCard({
             ======================================================== */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           {hasBosses ? (
-            <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 sm:gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 sm:gap-3.5">
               {orderedBossEntries.map(({ boss, entryIndex }) => {
                 const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
                 const rec = store.weeklyRecords[recKey];

@@ -172,17 +172,17 @@ export function BossCell({
   return (
     <div
       id={`boss-cell-${charId}-${boss.id}-${entryIndex}`}
-      data-flip-key={recordKey}
+      
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
       className={cn(
-        'group relative flex flex-col justify-between rounded-2xl border-2.5 transition-all duration-200 select-none cursor-pointer overflow-hidden',
+        'group relative flex flex-col justify-between rounded-2xl border-2.5 select-none cursor-pointer overflow-hidden transition-opacity transition-colors duration-200',
         isCompleted
-          ? 'bg-[#DDD6C8]/60 dark:bg-slate-900/45 border-slate-400/30 dark:border-slate-800/50 opacity-45 grayscale contrast-80 shadow-none hover:opacity-85'
-          : 'bg-[#FFFDF9] dark:bg-slate-800 border-amber-500/90 dark:border-amber-400/90 shadow-[0_4px_14px_rgba(245,158,11,0.22)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)] hover:border-amber-400 hover:shadow-[0_6px_20px_rgba(245,158,11,0.38)] active:translate-y-[2px] active:shadow-none ring-1 ring-amber-400/30'
+          ? 'bg-[#E5DFD5]/50 dark:bg-slate-900/40 border-slate-300/40 dark:border-slate-800/40 opacity-30 grayscale contrast-75 brightness-75 shadow-none hover:opacity-65'
+          : 'bg-[#FFFDF9] dark:bg-slate-800 border-amber-500 dark:border-amber-400 shadow-[0_4px_16px_rgba(245,158,11,0.28)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)] ring-1.5 ring-amber-400/40 hover:border-amber-300 hover:shadow-[0_6px_22px_rgba(245,158,11,0.4)] active:translate-y-[1px]'
       )}
     >
       {/* 上半部：BOSS 圖片滿版區 (Full-cover Image Area) */}
