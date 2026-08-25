@@ -1,7 +1,8 @@
 import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS, getBossGroupKey, BossGroup } from '@/data/bosses';
+import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
+import { BossGroup, Boss } from '@/types/boss';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Ticket, AlertCircle } from 'lucide-react';
