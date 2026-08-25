@@ -4,7 +4,7 @@ import { MemberTarget, Team, RaidSchedule } from '@/types/party';
 import { getBoss } from '@/data/bosses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { Users, Clock, Zap, AlertCircle, Plus } from 'lucide-react';
+import { Users, Clock, Zap, AlertCircle, Plus, Trash2, CheckCircle2, UserCheck } from 'lucide-react';
 
 interface PartyModalProps {
   isOpen: boolean;
@@ -14,8 +14,28 @@ interface PartyModalProps {
   entryIndex: number;
 }
 
+const DAY_OPTIONS = [
+  { value: 4, label: '每週四 (重置日)' },
+  { value: 5, label: '每週五' },
+  { value: 6, label: '每週六' },
+  { value: 0, label: '每週日' },
+  { value: 1, label: '每週一' },
+  { value: 2, label: '每週二' },
+  { value: 3, label: '每週三' },
+];
+
+const TEMP_DAY_OPTIONS = [
+  { value: 4, label: '本週四' },
+  { value: 5, label: '本週五' },
+  { value: 6, label: '本週六' },
+  { value: 0, label: '本週日' },
+  { value: 1, label: '本週一' },
+  { value: 2, label: '本週二' },
+  { value: 3, label: '本週三' },
+];
+
 export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: PartyModalProps) {
-  const { store, getAllCharacters, getCharName, addGuest, saveTeamAndRecords } = useStore();
+  const { store, getAllCharacters, getCharName, addGuest, deleteGuest, saveTeamAndRecords } = useStore();
 
   const boss = getBoss(bossId);
   const recordKey = `rec_${charId}_${bossId}_${entryIndex}`;
@@ -24,12 +44,14 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const currentTeam = store.teams[currentTeamId];
 
   const [memberTargets, setMemberTargets] = useState<MemberTarget[]>([]);
-  const [recurringDay, setRecurringDay] = useState<number>(0);
-  const [recurringTime, setRecurringTime] = useState<string>('21:00');
+  const [recurringDay, setRecurringDay] = useState<number>(4);
+  const [recurringHour, setRecurringHour] = useState<string>('21');
+  const [recurringMin, setRecurringMin] = useState<string>('00');
   const [hasRecurring, setHasRecurring] = useState<boolean>(false);
 
-  const [tempDay, setTempDay] = useState<number>(0);
-  const [tempTime, setTempTime] = useState<string>('21:00');
+  const [tempDay, setTempDay] = useState<number>(4);
+  const [tempHour, setTempHour] = useState<string>('21');
+  const [tempMin, setTempMin] = useState<string>('00');
   const [hasTemp, setHasTemp] = useState<boolean>(false);
 
   const [quickGuestName, setQuickGuestName] = useState<string>('');
@@ -47,7 +69,9 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       if (currentTeam?.schedule?.recurring) {
         setHasRecurring(true);
         setRecurringDay(currentTeam.schedule.recurring.dayOfWeek);
-        setRecurringTime(currentTeam.schedule.recurring.timeStr);
+        const [h, m] = (currentTeam.schedule.recurring.timeStr || '21:00').split(':');
+        setRecurringHour(h || '21');
+        setRecurringMin(m || '00');
       } else {
         setHasRecurring(false);
       }
@@ -55,7 +79,9 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       if (currentTeam?.schedule?.tempOverride) {
         setHasTemp(true);
         setTempDay(currentTeam.schedule.tempOverride.dayOfWeek);
-        setTempTime(currentTeam.schedule.tempOverride.timeStr);
+        const [th, tm] = (currentTeam.schedule.tempOverride.timeStr || '21:00').split(':');
+        setTempHour(th || '21');
+        setTempMin(tm || '00');
       } else {
         setHasTemp(false);
       }
@@ -69,14 +95,23 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const maxPartySize = boss.maxPartySize || 6;
   const allChars = getAllCharacters();
 
+  // 篩選出該 BOSS 已排定的所有角色選項（包含首次刷與重置刷）
+  const scheduledCharOptions: { char: any; entry: number }[] = [];
+  allChars.forEach((c) => {
+    const hasNormal = c.bossIds && c.bossIds.includes(bossId);
+    const hasReset = c.resetBossIds && c.resetBossIds.includes(bossId);
+    if (hasNormal) scheduledCharOptions.push({ char: c, entry: 1 });
+    if (hasReset) scheduledCharOptions.push({ char: c, entry: 2 });
+  });
+
+  // 收集同 BOSS 其他已存在的隊伍（大於1人且有空位）供快速加入
   const existingOtherTeams = Object.values(store.teams || {}).filter((t) => {
     if (t.id === currentTeamId) return false;
-    return t.memberTargets.some((m) => {
-      const rec = Object.values(store.weeklyRecords).find(
-        (r) => r.charId === m.charId && r.teamId === t.id && r.bossId === bossId
-      );
-      return Boolean(rec);
+    const isSameBossTeam = t.memberTargets.some((m) => {
+      const rec = store.weeklyRecords[`rec_${m.charId}_${bossId}_${m.entryIndex}`];
+      return Boolean(rec && rec.teamId === t.id);
     });
+    return isSameBossTeam && t.memberTargets.length > 0;
   });
 
   const handleToggleMember = (targetCharId: string, targetEntry: number) => {
@@ -86,7 +121,15 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         return;
       }
       setMemberTargets(memberTargets.filter((m) => !(m.charId === targetCharId && m.entryIndex === targetEntry)));
+      setErrorMsg('');
     } else {
+      // 檢查是否已用另一種身分加入
+      const hasOtherEntry = memberTargets.some((m) => m.charId === targetCharId);
+      if (hasOtherEntry && !targetCharId.startsWith('guest_')) {
+        setErrorMsg('同一角色不能同時以「首次刷」與「重置刷」出現在同一隊伍中！');
+        return;
+      }
+
       if (memberTargets.length >= maxPartySize) {
         setErrorMsg(`此 BOSS 最多僅支援 ${maxPartySize} 人隊伍！`);
         return;
@@ -101,8 +144,9 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       setErrorMsg('該隊伍人數已滿！');
       return;
     }
-    const updated = [...targetTeam.memberTargets, { charId, entryIndex }];
-    setMemberTargets(updated);
+    const filtered = targetTeam.memberTargets.filter((m) => m.charId !== charId);
+    setMemberTargets([...filtered, { charId, entryIndex }]);
+    setErrorMsg('');
   };
 
   const handleAddQuickGuest = async (e: FormEvent) => {
@@ -110,7 +154,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     const clean = quickGuestName.trim();
     if (!clean) return;
     if (memberTargets.length >= maxPartySize) {
-      setErrorMsg(`隊伍已滿 (${maxPartySize} 人)！`);
+      setErrorMsg(`隊伍人數已滿 (${maxPartySize} 人)！`);
       return;
     }
 
@@ -120,8 +164,19 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         setMemberTargets([...memberTargets, { charId: g.id, entryIndex: 1 }]);
       }
       setQuickGuestName('');
+      setErrorMsg('');
     } catch (err: any) {
       setErrorMsg(err?.message || '新增臨時隊友失敗！');
+    }
+  };
+
+  const handleDeleteGuest = async (guestId: string) => {
+    if (!confirm('確定要刪除此 Guest 隊友嗎？(所有已存在該 Guest 的隊伍將同步移除)')) return;
+    try {
+      await deleteGuest(guestId);
+      setMemberTargets(memberTargets.filter((m) => m.charId !== guestId));
+    } catch (err: any) {
+      setErrorMsg(err?.message || '刪除失敗！');
     }
   };
 
@@ -137,11 +192,11 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
           : `party_${bossId}_${Date.now()}`;
 
       const recSched: RaidSchedule | null = hasRecurring
-        ? { dayOfWeek: Number(recurringDay), timeStr: recurringTime }
+        ? { dayOfWeek: Number(recurringDay), timeStr: `${recurringHour}:${recurringMin}` }
         : null;
 
       const tmpSched: RaidSchedule | null = hasTemp
-        ? { dayOfWeek: Number(tempDay), timeStr: tempTime }
+        ? { dayOfWeek: Number(tempDay), timeStr: `${tempHour}:${tempMin}` }
         : null;
 
       const nextTeam: Team = {
@@ -174,209 +229,406 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     }
   };
 
-  const daysOfWeek = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+  // 生成小時 (00-23) 與分鐘 (00, 15, 30, 45) 選項
+  const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const minOptions = ['00', '10', '15', '20', '30', '40', '45', '50'];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent maxWidthClass="max-w-2xl">
+      <DialogContent maxWidthClass="max-w-5xl">
         <DialogHeader>
           <DialogTitle>
-            <Users className="w-5 h-5" />
+            <Users className="w-5 h-5 text-amber-500" />
             <span>組隊與排程設定：{boss.name}</span>
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSave}>
-          <DialogBody className="space-y-4 max-h-[72vh]">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+          <DialogBody className="space-y-4 max-h-[76vh]">
+            {/* 上方：隊伍人數狀態膠囊 */}
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-400/10 border-2 border-amber-400/30 flex-wrap gap-2">
               <div>
-                <div className="text-xs font-bold text-[#3E2F20] dark:text-slate-100">
-                  隊伍人數上限：{maxPartySize} 人
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  目前已選取 {memberTargets.length} 位隊員
-                </div>
-              </div>
-              <div className="flex -space-x-1.5 overflow-hidden">
-                {memberTargets.map((m) => (
-                  <span
-                    key={`${m.charId}_${m.entryIndex}`}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 border-2 border-kerning-stroke text-[10px] font-black text-slate-900 shadow-sm"
-                    title={getCharName(m.charId)}
-                  >
-                    {getCharName(m.charId).slice(0, 1)}
+                <div className="text-xs font-black text-[#3E2F20] dark:text-slate-100 flex items-center gap-2">
+                  <span>隊伍人數上限：{maxPartySize} 人</span>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                    (目前已選取 {memberTargets.length} 位隊員)
                   </span>
-                ))}
-              </div>
-            </div>
-
-            {existingOtherTeams.length > 0 && (
-              <div>
-                <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  <span>快捷加入同伴已建立的現成隊伍：</span>
                 </div>
-                <div className="space-y-1.5">
-                  {existingOtherTeams.map((team) => (
-                    <div
-                      key={team.id}
-                      className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 text-xs"
-                    >
-                      <div className="truncate">
-                        <span className="font-bold">隊員：</span>
-                        <span className="text-slate-600 dark:text-slate-300">
-                          {team.memberTargets.map((m) => getCharName(m.charId)).join('、')}
-                        </span>
-                        <span className="text-[10px] text-slate-400 ml-1">
-                          ({team.memberTargets.length}/{maxPartySize}人)
-                        </span>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="gold"
-                        onClick={() => handleQuickJoin(team)}
-                        className="h-6 px-2 text-[11px] shrink-0"
+                <div className="text-[11px] text-stone-500 dark:text-slate-400 mt-0.5">
+                  點選下方角色或 Guest 加入/移出隊伍，可跨玩家自由編組
+                </div>
+              </div>
+
+              {/* 隊伍成員頭像槽位 */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {Array.from({ length: maxPartySize }).map((_, i) => {
+                  const m = memberTargets[i];
+                  if (m) {
+                    const isLeader = m.charId === charId && m.entryIndex === entryIndex;
+                    const name = getCharName(m.charId);
+                    return (
+                      <div
+                        key={i}
+                        className={
+                          'px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1 border-2 shadow-xs transition-all ' +
+                          (isLeader
+                            ? 'bg-amber-400 border-amber-600 text-slate-900 ring-2 ring-amber-300'
+                            : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200')
+                        }
+                        title={name + (m.entryIndex === 2 ? ' (重置刷)' : '')}
                       >
-                        加入此隊
-                      </Button>
+                        <UserCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span className="max-w-[80px] truncate">{name}</span>
+                        {m.entryIndex === 2 && <span className="text-[10px] text-purple-600 font-bold">2刷</span>}
+                        {isLeader && <span className="text-[10px] text-amber-900 font-bold">👑</span>}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={i}
+                      className="px-2.5 py-1 rounded-xl text-xs font-bold border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-400 select-none"
+                    >
+                      空位
                     </div>
-                  ))}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ========================================================
+                V1 經典三欄橫式排版 (3-Column Horizontal Layout)
+                Column 1: ⚡ 快捷加入現成隊伍
+                Column 2: 👥 公會正式角色名冊
+                Column 3: 👤 Guest 臨時隊友
+                ======================================================== */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-start">
+              {/* 第 1 欄：⚡ 快捷加入同伴現成隊伍 */}
+              <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2">
+                <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5 pb-1 border-b border-slate-300/60 dark:border-slate-700">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>快捷加入現成隊伍</span>
+                </div>
+
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {existingOtherTeams.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 italic">
+                      目前尚無其他同伴建立的隊伍
+                    </div>
+                  ) : (
+                    existingOtherTeams.map((team) => {
+                      const isFull = team.memberTargets.length >= maxPartySize;
+                      const memberNames = team.memberTargets
+                        .map((m) => {
+                          const n = getCharName(m.charId);
+                          return m.entryIndex === 2 ? `${n}(2刷)` : n;
+                        })
+                        .join('、');
+
+                      return (
+                        <div
+                          key={team.id}
+                          className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 space-y-1.5 shadow-xs"
+                        >
+                          <div className="text-xs text-slate-700 dark:text-slate-300">
+                            <span className="font-bold">隊員：</span>
+                            <span className="font-medium text-slate-800 dark:text-slate-100">{memberNames}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[11px] font-bold text-slate-400">
+                              {team.memberTargets.length} / {maxPartySize} 人
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="gold"
+                              disabled={isFull}
+                              onClick={() => handleQuickJoin(team)}
+                              className="h-6 px-2 text-[11px] font-bold"
+                            >
+                              {isFull ? '已滿員' : '加入此隊'}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
-            )}
 
-            <div>
-              <div className="text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                勾選隊員名冊 (包含公會角色與臨時隊友)
+              {/* 第 2 欄：👥 正式角色名冊 */}
+              <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2">
+                <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-300/60 dark:border-slate-700">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-blue-500" />
+                    <span>公會正式角色</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    共 {scheduledCharOptions.length} 隻
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                  {scheduledCharOptions.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 italic">
+                      尚無角色排定挑戰此 BOSS
+                    </div>
+                  ) : (
+                    scheduledCharOptions.map(({ char: c, entry }) => {
+                      const isChecked = memberTargets.some((m) => m.charId === c.id && m.entryIndex === entry);
+                      const isSelf = c.id === charId && entry === entryIndex;
+
+                      return (
+                        <label
+                          key={`${c.id}_${entry}`}
+                          onClick={() => handleToggleMember(c.id, entry)}
+                          className={
+                            'p-2 rounded-xl text-xs border-2 transition-all flex items-center justify-between cursor-pointer select-none ' +
+                            (isChecked
+                              ? 'bg-amber-400/20 border-amber-500 font-black text-amber-950 dark:text-amber-200 shadow-xs'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400')
+                          }
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              readOnly
+                              className="rounded border-slate-400 text-amber-500 pointer-events-none"
+                            />
+                            <span className="truncate font-bold">{c.name}</span>
+                            <span className="text-[10px] opacity-60">({c.playerName})</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {entry === 2 && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-black">
+                                2刷
+                              </span>
+                            )}
+                            {isSelf && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-900 text-[10px] font-black">
+                                隊長
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-black/5 dark:bg-black/25 rounded-xl border border-slate-300 dark:border-slate-700">
-                {allChars.map((char) => {
-                  const isChecked = memberTargets.some((m) => m.charId === char.id && m.entryIndex === 1);
-                  return (
-                    <button
-                      key={char.id}
-                      type="button"
-                      onClick={() => handleToggleMember(char.id, 1)}
-                      className={`p-2 rounded-lg text-left text-xs border transition-all flex items-center justify-between ${
-                        isChecked
-                          ? 'bg-amber-500/20 border-amber-500 font-black text-amber-900 dark:text-amber-300'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <span className="truncate">{char.name}</span>
-                      <span className="text-[10px] opacity-60">({char.playerName})</span>
-                    </button>
-                  );
-                })}
 
-                {store.guests.map((g) => {
-                  const isChecked = memberTargets.some((m) => m.charId === g.id);
-                  return (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => handleToggleMember(g.id, 1)}
-                      className={`p-2 rounded-lg text-left text-xs border transition-all flex items-center justify-between ${
-                        isChecked
-                          ? 'bg-indigo-500/20 border-indigo-500 font-black text-indigo-900 dark:text-indigo-300'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <span className="truncate">{g.name} (G)</span>
-                      <span className="text-[10px] text-indigo-500">臨時</span>
-                    </button>
-                  );
-                })}
+              {/* 第 3 欄：👤 Guest 臨時隊友區 */}
+              <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2">
+                <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-300/60 dark:border-slate-700">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">👤</span>
+                    <span>Guest 臨時隊友</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    共 {store.guests?.length || 0} 位
+                  </span>
+                </div>
+
+                {/* 快速新增 Guest */}
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={quickGuestName}
+                    onChange={(e) => setQuickGuestName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddQuickGuest(e as any);
+                      }
+                    }}
+                    placeholder="輸入 Guest 名字"
+                    className="flex-1 px-2.5 py-1 text-xs rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-bold"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="parchment"
+                    onClick={handleAddQuickGuest}
+                    className="text-xs px-2.5 shrink-0 h-7"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>新增</span>
+                  </Button>
+                </div>
+
+                {/* Guest 勾選與刪除列表 */}
+                <div className="space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
+                  {!store.guests || store.guests.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 italic">
+                      目前尚無 Guest 隊友，可在上方輸入名字新增
+                    </div>
+                  ) : (
+                    store.guests.map((g) => {
+                      const isChecked = memberTargets.some((m) => m.charId === g.id);
+
+                      return (
+                        <div
+                          key={g.id}
+                          className={
+                            'p-2 rounded-xl text-xs border-2 transition-all flex items-center justify-between ' +
+                            (isChecked
+                              ? 'bg-sky-500/15 border-sky-500 font-black text-sky-950 dark:text-sky-200 shadow-xs'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400')
+                          }
+                        >
+                          <label
+                            onClick={() => handleToggleMember(g.id, 1)}
+                            className="flex items-center gap-2 truncate cursor-pointer flex-1 select-none"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              readOnly
+                              className="rounded border-slate-400 text-sky-500 pointer-events-none"
+                            />
+                            <span className="truncate font-bold">{g.name}</span>
+                            <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">(Guest)</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteGuest(g.id)}
+                            className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                            title="刪除此 Guest"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={quickGuestName}
-                onChange={(e) => setQuickGuestName(e.target.value)}
-                placeholder="快速新增臨時隊友 (Guest)"
-                className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-              />
-              <Button type="button" size="sm" variant="parchment" onClick={handleAddQuickGuest} className="text-xs shrink-0">
-                <Plus className="w-3.5 h-3.5" />
-                <span>加入隊伍</span>
-              </Button>
-            </div>
-
-            <div className="p-3 bg-black/5 dark:bg-black/25 rounded-xl border border-slate-300 dark:border-slate-700 space-y-3">
-              <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center gap-1.5">
+            {/* ========================================================
+                ⏰ 隊伍出團時間排程設定 (Cloud Shared Schedule)
+                ======================================================== */}
+            <div className="p-3.5 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 space-y-3">
+              <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span>出團時間與推播排程</span>
+                <span>⏰ 隊伍出團時間排程（選填，雲端即時共享）</span>
               </div>
 
-              <div className="flex items-center gap-3 text-xs">
-                <label className="flex items-center gap-1.5 font-bold cursor-pointer shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={hasRecurring}
-                    onChange={(e) => setHasRecurring(e.target.checked)}
-                    className="rounded border-slate-400 text-amber-500"
-                  />
-                  <span>常態每週固定：</span>
-                </label>
-
-                {hasRecurring && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={recurringDay}
-                      onChange={(e) => setRecurringDay(Number(e.target.value))}
-                      className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-                    >
-                      {daysOfWeek.map((d, idx) => (
-                        <option key={d} value={idx}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* 常態固定時間 */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 font-bold cursor-pointer select-none text-slate-700 dark:text-slate-300">
                     <input
-                      type="time"
-                      value={recurringTime}
-                      onChange={(e) => setRecurringTime(e.target.value)}
-                      className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
+                      type="checkbox"
+                      checked={hasRecurring}
+                      onChange={(e) => setHasRecurring(e.target.checked)}
+                      className="rounded border-slate-400 text-amber-500"
                     />
-                  </div>
-                )}
-              </div>
+                    <span>📅 常態每週固定時間：</span>
+                  </label>
 
-              <div className="flex items-center gap-3 text-xs">
-                <label className="flex items-center gap-1.5 font-bold cursor-pointer shrink-0 text-amber-600 dark:text-amber-400">
-                  <input
-                    type="checkbox"
-                    checked={hasTemp}
-                    onChange={(e) => setHasTemp(e.target.checked)}
-                    className="rounded border-slate-400 text-amber-500"
-                  />
-                  <span>本週臨時改期 (週四自動清除)：</span>
-                </label>
+                  {hasRecurring ? (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <select
+                        value={recurringDay}
+                        onChange={(e) => setRecurringDay(Number(e.target.value))}
+                        className="flex-1 px-2.5 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
+                      >
+                        {DAY_OPTIONS.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={recurringHour}
+                          onChange={(e) => setRecurringHour(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                        >
+                          {hourOptions.map((h) => (
+                            <option key={h} value={h}>
+                              {h}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="font-black text-slate-400">:</span>
+                        <select
+                          value={recurringMin}
+                          onChange={(e) => setRecurringMin(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                        >
+                          {minOptions.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-400 italic pl-5">未設定常態時間</div>
+                  )}
+                </div>
 
-                {hasTemp && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={tempDay}
-                      onChange={(e) => setTempDay(Number(e.target.value))}
-                      className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
-                    >
-                      {daysOfWeek.map((d, idx) => (
-                        <option key={d} value={idx}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
+                {/* 本週臨時改期 */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 font-bold cursor-pointer select-none text-amber-600 dark:text-amber-400">
                     <input
-                      type="time"
-                      value={tempTime}
-                      onChange={(e) => setTempTime(e.target.value)}
-                      className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono"
+                      type="checkbox"
+                      checked={hasTemp}
+                      onChange={(e) => setHasTemp(e.target.checked)}
+                      className="rounded border-slate-400 text-amber-500"
                     />
-                  </div>
-                )}
+                    <span>⚡ 僅修改本週時間（下週自動恢復）：</span>
+                  </label>
+
+                  {hasTemp ? (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <select
+                        value={tempDay}
+                        onChange={(e) => setTempDay(Number(e.target.value))}
+                        className="flex-1 px-2.5 py-1.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
+                      >
+                        {TEMP_DAY_OPTIONS.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={tempHour}
+                          onChange={(e) => setTempHour(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                        >
+                          {hourOptions.map((h) => (
+                            <option key={h} value={h}>
+                              {h}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="font-black text-amber-500">:</span>
+                        <select
+                          value={tempMin}
+                          onChange={(e) => setTempMin(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                        >
+                          {minOptions.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-400 italic pl-5">未設定本週臨時改期</div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -392,7 +644,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
             <Button type="button" variant="parchment" size="sm" onClick={onClose}>
               取消
             </Button>
-            <Button type="submit" variant="primary" size="md" isLoading={isSubmitting}>
+            <Button type="submit" variant="gold" size="md" isLoading={isSubmitting}>
               <span>儲存隊伍與排程</span>
             </Button>
           </DialogFooter>
