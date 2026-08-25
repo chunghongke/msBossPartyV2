@@ -4,7 +4,7 @@ import { MemberTarget, Team, RaidSchedule } from '@/types/party';
 import { getBoss } from '@/data/bosses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { Users, Clock, Zap, AlertCircle, Plus, Trash2, CheckCircle2, UserCheck } from 'lucide-react';
+import { Users, Clock, Zap, AlertCircle, Plus, Trash2, UserCheck } from 'lucide-react';
 
 interface PartyModalProps {
   isOpen: boolean;
