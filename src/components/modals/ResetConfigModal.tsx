@@ -13,11 +13,27 @@ interface ResetConfigModalProps {
   playerName: string;
 }
 
-const DIFFICULTY_LABELS: Record<string, string> = {
-  easy: '簡',
-  normal: '普',
-  hard: '困',
-  extreme: '極',
+const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; glow: string }> = {
+  easy: {
+    label: '簡',
+    activeStyle: 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md scale-105',
+    glow: 'ring-2 ring-sky-300',
+  },
+  normal: {
+    label: '普',
+    activeStyle: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md scale-105',
+    glow: 'ring-2 ring-blue-300',
+  },
+  hard: {
+    label: '困',
+    activeStyle: 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md scale-105',
+    glow: 'ring-2 ring-amber-300',
+  },
+  extreme: {
+    label: '極',
+    activeStyle: 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md scale-105',
+    glow: 'ring-2 ring-red-300',
+  },
 };
 
 export function ResetConfigModal({ isOpen, onClose, character, playerName }: ResetConfigModalProps) {
@@ -143,11 +159,15 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
                         </span>
                       </div>
 
-                      {/* 滑塊開關 2刷難度選取按鈕 */}
+                      {/* 滑塊開關：遵循各難度原本的標準色彩 (簡: 藍天 / 普: 深藍 / 困: 琥珀金橘 / 極: 赤紅) */}
                       <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
                         {group.bosses.map((boss) => {
                           const isSelected = selectedResetBossIds.includes(boss.id);
-                          const label = DIFFICULTY_LABELS[boss.difficulty] || boss.difficulty;
+                          const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
+                            label: boss.difficulty,
+                            activeStyle: 'bg-amber-500 text-slate-900 border-amber-600 shadow-md',
+                            glow: 'ring-2 ring-amber-300',
+                          };
 
                           return (
                             <button
@@ -155,15 +175,14 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
                               type="button"
                               onClick={() => handleToggleResetBoss(boss.id, group.groupKey)}
                               className={
-                                'flex-1 py-1 rounded-lg text-xs font-black border-2 transition-all flex items-center justify-center select-none gap-1 ' +
+                                'flex-1 py-1 rounded-lg text-xs font-black border-2 transition-all flex items-center justify-center select-none ' +
                                 (isSelected
-                                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white border-purple-800 shadow-md ring-2 ring-purple-400'
+                                  ? conf.activeStyle + ' ' + conf.glow
                                   : 'bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:bg-black/5 dark:hover:bg-slate-700/50')
                               }
                               title={'2刷 ' + boss.name}
                             >
-                              <span>🎟️</span>
-                              <span>{label}</span>
+                              <span>{conf.label}</span>
                             </button>
                           );
                         })}
