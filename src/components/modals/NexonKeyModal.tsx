@@ -97,7 +97,7 @@ export function NexonKeyModal({ isOpen, onClose, onSuccess }: NexonKeyModalProps
         const char = updatedChars[i];
         try {
           if (i > 0) { await new Promise((r) => setTimeout(r, 600)); }
-          const info = await fetchNexonCharacterInfo(char.name, cleanKey);
+          const info = await fetchNexonCharacterInfo(char.name, cleanKey, char.ocid);
           if (info && info.characterImage) {
             updatedChars[i] = {
               ...char,

@@ -82,7 +82,7 @@ export function MainLayout({
         const char = updatedChars[i];
         try {
           if (i > 0) { await new Promise((r) => setTimeout(r, 600)); }
-          const info = await fetchNexonCharacterInfo(char.name, key);
+          const info = await fetchNexonCharacterInfo(char.name, key, char.ocid);
           if (info && info.characterImage) {
             updatedChars[i] = {
               ...char,

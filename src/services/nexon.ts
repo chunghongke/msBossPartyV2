@@ -16,7 +16,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * 具備 429 (Rate Limit) 自動重試與指數退避機制的 fetch
  */
-async function fetchWithRetry(url: string, options: RequestInit, retries = 3, delayMs = 1200): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3, delayMs = 1000): Promise<Response> {
   try {
     const res = await fetch(url, options);
 
@@ -118,11 +118,12 @@ export async function testNexonApiKey(key: string): Promise<{ success: boolean; 
 
 /**
  * 透過角色名稱向台灣新楓之谷 (TMS) Nexon Open API 查詢角色立繪與基本資訊
- * 包含安全的 Rate Limit 限流與 429 智慧重試
+ * 💡 若資料庫已有快取 ocid，則直接發送單次 /character/basic 請求，大幅減少 50% API 負擔！
  */
 export async function fetchNexonCharacterInfo(
   characterName: string,
-  apiKey?: string
+  apiKey?: string,
+  existingOcid?: string
 ): Promise<NexonCharacterInfo | null> {
   const cleanName = characterName.trim();
   const activeKey = (apiKey || getNexonApiKey()).trim();
@@ -130,7 +131,34 @@ export async function fetchNexonCharacterInfo(
   if (!cleanName || !activeKey) return null;
 
   try {
-    // 1. 透過角色名稱查詢 OCID (使用台灣新楓之谷 TMS 端點)
+    let ocid = existingOcid?.trim();
+
+    // 1. 若資料庫已有快取的 ocid，直接打 /character/basic 端點
+    if (ocid) {
+      try {
+        const directRes = await fetchWithRetry(NEXON_API_BASE_TW + '/character/basic?ocid=' + encodeURIComponent(ocid), {
+          headers: {
+            'x-nxopen-api-key': activeKey,
+          },
+        });
+
+        if (directRes.ok) {
+          const basicData = await directRes.json();
+          return {
+            ocid,
+            characterName: basicData.character_name || cleanName,
+            characterImage: basicData.character_image || '',
+            characterLevel: basicData.character_level,
+            characterClass: basicData.character_class,
+            worldName: basicData.world_name,
+          };
+        }
+      } catch {
+        // 若以舊 ocid 查詢失敗，降級繼續走下方 /id 端點重新查出新 ocid
+      }
+    }
+
+    // 2. 查無快取 ocid 時，透過角色名稱查詢 OCID (使用台灣新楓之谷 TMS 端點)
     const ocidRes = await fetchWithRetry(NEXON_API_BASE_TW + '/id?character_name=' + encodeURIComponent(cleanName), {
       headers: {
         'x-nxopen-api-key': activeKey,
@@ -142,13 +170,13 @@ export async function fetchNexonCharacterInfo(
     }
 
     const ocidData = await ocidRes.json();
-    const ocid = ocidData.ocid;
+    ocid = ocidData.ocid;
     if (!ocid) return null;
 
-    // 禮貌性微延遲 300ms 防止高頻觸發 Nexon 429
-    await sleep(300);
+    // 禮貌性微延遲 200ms 防止高頻觸發 Nexon 429
+    await sleep(200);
 
-    // 2. 透過 OCID 查詢角色基本資訊 (包含最新高清立繪 character_image)
+    // 3. 透過查到的 OCID 查詢角色基本資訊 (包含最新高清立繪 character_image)
     const basicRes = await fetchWithRetry(NEXON_API_BASE_TW + '/character/basic?ocid=' + encodeURIComponent(ocid), {
       headers: {
         'x-nxopen-api-key': activeKey,

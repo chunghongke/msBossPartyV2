@@ -96,7 +96,7 @@ export function EditCharBossesModal({
     setNoticeMsg('');
 
     try {
-      const info = await fetchNexonCharacterInfo(clean);
+      const info = await fetchNexonCharacterInfo(clean, undefined, character?.ocid);
       if (info && info.characterImage) {
         setCharacterImage(info.characterImage);
         setNoticeMsg('✨ 成功獲取 ' + info.characterName + ' 官方最新立繪！');
