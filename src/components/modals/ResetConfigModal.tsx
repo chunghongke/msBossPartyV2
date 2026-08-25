@@ -18,26 +18,26 @@ interface ResetConfigModalProps {
 const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; inactiveStyle: string; glow: string }> = {
   easy: {
     label: '簡',
-    activeStyle: 'bg-gradient-to-b from-[#64748B] to-[#334155] text-white border-2 border-white shadow-[0_0_14px_rgba(255,255,255,0.9)] scale-105 ring-2 ring-white/60 font-black z-10',
-    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-slate-400',
+    activeStyle: 'bg-gradient-to-b from-[#59626D] to-[#363C44] text-white border-2 border-white shadow-[0_0_12px_rgba(255,255,255,0.85)] scale-105 ring-2 ring-white/60 font-black z-10',
+    inactiveStyle: 'bg-[#272C32] text-[#E2E8F0] border-2 border-[#4A5460] hover:border-white hover:text-white',
     glow: '',
   },
   normal: {
     label: '普',
-    activeStyle: 'bg-gradient-to-b from-[#0284C7] to-[#0369A1] text-white border-2 border-white shadow-[0_0_16px_rgba(56,189,248,0.95)] scale-105 ring-2 ring-sky-400 font-black z-10',
-    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-sky-500',
+    activeStyle: 'bg-gradient-to-b from-[#2563EB] to-[#1D4ED8] text-white border-2 border-white shadow-[0_0_14px_rgba(56,189,248,0.95)] scale-105 ring-2 ring-sky-300 font-black z-10',
+    inactiveStyle: 'bg-[#16263B] text-[#93C5FD] border-2 border-[#254A73] hover:border-sky-400 hover:text-white',
     glow: '',
   },
   hard: {
     label: '困',
-    activeStyle: 'bg-gradient-to-b from-[#D97706] to-[#B45309] text-[#FFFBEB] border-2 border-[#FEF08A] shadow-[0_0_16px_rgba(245,158,11,0.95)] scale-105 ring-2 ring-amber-400 font-black z-10',
-    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-amber-600',
+    activeStyle: 'bg-gradient-to-b from-[#D97706] to-[#92400E] text-[#FFFBEB] border-2 border-[#FEF08A] shadow-[0_0_14px_rgba(245,158,11,0.95)] scale-105 ring-2 ring-amber-300 font-black z-10',
+    inactiveStyle: 'bg-[#2A1D13] text-[#FDE68A] border-2 border-[#7D5533] hover:border-amber-400 hover:text-[#FFFBEB]',
     glow: '',
   },
   extreme: {
     label: '極',
-    activeStyle: 'bg-gradient-to-b from-[#E11D48] to-[#9F1239] text-white border-2 border-[#FFE4E6] shadow-[0_0_18px_rgba(244,63,94,1)] scale-105 ring-2 ring-rose-500 font-black z-10',
-    inactiveStyle: 'bg-slate-900/35 text-slate-400/50 border-1.5 border-slate-600/30 opacity-35 hover:opacity-75 hover:border-rose-600',
+    activeStyle: 'bg-gradient-to-b from-[#E11D48] to-[#9F1239] text-[#FFF1F2] border-2 border-[#FFE4E6] shadow-[0_0_16px_rgba(244,63,94,1)] scale-105 ring-2 ring-rose-400 font-black z-10',
+    inactiveStyle: 'bg-[#2B0E14] text-[#FDA4AF] border-2 border-[#881337] hover:border-rose-400 hover:text-[#FFF1F2]',
     glow: '',
   },
 };
@@ -78,7 +78,7 @@ const ResetBossGroupCard = memo(function ResetBossGroupCard({
         </span>
       </div>
 
-      <div className="flex p-1 bg-black/5 dark:bg-black/40 rounded-xl border border-slate-300/70 dark:border-slate-700 gap-1 w-full justify-center">
+      <div className="flex p-1 bg-slate-900/90 dark:bg-black/80 rounded-xl border-1.5 border-slate-700/80 gap-1 w-full justify-center shadow-inner">
         {group.bosses.map((boss) => {
           const isSelected = selectedBossId === boss.id;
           const conf = DIFFICULTY_CONFIG[boss.difficulty] || {
