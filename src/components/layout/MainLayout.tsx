@@ -64,6 +64,13 @@ export function MainLayout({
 
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
 
+  // 當登入者變更 (例如剛登入成功或身分切換) 時，立即將主視覺與導覽列切換為該登入者
+  useEffect(() => {
+    if (currentPlayer?.name) {
+      setSelectedPlayerName(currentPlayer.name);
+    }
+  }, [currentPlayer?.name]);
+
   // 決定當前選中的玩家 (預設為登入者或第一位玩家)
   const effectiveSelectedPlayerName = useMemo(() => {
     if (selectedPlayerName && players.some((p) => p.name === selectedPlayerName)) {
