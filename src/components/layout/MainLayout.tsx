@@ -4,6 +4,7 @@ import { useStore } from '@/contexts/StoreContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
+import { sortCharactersByLocalOrder, saveLocalCharacterOrder } from '@/utils/localOrder';
 import { useWeeklyReset } from '@/hooks/useWeeklyReset';
 import { useCalculator } from '@/hooks/useCalculator';
 import { Header } from './Header';
@@ -155,6 +156,12 @@ export function MainLayout({
   }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
+  const [orderVersion, setOrderVersion] = useState(0);
+
+  const handleReorderCharacters = (playerName: string, reorderedChars: Character[]) => {
+    saveLocalCharacterOrder(playerName, reorderedChars.map((c) => c.id));
+    setOrderVersion((v) => v + 1);
+  };
   const [viewMode, setViewMode] = useState<'compact' | 'detailed'>(() => {
     try {
       return (localStorage.getItem('boss_party_view_mode') as 'compact' | 'detailed') || 'compact';
@@ -240,7 +247,7 @@ export function MainLayout({
         onOpenAddCharacterModal={onOpenAddCharacterModal}
         onScrollToGuests={scrollToGuests}
         onScrollToCharacter={scrollToCharacter}
-        onReorderCharacters={reorderCharacters}
+        onReorderCharacters={handleReorderCharacters}
       />
 
       {/* 主要內容區 */}
@@ -278,7 +285,8 @@ export function MainLayout({
           <div className="space-y-8">
             {/* 逐一渲染當前玩家區塊 */}
             {displayPlayers.map((player) => {
-              const characters = player.characters || [];
+              const rawChars = player.characters || [];
+              const characters = useMemo(() => sortCharactersByLocalOrder(player.name, rawChars), [player.name, rawChars, orderVersion]);
 
               // 計算該玩家名下所有角色的結晶楓幣總和
               const playerCrystalStats = characters.reduce(

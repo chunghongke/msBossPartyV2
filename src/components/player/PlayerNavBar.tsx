@@ -2,6 +2,7 @@ import { useMemo, useState, DragEvent } from 'react';
 import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
+import { sortCharactersByLocalOrder } from '@/utils/localOrder';
 import { cn } from '@/utils/cn';
 import { UserPlus, Users, Crown, PlusCircle, GripVertical } from 'lucide-react';
 
@@ -44,7 +45,11 @@ export function PlayerNavBar({
     return players.find((p) => p.name === selectedPlayerName) || sortedPlayers[0] || null;
   }, [players, selectedPlayerName, sortedPlayers]);
 
-  const selectedCharacters = selectedPlayer?.characters || [];
+  const rawSelectedChars = selectedPlayer?.characters || [];
+  const selectedCharacters = useMemo(() => {
+    if (!selectedPlayer) return [];
+    return sortCharactersByLocalOrder(selectedPlayer.name, rawSelectedChars);
+  }, [selectedPlayer, rawSelectedChars]);
   const isManageable = selectedPlayer ? canManageChar(selectedPlayer.name) : false;
 
   // 角色拖曳排序處理函式 (DnD Event Handlers)
