@@ -13,11 +13,13 @@ import { PartyModal } from './PartyModal';
 import { ShardShareModal } from './ShardShareModal';
 import { ScheduleInfoModal } from './ScheduleInfoModal';
 import { NotificationModal } from './NotificationModal';
+import { NexonKeyModal } from './NexonKeyModal';
 
 export interface ModalController {
   openGroupModal: () => void;
   openLoginModal: () => void;
   openNotifModal: () => void;
+  openNexonKeyModal: () => void;
   openAddPlayerModal: () => void;
   openAddCharacterModal: (playerName: string) => void;
   openRenameModal: (character: Character) => void;
@@ -32,6 +34,7 @@ export function useModalState() {
   const [isGroupOpen, setIsGroupOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isNexonKeyOpen, setIsNexonKeyOpen] = useState(false);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
 
   const [addCharPlayerName, setAddCharPlayerName] = useState<string | null>(null);
@@ -46,6 +49,7 @@ export function useModalState() {
     openGroupModal: () => setIsGroupOpen(true),
     openLoginModal: () => setIsAuthOpen(true),
     openNotifModal: () => setIsNotifOpen(true),
+    openNexonKeyModal: () => setIsNexonKeyOpen(true),
     openAddPlayerModal: () => setIsAddPlayerOpen(true),
     openAddCharacterModal: (playerName) => setAddCharPlayerName(playerName),
     openRenameModal: (character) => setRenameChar(character),
@@ -74,6 +78,11 @@ export function useModalState() {
         onClose={() => setIsNotifOpen(false)}
       />
 
+      <NexonKeyModal
+        isOpen={isNexonKeyOpen}
+        onClose={() => setIsNexonKeyOpen(false)}
+      />
+
       <AddPlayerModal
         isOpen={isAddPlayerOpen}
         onClose={() => setIsAddPlayerOpen(false)}
@@ -83,6 +92,7 @@ export function useModalState() {
         isOpen={addCharPlayerName !== null}
         onClose={() => setAddCharPlayerName(null)}
         playerName={addCharPlayerName || ''}
+        onOpenNexonKeyModal={() => setIsNexonKeyOpen(true)}
       />
 
       <RenameCharModal
@@ -107,7 +117,7 @@ export function useModalState() {
 
       {partyTarget && (
         <PartyModal
-          isOpen={true}
+          isOpen={partyTarget !== null}
           onClose={() => setPartyTarget(null)}
           charId={partyTarget.charId}
           bossId={partyTarget.bossId}
@@ -117,7 +127,7 @@ export function useModalState() {
 
       {shardTarget && (
         <ShardShareModal
-          isOpen={true}
+          isOpen={shardTarget !== null}
           onClose={() => setShardTarget(null)}
           recordKey={shardTarget.recordKey}
           boss={shardTarget.boss}
@@ -125,11 +135,13 @@ export function useModalState() {
         />
       )}
 
-      <ScheduleInfoModal
-        isOpen={scheduleInfoTeam !== null}
-        onClose={() => setScheduleInfoTeam(null)}
-        team={scheduleInfoTeam}
-      />
+      {scheduleInfoTeam && (
+        <ScheduleInfoModal
+          isOpen={scheduleInfoTeam !== null}
+          onClose={() => setScheduleInfoTeam(null)}
+          team={scheduleInfoTeam}
+        />
+      )}
     </>
   );
 
