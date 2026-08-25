@@ -299,7 +299,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
             {/* ========================================================
                 V1 經典三欄橫式排版 (3-Column Horizontal Layout)
                 Column 1: ⚡ 快捷加入現成隊伍
-                Column 2: 👥 公會正式角色名冊
+                Column 2: 👥 小隊正式角色名冊
                 Column 3: 👤 Guest 臨時隊友
                 ======================================================== */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-start">
@@ -361,7 +361,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                 <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-300/60 dark:border-slate-700">
                   <div className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-blue-500" />
-                    <span>公會正式角色</span>
+                    <span>小隊正式角色</span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">
                     共 {scheduledCharOptions.length} 隻
