@@ -171,6 +171,7 @@ export function BossCell({
 
   return (
     <div
+      id={`boss-cell-${charId}-${boss.id}-${entryIndex}`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}

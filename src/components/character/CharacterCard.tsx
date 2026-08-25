@@ -82,6 +82,21 @@ export function CharacterCard({
     });
   }, [character.bossIds, character.resetBossIds]);
 
+  // 方案 ③：點擊標籤使右側對應的 BOSS 卡片平滑滾動並閃爍聚焦
+  const handleFocusBoss = (bossId: string, entryIndex: number) => {
+    const el = document.getElementById(`boss-cell-${character.id}-${bossId}-${entryIndex}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      el.classList.remove('boss-cell-focused');
+      // 強制觸發 DOM 重繪以重新啟動 CSS Keyframe 動畫
+      void el.offsetWidth;
+      el.classList.add('boss-cell-focused');
+      setTimeout(() => {
+        el.classList.remove('boss-cell-focused');
+      }, 1600);
+    }
+  };
+
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
     ? Math.min(100, Math.round((progressStats.completed / progressStats.total) * 100))
@@ -256,14 +271,16 @@ export function CharacterCard({
                   </div>
                   <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                     {pendingBosses.map(({ boss, entryIndex }) => (
-                      <span
+                      <button
                         key={`${boss.id}_${entryIndex}`}
-                        className="px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-amber-300/70 dark:border-amber-500/40 text-[10px] font-bold shadow-2xs flex items-center gap-0.5"
-                        title={`${boss.name}${entryIndex === 2 ? ' (2刷)' : ''}`}
+                        type="button"
+                        onClick={() => handleFocusBoss(boss.id, entryIndex)}
+                        className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-amber-400 dark:hover:bg-amber-400 hover:text-slate-900 dark:hover:text-slate-900 text-slate-800 dark:text-slate-200 border border-amber-300/80 dark:border-amber-500/50 text-[10px] font-bold shadow-2xs hover:shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-0.5 select-none"
+                        title={`點擊立即聚焦並高亮右側 ${boss.name} 卡片`}
                       >
                         <span>{getBossCleanName(boss.name)}</span>
                         {entryIndex === 2 && <span className="text-purple-600 dark:text-purple-400 font-extrabold text-[9px]">(2刷)</span>}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 </div>

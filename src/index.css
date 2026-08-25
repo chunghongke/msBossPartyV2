@@ -78,3 +78,37 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #FFA726;
 }
+
+/* BOSS 卡片閃爍聚焦高亮動畫 (方案 ③ 點擊聚焦) */
+@keyframes bossCellPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.9);
+  }
+  25% {
+    transform: scale(1.06);
+    box-shadow: 0 0 32px 8px rgba(245, 158, 11, 0.95);
+    border-color: #F59E0B !important;
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 24px 6px rgba(245, 158, 11, 0.8);
+    border-color: #F59E0B !important;
+  }
+  75% {
+    transform: scale(1.05);
+    box-shadow: 0 0 28px 7px rgba(245, 158, 11, 0.9);
+    border-color: #F59E0B !important;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+.boss-cell-focused {
+  animation: bossCellPulse 1.6s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  z-index: 30 !important;
+  position: relative !important;
+  border-color: #F59E0B !important;
+}
