@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #1B3B6F;
+    --card-parchment: #FDF5E6;
+    --card-parchment-border: #D4B982;
+    --text-parchment: #4A3B2C;
+  }
+
+  .dark {
+    --bg-main: #0B172B;
+    --card-parchment: #1E293B;
+    --card-parchment-border: #334155;
+    --text-parchment: #F1F5F9;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: #F8FAFC;
+    font-family: 'Noto Sans TC', sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* 楓之谷立體卡通外框 */
+.maple-outline {
+  border: 2.5px solid #212121;
+}
+
+/* 羊皮紙卡片底紋效果 */
+.parchment-card {
+  background-color: #FDF5E6;
+  border: 2.5px solid #212121;
+  box-shadow: 0 4px 0 #D4B982, 0 6px 14px rgba(0, 0, 0, 0.15);
+  border-radius: 14px;
+}
+
+.dark .parchment-card {
+  background-color: #1E293B;
+  border: 2.5px solid #334155;
+  box-shadow: 0 4px 0 #0F172A, 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* 登入者自己專屬金色相框 */
+.gold-frame {
+  border: 3px solid #FFD700;
+  box-shadow: 0 4px 0 #B8860B, 0 0 16px rgba(255, 215, 0, 0.35);
+}
+
+/* 數字厚黑字體陰影 (傷害數字風格 - 僅用於 Fredoka 英文與數字) */
+.maple-number-glow {
+  font-family: 'Fredoka', sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 
+    -1px -1px 0 #212121,
+     1px -1px 0 #212121,
+    -1px  1px 0 #212121,
+     1px  1px 0 #212121;
+}
+
+/* 客製化捲軸 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #FF9800;
+  border-radius: 4px;
+  border: 1.5px solid #212121;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FFA726;
+}

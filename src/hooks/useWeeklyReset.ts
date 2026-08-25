@@ -1,0 +1,179 @@
+import { useState, useEffect, useCallback } from 'react';
+import { StoreData, Team, WeeklyRecord } from '@/types/party';
+import { Player } from '@/types/player';
+
+export function getCurrentResetWeekKey(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = (day - 4 + 7) % 7;
+  const thursday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff, 0, 0, 0, 0);
+  const y = thursday.getFullYear();
+  const m = String(thursday.getMonth() + 1).padStart(2, '0');
+  const d = String(thursday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function getNextResetCountdown(): { days: number; hours: number; minutes: number; text: string } {
+  const now = new Date();
+  const day = now.getDay();
+  let daysUntilThursday = (4 - day + 7) % 7;
+  if (daysUntilThursday === 0) {
+    daysUntilThursday = 7;
+  }
+  const nextThursday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilThursday, 0, 0, 0, 0);
+  const diffMs = nextThursday.getTime() - now.getTime();
+
+  const totalMinutes = Math.max(0, Math.floor(diffMs / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  const text = days > 0 ? `${days}天 ${hours}小時 ${minutes}分` : `${hours}小時 ${minutes}分`;
+
+  return { days, hours, minutes, text };
+}
+
+export function useWeeklyReset(
+  store: StoreData,
+  players: Player[],
+  saveStore: (newStore: StoreData) => Promise<void>,
+  isStoreLoading: boolean = false
+) {
+  const [countdown, setCountdown] = useState(getNextResetCountdown());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(getNextResetCountdown());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const checkAndPerformWeeklyReset = useCallback(async () => {
+    if (isStoreLoading || !store || Object.keys(store.weeklyRecords || {}).length === 0) return;
+
+    const currentWeekKey = getCurrentResetWeekKey();
+    if (store.lastResetWeekKey && store.lastResetWeekKey === currentWeekKey) {
+      return;
+    }
+
+    const updatedRecords: Record<string, WeeklyRecord> = {};
+    Object.entries(store.weeklyRecords).forEach(([key, rec]) => {
+      updatedRecords[key] = {
+        ...rec,
+        isCompleted: false,
+        lastWeekShardShares: rec.shardShares ?? null,
+        lastWeekShardQuantity: rec.shardQuantity ?? null,
+      };
+    });
+
+    const updatedTeams: Record<string, Team> = {};
+    Object.entries(store.teams).forEach(([tId, team]) => {
+      if (team.schedule && team.schedule.tempOverride) {
+        updatedTeams[tId] = {
+          ...team,
+          schedule: {
+            ...team.schedule,
+            tempOverride: null,
+          },
+        };
+      } else {
+        updatedTeams[tId] = team;
+      }
+    });
+
+    const nextStore: StoreData = {
+      ...store,
+      weeklyRecords: updatedRecords,
+      teams: updatedTeams,
+      lastResetWeekKey: currentWeekKey,
+    };
+
+    await saveStore(nextStore);
+  }, [store, saveStore, isStoreLoading]);
+
+  const ensureDefaultSingleTeams = useCallback(async () => {
+    if (isStoreLoading || !players || players.length === 0) return;
+
+    let hasChanges = false;
+    const nextTeams = { ...store.teams };
+    const nextRecords = { ...store.weeklyRecords };
+
+    players.forEach((p) => {
+      (p.characters || []).forEach((c) => {
+        (c.bossIds || []).forEach((bossId) => {
+          const recKey = `rec_${c.id}_${bossId}_1`;
+          const singleTeamId = `single_${c.id}_${bossId}_1`;
+
+          if (!nextRecords[recKey]) {
+            nextRecords[recKey] = {
+              charId: c.id,
+              bossId,
+              entryIndex: 1,
+              teamId: singleTeamId,
+              isCompleted: false,
+            };
+            hasChanges = true;
+          }
+
+          const existingTeamId = nextRecords[recKey].teamId || singleTeamId;
+          if (!nextTeams[existingTeamId]) {
+            nextTeams[existingTeamId] = {
+              id: existingTeamId,
+              memberTargets: [{ charId: c.id, entryIndex: 1 }],
+              schedule: null,
+            };
+            hasChanges = true;
+          }
+        });
+
+        (c.resetBossIds || []).forEach((bossId) => {
+          const recKey = `rec_${c.id}_${bossId}_2`;
+          const singleTeamId = `single_${c.id}_${bossId}_2`;
+
+          if (!nextRecords[recKey]) {
+            nextRecords[recKey] = {
+              charId: c.id,
+              bossId,
+              entryIndex: 2,
+              teamId: singleTeamId,
+              isCompleted: false,
+            };
+            hasChanges = true;
+          }
+
+          const existingTeamId = nextRecords[recKey].teamId || singleTeamId;
+          if (!nextTeams[existingTeamId]) {
+            nextTeams[existingTeamId] = {
+              id: existingTeamId,
+              memberTargets: [{ charId: c.id, entryIndex: 2 }],
+              schedule: null,
+            };
+            hasChanges = true;
+          }
+        });
+      });
+    });
+
+    if (hasChanges) {
+      await saveStore({
+        ...store,
+        teams: nextTeams,
+        weeklyRecords: nextRecords,
+      });
+    }
+  }, [players, store, saveStore, isStoreLoading]);
+
+  useEffect(() => {
+    if (!isStoreLoading && store && players.length > 0) {
+      checkAndPerformWeeklyReset().then(() => {
+        ensureDefaultSingleTeams();
+      });
+    }
+  }, [isStoreLoading, store.lastResetWeekKey, players.length]);
+
+  return {
+    countdown,
+    checkAndPerformWeeklyReset,
+    ensureDefaultSingleTeams,
+  };
+}
