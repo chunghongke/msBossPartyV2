@@ -115,9 +115,27 @@ export function EditCharBossesModal({
 
   const hasNexonKey = Boolean(getNexonApiKey());
 
+  const getDifficultyBtnStyle = (difficulty: string, isSelected: boolean) => {
+    if (!isSelected) {
+      return 'bg-black/10 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 opacity-60 hover:opacity-100';
+    }
+    switch (difficulty) {
+      case 'easy':
+        return 'bg-gradient-to-b from-blue-300 to-sky-500 text-slate-900 border-sky-600 shadow-md scale-105 ring-2 ring-sky-300';
+      case 'normal':
+        return 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-blue-700 shadow-md scale-105 ring-2 ring-blue-300';
+      case 'hard':
+        return 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-orange-700 shadow-md scale-105 ring-2 ring-amber-300';
+      case 'extreme':
+        return 'bg-gradient-to-b from-red-500 to-red-700 text-white border-red-800 shadow-md scale-105 ring-2 ring-red-300';
+      default:
+        return 'bg-amber-500 text-slate-900 border-amber-600 shadow-md scale-105';
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent maxWidthClass="max-w-2xl">
+      <DialogContent maxWidthClass="max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             <Edit2 className="w-5 h-5" />
@@ -126,7 +144,7 @@ export function EditCharBossesModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <DialogBody className="space-y-4 max-h-[72vh]">
+          <DialogBody className="space-y-4 max-h-[74vh]">
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-2xl bg-black/10 dark:bg-slate-800 border-2 border-kerning-stroke overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
                 {characterImage ? (
@@ -176,40 +194,67 @@ export function EditCharBossesModal({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  每週常態討伐 BOSS ({selectedBossIds.length}/12)
+                  每週常態討伐 BOSS ({selectedBossIds.length} / 12)
                 </span>
-                <span className="text-[10px] text-slate-400">最多 12 隻</span>
+                <span className={selectedBossIds.length >= 12 ? 'text-xs font-black text-red-500' : 'text-xs font-bold text-slate-400'}>
+                  {selectedBossIds.length >= 12 ? '⚠️ 已達 12 隻上限' : '最多 12 隻'}
+                </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-2 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
-                {BOSS_GROUPS.map((group) => (
-                  <div key={group.groupKey} className="p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div className="text-xs font-black text-[#3E2F20] dark:text-slate-100 mb-1.5">
-                      {group.displayName}
+              {/* V1 風格的 BOSS 圖像大卡片網格 */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[440px] overflow-y-auto p-2.5 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
+                {BOSS_GROUPS.map((group) => {
+                  const hasSelectedInGroup = group.bosses.some((b) => selectedBossIds.includes(b.id));
+
+                  return (
+                    <div
+                      key={group.groupKey}
+                      className="flex flex-col bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-2 items-center gap-2 shadow-xs transition-all"
+                    >
+                      {/* BOSS 形象大圖相框 */}
+                      <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+                        <img
+                          src={'./images/bosses/' + group.groupKey + '.png'}
+                          alt={group.displayName}
+                          onError={(e: any) => {
+                            e.target.src = './icon.png';
+                          }}
+                          className={
+                            'max-w-full max-h-full object-contain transition-all duration-200 ' +
+                            (hasSelectedInGroup ? 'scale-105 brightness-105' : 'grayscale opacity-40')
+                          }
+                        />
+                        <span className="absolute bottom-1 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[11px] font-black text-white shadow-xs max-w-[90%] truncate">
+                          {group.displayName}
+                        </span>
+                      </div>
+
+                      {/* 難度圓形切換按鈕組 (簡/普/困/極) */}
+                      <div className="flex flex-wrap gap-1.5 w-full justify-center">
+                        {group.bosses.map((boss) => {
+                          const isSelected = selectedBossIds.includes(boss.id);
+                          const btnStyle = getDifficultyBtnStyle(boss.difficulty, isSelected);
+
+                          return (
+                            <button
+                              key={boss.id}
+                              type="button"
+                              onClick={() => handleToggleBoss(boss.id)}
+                              className={
+                                'px-2 py-1 rounded-xl text-xs font-black border-2 transition-all flex items-center gap-1 ' +
+                                btnStyle
+                              }
+                              title={boss.name}
+                            >
+                              <DifficultyBadge difficulty={boss.difficulty} />
+                              <span className="text-[11px]">{boss.difficulty === 'easy' ? '簡' : boss.difficulty === 'normal' ? '普' : boss.difficulty === 'hard' ? '困' : '極'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {group.bosses.map((boss) => {
-                        const isSelected = selectedBossIds.includes(boss.id);
-                        return (
-                          <button
-                            key={boss.id}
-                            type="button"
-                            onClick={() => handleToggleBoss(boss.id)}
-                            className={
-                              'px-2 py-1 rounded-lg text-xs font-bold border-1.5 flex items-center gap-1 transition-all ' +
-                              (isSelected
-                                ? 'bg-amber-500 text-slate-900 border-amber-600 shadow-sm scale-105'
-                                : 'bg-black/5 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-transparent hover:border-slate-400')
-                            }
-                          >
-                            <DifficultyBadge difficulty={boss.difficulty} />
-                            <span>{getBossCleanName(boss.name)}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

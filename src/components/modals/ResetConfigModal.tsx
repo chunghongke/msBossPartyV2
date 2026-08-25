@@ -1,11 +1,11 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS, getBossCleanName } from '@/data/bosses';
+import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
 import { DifficultyBadge } from '@/components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { Ticket } from 'lucide-react';
+import { Ticket, AlertCircle } from 'lucide-react';
 
 interface ResetConfigModalProps {
   isOpen: boolean;
@@ -18,19 +18,39 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
   const { updateCharacter } = useStore();
   const [selectedResetBossIds, setSelectedResetBossIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (character) {
       setSelectedResetBossIds(character.resetBossIds || []);
+      setErrorMsg('');
     }
   }, [character]);
 
   if (!character) return null;
 
+  const normalCount = character.bossIds ? character.bossIds.length : 0;
+  const resetCount = selectedResetBossIds.length;
+  const totalCount = normalCount + resetCount;
+  const isFull = totalCount >= 12;
+
+  // 篩選出該角色原本常態有攻略 (bossIds) 且支援重置券 (allowReset) 的 BOSS 組別
+  const normalGroupKeys = new Set((character.bossIds || []).map((id) => getBossGroupKey(id)));
+  const availableResetGroups = BOSS_GROUPS.map((g) => ({
+    ...g,
+    bosses: g.bosses.filter((b) => b.allowReset && normalGroupKeys.has(g.groupKey)),
+  })).filter((g) => g.bosses.length > 0);
+
   const handleToggleResetBoss = (bossId: string) => {
     if (selectedResetBossIds.includes(bossId)) {
       setSelectedResetBossIds(selectedResetBossIds.filter((id) => id !== bossId));
+      setErrorMsg('');
     } else {
+      if (totalCount >= 12) {
+        setErrorMsg('攻略總額度（常態 + 重置券）已達 12 隻上限！');
+        return;
+      }
+      setErrorMsg('');
       setSelectedResetBossIds([...selectedResetBossIds, bossId]);
     }
   };
@@ -46,61 +66,110 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
       };
       await updateCharacter(playerName, updated);
       onClose();
+    } catch (err: any) {
+      setErrorMsg(err?.message || '儲存重置券設定失敗！');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const resetGroups = BOSS_GROUPS.map((g) => ({
-    ...g,
-    bosses: g.bosses.filter((b) => b.allowReset),
-  })).filter((g) => g.bosses.length > 0);
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent maxWidthClass="max-w-xl">
+      <DialogContent maxWidthClass="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            <Ticket className="w-5 h-5 text-purple-400" />
+            <Ticket className="w-5 h-5 text-purple-500" />
             <span>設定 {character.name} 每週重置券 BOSS (2刷)</span>
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <DialogBody className="space-y-4 max-h-[72vh]">
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              設定使用「每週 BOSS 重置入場券」進行 2 刷的 BOSS。勾選後將在卡片上產生獨立的 🎟️ 2刷格位。
+          <DialogBody className="space-y-4 max-h-[74vh]">
+            {/* 額度統計膠囊 */}
+            <div className="p-3 bg-purple-500/10 border-2 border-purple-500/30 rounded-2xl flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="font-black text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                <Ticket className="w-4 h-4 text-purple-500" />
+                <span>角色：{character.name} ({playerName})</span>
+              </div>
+              <div className={'font-black text-xs ' + (isFull ? 'text-red-500' : 'text-purple-700 dark:text-purple-300')}>
+                📊 攻略額度：常態 {normalCount} 隻 ＋ 重置券 {resetCount} 隻 ＝ 總計 {totalCount} / 12 隻 {isFull ? '(已達上限)' : ''}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-2 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
-              {resetGroups.map((group) => (
-                <div key={group.groupKey} className="p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <div className="text-xs font-black text-[#3E2F20] dark:text-slate-100 mb-1.5">
-                    {group.displayName}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.bosses.map((boss) => {
-                      const isSelected = selectedResetBossIds.includes(boss.id);
-                      return (
-                        <button
-                          key={boss.id}
-                          type="button"
-                          onClick={() => handleToggleResetBoss(boss.id)}
-                          className={`px-2 py-1 rounded-lg text-xs font-bold border-1.5 flex items-center gap-1 transition-all ${
-                            isSelected
-                              ? 'bg-purple-600 text-white border-purple-700 shadow-sm scale-105'
-                              : 'bg-black/5 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-transparent hover:border-slate-400'
-                          }`}
-                        >
-                          <DifficultyBadge difficulty={boss.difficulty} />
-                          <span>{getBossCleanName(boss.name)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+            {availableResetGroups.length === 0 ? (
+              <div className="py-12 text-center parchment-card rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 space-y-2">
+                <div className="text-3xl">🎫</div>
+                <div className="text-sm font-black text-slate-700 dark:text-slate-300">
+                  該角色目前排定的常態 BOSS 清單中，沒有支援重置券的王怪。
                 </div>
-              ))}
-            </div>
+                <div className="text-xs text-slate-400">
+                  （請先在「編輯 BOSS」中勾選該角色要挑戰的常態 BOSS，例如史烏、戴米安、露希妲等）
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[420px] overflow-y-auto p-2.5 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700">
+                {availableResetGroups.map((group) => {
+                  const hasSelectedInGroup = group.bosses.some((b) => selectedResetBossIds.includes(b.id));
+
+                  return (
+                    <div
+                      key={group.groupKey}
+                      className="flex flex-col bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-2 items-center gap-2 shadow-xs transition-all"
+                    >
+                      {/* BOSS 形象大圖相框 */}
+                      <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+                        <img
+                          src={'./images/bosses/' + group.groupKey + '.png'}
+                          alt={group.displayName}
+                          onError={(e: any) => {
+                            e.target.src = './icon.png';
+                          }}
+                          className={
+                            'max-w-full max-h-full object-contain transition-all duration-200 ' +
+                            (hasSelectedInGroup ? 'scale-105 brightness-105' : 'grayscale opacity-40')
+                          }
+                        />
+                        <span className="absolute bottom-1 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[11px] font-black text-white shadow-xs max-w-[90%] truncate">
+                          {group.displayName}
+                        </span>
+                      </div>
+
+                      {/* 2刷難度選取按鈕 */}
+                      <div className="flex flex-wrap gap-1.5 w-full justify-center">
+                        {group.bosses.map((boss) => {
+                          const isSelected = selectedResetBossIds.includes(boss.id);
+
+                          return (
+                            <button
+                              key={boss.id}
+                              type="button"
+                              onClick={() => handleToggleResetBoss(boss.id)}
+                              className={
+                                'px-2 py-1 rounded-xl text-xs font-black border-2 transition-all flex items-center gap-1 ' +
+                                (isSelected
+                                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white border-purple-800 shadow-md scale-105 ring-2 ring-purple-400'
+                                  : 'bg-black/10 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 opacity-60 hover:opacity-100')
+                              }
+                              title={'2刷 ' + boss.name}
+                            >
+                              <DifficultyBadge difficulty={boss.difficulty} />
+                              <span className="text-[11px]">🎟️ 2刷</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {errorMsg && (
+              <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
           </DialogBody>
 
           <DialogFooter>
@@ -108,7 +177,7 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
               取消
             </Button>
             <Button type="submit" variant="gold" size="md" isLoading={isSubmitting}>
-              <span>儲存設定</span>
+              <span>儲存重置券設定</span>
             </Button>
           </DialogFooter>
         </form>

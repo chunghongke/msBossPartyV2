@@ -37,10 +37,10 @@ export function Badge({ variant = 'normal', size = 'sm', className, children, ..
 
 export function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
   const map: Record<Difficulty, { label: string; variant: 'easy' | 'normal' | 'hard' | 'extreme' }> = {
-    easy: { label: '?', variant: 'easy' },
-    normal: { label: '?', variant: 'normal' },
-    hard: { label: '?', variant: 'hard' },
-    extreme: { label: '?', variant: 'extreme' },
+    easy: { label: '簡', variant: 'easy' },
+    normal: { label: '普', variant: 'normal' },
+    hard: { label: '困', variant: 'hard' },
+    extreme: { label: '極', variant: 'extreme' },
   };
   const { label, variant } = map[difficulty] || { label: difficulty, variant: 'normal' };
   return <Badge variant={variant}>{label}</Badge>;
