@@ -286,7 +286,6 @@ export function MainLayout({
           <div className="space-y-8">
             {/* 逐一渲染當前玩家區塊 */}
             {displayPlayers.map((player) => {
-              const rawChars = player.characters || [];
               // 依據本地自訂排序 (由上至下) 並響應 orderVersion 狀態更新
               const characters = sortCharactersByLocalOrder(player.name, player.characters || []);
 
