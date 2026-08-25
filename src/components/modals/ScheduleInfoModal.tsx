@@ -59,7 +59,7 @@ export function ScheduleInfoModal({ isOpen, onClose, team }: ScheduleInfoModalPr
               隊員名冊與本週擊破狀態
             </div>
             <div className="space-y-1.5">
-              {team.memberTargets.map((m) => {
+              {(team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex: 1 }))).map((m) => {
                 const rec = Object.values(store.weeklyRecords).find(
                   (r) => r.charId === m.charId && r.teamId === team.id
                 );

@@ -296,7 +296,8 @@ export function BossCell({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (team && onShowScheduleInfo) {
+              // 若已有排程資訊則開啟排程詳情，若尚未設定時間則直接開啟組隊視窗進行設定
+              if (scheduleText && team?.schedule && onShowScheduleInfo) {
                 onShowScheduleInfo(team);
               } else {
                 onOpenPartyModal(charId, boss.id, entryIndex);
