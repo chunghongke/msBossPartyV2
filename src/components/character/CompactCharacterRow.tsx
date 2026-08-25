@@ -198,19 +198,35 @@ function SingleRowBossPill({
       </div>
 
       {/* 右側小膠囊：出團時間 / 艾里溫碎片 */}
-      {scheduleText && (
-        <span
-          onClick={(e) => {
-            e.stopPropagation();
-            if (team && onShowScheduleInfo) onShowScheduleInfo(team);
-            else onOpenPartyModal(charId, boss.id, entryIndex);
-          }}
-          className="px-1 py-0.2 rounded bg-purple-500/15 border border-purple-400/40 text-purple-700 dark:text-purple-300 font-mono font-bold text-[8px] hover:bg-purple-500/25 flex items-center gap-0.5 shrink-0"
-          title="出團時間"
-        >
-          <Clock className="w-2 h-2" />
-        </span>
-      )}
+      <div className="flex items-center gap-0.5 shrink-0">
+        {boss.erionVestiges > 0 && isMultiParty && onOpenShardModal && (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenShardModal(recordKey, boss, team || null);
+            }}
+            className="px-1 py-0.2 rounded bg-purple-500/10 border border-purple-300/40 text-purple-600 dark:text-purple-300 font-black text-[8px] flex items-center gap-0.5 hover:bg-purple-500/20"
+            title="點擊分配艾里溫碎片"
+          >
+            <Sparkles className="w-2 h-2 text-purple-500" />
+            <span>{record?.shardQuantity !== null && record?.shardQuantity !== undefined ? `${record.shardQuantity}個` : `${record?.shardShares || 1}/${boss.maxPartySize}`}</span>
+          </span>
+        )}
+
+        {scheduleText && (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              if (team && onShowScheduleInfo) onShowScheduleInfo(team);
+              else onOpenPartyModal(charId, boss.id, entryIndex);
+            }}
+            className="px-1 py-0.2 rounded bg-purple-500/15 border border-purple-400/40 text-purple-700 dark:text-purple-300 font-mono font-bold text-[8px] hover:bg-purple-500/25 flex items-center gap-0.5 shrink-0"
+            title={`出團時間: ${scheduleText}`}
+          >
+            <Clock className="w-2 h-2" />
+          </span>
+        )}
+      </div>
     </div>
   );
 }
