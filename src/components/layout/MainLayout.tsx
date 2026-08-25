@@ -156,7 +156,7 @@ export function MainLayout({
   }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
-  const [, setOrderVersion] = useState(0);
+  const [orderVersion, setOrderVersion] = useState(0);
 
   const handleReorderCharacters = (playerName: string, reorderedChars: Character[]) => {
     saveLocalCharacterOrder(playerName, reorderedChars.map((c) => c.id));
@@ -240,6 +240,7 @@ export function MainLayout({
 
       {/* 玩家導覽列 (Sticky top-16，取消全部玩家，登入者排第一，下方圓形頭像) */}
       <PlayerNavBar
+        key={`navbar-${effectiveSelectedPlayerName}-${orderVersion}`}
         players={players}
         selectedPlayerName={effectiveSelectedPlayerName}
         onSelectPlayer={setSelectedPlayerName}
@@ -285,6 +286,8 @@ export function MainLayout({
           <div className="space-y-8">
             {/* 逐一渲染當前玩家區塊 */}
             {displayPlayers.map((player) => {
+              const rawChars = player.characters || [];
+              // 依據本地自訂排序 (由上至下) 並響應 orderVersion 狀態更新
               const characters = sortCharactersByLocalOrder(player.name, player.characters || []);
 
               // 計算該玩家名下所有角色的結晶楓幣總和
