@@ -37,7 +37,7 @@ function StoreDependentProviders({ children }: { children: React.ReactNode }) {
   const { players, store } = useStore();
   return (
     <AuthProvider players={players}>
-      <NotifProvider store={store} players={players}>
+      <NotifProvider store={store}>
         {children}
       </NotifProvider>
     </AuthProvider>
