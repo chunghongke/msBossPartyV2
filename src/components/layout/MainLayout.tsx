@@ -51,6 +51,17 @@ export function MainLayout({
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
   const { calculateCrystal, formatCrystal } = useCalculator(store);
 
+  // 當使用者透過邀請連結加入且尚未登入時，在資料庫載入後自動彈出登入/加入引導
+  useEffect(() => {
+    if (!isStoreLoading && activeGroup && !currentPlayer) {
+      const isJustJoined = sessionStorage.getItem('boss_party_just_joined_invite');
+      if (isJustJoined === 'true') {
+        sessionStorage.removeItem('boss_party_just_joined_invite');
+        onOpenLoginModal();
+      }
+    }
+  }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
+
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
 
   // 決定當前選中的玩家 (預設為登入者或第一位玩家)
@@ -121,9 +132,19 @@ export function MainLayout({
       {/* 主要內容區 */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-6">
         {isStoreLoading ? (
-          <div className="py-20 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
-            <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <p className="font-bold text-sm">正在連線讀取備忘錄資料庫...</p>
+          <div className="py-24 text-center parchment-card max-w-sm mx-auto rounded-3xl border-3 border-kerning-stroke p-8 shadow-2xl space-y-4">
+            <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-4 border-amber-400 border-t-orange-600 animate-spin" />
+              <span className="text-3xl animate-bounce">🍁</span>
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-black text-base text-[#3E2F20] dark:text-slate-100">
+                正在連線小隊冒險者資料庫...
+              </h3>
+              <p className="text-xs text-stone-500 dark:text-slate-400 font-bold">
+                即將為您同步每週 BOSS 討伐進度與隊伍排程
+              </p>
+            </div>
           </div>
         ) : players.length === 0 ? (
           <div className="py-20 text-center parchment-card max-w-md mx-auto rounded-3xl border-3 border-kerning-stroke p-8 shadow-xl">

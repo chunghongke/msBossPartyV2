@@ -62,6 +62,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (hash && hash.includes('invite=')) {
         const inviteGroup = parseInviteLink(hash);
         if (inviteGroup) {
+          sessionStorage.setItem('boss_party_just_joined_invite', 'true');
           const existsIndex = groups.findIndex((g) => g.id === inviteGroup.id);
           if (existsIndex >= 0) {
             groups[existsIndex] = inviteGroup;

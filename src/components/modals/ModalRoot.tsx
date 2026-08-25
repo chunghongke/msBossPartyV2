@@ -71,6 +71,10 @@ export function useModalState() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
+        onOpenAddPlayerModal={() => {
+          setIsAuthOpen(false);
+          setIsAddPlayerOpen(true);
+        }}
       />
 
       <NotificationModal

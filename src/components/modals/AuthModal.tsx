@@ -1,21 +1,22 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { hashPassword } from '@/services/crypto';
-import { UserCheck, KeyRound, LogOut, ShieldAlert, Crown, Check, ShieldCheck } from 'lucide-react';
+import { UserCheck, KeyRound, LogOut, ShieldAlert, Crown, Check, ShieldCheck, UserPlus } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAddPlayerModal?: () => void;
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onOpenAddPlayerModal }: AuthModalProps) {
   const { currentPlayer, isAdmin, login, logout } = useAuth();
   const { players, updatePlayer } = useStore();
 
-  const [selectedPlayerName, setSelectedPlayerName] = useState<string>(currentPlayer?.name || (players[0]?.name ?? ''));
+  const [selectedPlayerName, setSelectedPlayerName] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -31,6 +32,20 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [resetTargetName, setResetTargetName] = useState('');
   const [adminNewPassword, setAdminNewPassword] = useState('');
 
+  // 當彈窗開啟或玩家清單更新時，正確自動對齊選中的玩家
+  useEffect(() => {
+    if (isOpen && players.length > 0) {
+      if (!selectedPlayerName || !players.some((p) => p.name === selectedPlayerName)) {
+        setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
+      }
+      setPasswordInput('');
+      setErrorMsg('');
+      setSuccessMsg('');
+      setIsChangingPass(false);
+      setIsAdminResetting(false);
+    }
+  }, [isOpen, currentPlayer, players]);
+
   const targetPlayer = players.find((p) => p.name === selectedPlayerName);
   const hasPassword = Boolean(targetPlayer?.passwordHash);
 
@@ -38,6 +53,12 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    if (!selectedPlayerName) {
+      setErrorMsg('請選擇要登入的玩家！');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -124,19 +145,22 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         <DialogHeader>
           <DialogTitle>
             <UserCheck className="w-5 h-5" />
-            <span>玩家身分切換與驗證</span>
+            <span>玩家身分登入與切換</span>
           </DialogTitle>
         </DialogHeader>
 
         <DialogBody className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{currentPlayer?.avatarEmoji || '👤'}</span>
+          {/* 目前登入狀態膠囊 */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-lg shadow-inner">
+                {currentPlayer?.avatarEmoji || '👤'}
+              </div>
               <div>
-                <div className="text-[10px] font-bold text-slate-400">目前登入玩家</div>
+                <div className="text-[10px] font-bold text-stone-500 dark:text-slate-400">目前登入玩家</div>
                 <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100 flex items-center gap-1">
                   <span>{currentPlayer?.name || '尚未登入'}</span>
-                  {isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-500" />}
+                  {isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
                 </div>
               </div>
             </div>
@@ -150,41 +174,58 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
 
           {!isChangingPass && !isAdminResetting && (
-            <form onSubmit={handleLogin} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  選擇要切換的玩家
-                </label>
-                <select
-                  value={selectedPlayerName}
-                  onChange={(e) => {
-                    setSelectedPlayerName(e.target.value);
-                    setPasswordInput('');
-                    setErrorMsg('');
-                  }}
-                  className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500"
-                >
-                  {players.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.avatarEmoji || '👤'} {p.name} {p.isAdmin ? '👑 (隊長)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <form onSubmit={handleLogin} className="space-y-3.5">
+              {players.length > 0 ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      選擇要登入 / 切換的玩家 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedPlayerName}
+                      onChange={(e) => {
+                        setSelectedPlayerName(e.target.value);
+                        setPasswordInput('');
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500 shadow-xs"
+                    >
+                      {players.map((p) => (
+                        <option key={p.name} value={p.name}>
+                          {p.avatarEmoji || '👤'} {p.name} {p.isAdmin ? '👑 (隊長)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {hasPassword && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    輸入登入密碼 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="請輸入密碼"
-                    className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
-                    required
-                  />
+                  {hasPassword ? (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        輸入登入密碼 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordInput}
+                        onChange={(e) => {
+                          setPasswordInput(e.target.value);
+                          setErrorMsg('');
+                        }}
+                        placeholder="請輸入此玩家的密碼 (至少4碼)"
+                        className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 shadow-xs"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30 text-xs text-[#5C3E14] dark:text-amber-300 font-bold">
+                      💡 此玩家尚未設定密碼，可直接點擊下方按鈕登入。登入後可隨時補設密碼保護。
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                  小隊目前尚無任何玩家，請先建立新玩家！
                 </div>
               )}
 
@@ -202,8 +243,24 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </div>
               )}
 
-              <div className="pt-2 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="pt-2 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  {onOpenAddPlayerModal && (
+                    <Button
+                      type="button"
+                      variant="parchment"
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onOpenAddPlayerModal();
+                      }}
+                      className="text-xs h-8"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>我是新隊員</span>
+                    </Button>
+                  )}
+
                   {currentPlayer && (
                     <button
                       type="button"
@@ -236,9 +293,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   )}
                 </div>
 
-                <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} className="ml-auto">
-                  <span>確認切換</span>
-                </Button>
+                {players.length > 0 && (
+                  <Button type="submit" variant="gold" size="md" isLoading={isSubmitting} className="ml-auto">
+                    <span>確認登入</span>
+                  </Button>
+                )}
               </div>
             </form>
           )}
@@ -253,10 +312,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="請輸入至少 4 碼新密碼"
+                  placeholder="輸入新密碼"
                   className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   required
-                  minLength={4}
                 />
               </div>
 
@@ -268,25 +326,41 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   type="password"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  placeholder="請再次輸入相同新密碼"
+                  placeholder="再次輸入新密碼"
                   className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   required
-                  minLength={4}
                 />
               </div>
 
               {errorMsg && (
-                <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold">
-                  {errorMsg}
+                <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>{successMsg}</span>
                 </div>
               )}
 
               <div className="pt-2 flex items-center justify-between">
-                <Button type="button" variant="parchment" size="sm" onClick={() => setIsChangingPass(false)}>
-                  取消
+                <Button
+                  type="button"
+                  variant="parchment"
+                  size="sm"
+                  onClick={() => {
+                    setIsChangingPass(false);
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                >
+                  返回
                 </Button>
-                <Button type="submit" variant="gold" size="md" isLoading={isSubmitting}>
-                  儲存新密碼
+                <Button type="submit" variant="primary" size="md" isLoading={isSubmitting}>
+                  <span>儲存密碼</span>
                 </Button>
               </div>
             </form>
@@ -294,9 +368,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
           {isAdminResetting && (
             <form onSubmit={handleAdminResetPassword} className="space-y-3">
-              <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
-                <Crown className="w-4 h-4 text-yellow-500" />
-                <span>隊長特權：為忘記密碼的隊員直接設定新密碼</span>
+              <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs text-purple-700 dark:text-purple-300 font-bold">
+                👑 隊長特權：您可以為忘記密碼的隊員設定新的登入密碼。
               </div>
 
               <div>
@@ -306,43 +379,61 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <select
                   value={resetTargetName}
                   onChange={(e) => setResetTargetName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
+                  className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500"
                 >
-                  {players.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.avatarEmoji || '👤'} {p.name}
-                    </option>
-                  ))}
+                  {players
+                    .filter((p) => p.name !== currentPlayer?.name)
+                    .map((p) => (
+                      <option key={p.name} value={p.name}>
+                        {p.avatarEmoji || '👤'} {p.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  為該隊員設定新密碼 (至少 4 碼) <span className="text-red-500">*</span>
+                  輸入為隊員指定的新密碼 (至少 4 碼) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
                   value={adminNewPassword}
                   onChange={(e) => setAdminNewPassword(e.target.value)}
-                  placeholder="輸入至少 4 碼新密碼"
-                  className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-purple-500"
+                  placeholder="輸入為該隊員設定的新密碼"
+                  className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   required
-                  minLength={4}
                 />
               </div>
 
               {errorMsg && (
-                <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold">
-                  {errorMsg}
+                <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>{successMsg}</span>
                 </div>
               )}
 
               <div className="pt-2 flex items-center justify-between">
-                <Button type="button" variant="parchment" size="sm" onClick={() => setIsAdminResetting(false)}>
-                  取消
+                <Button
+                  type="button"
+                  variant="parchment"
+                  size="sm"
+                  onClick={() => {
+                    setIsAdminResetting(false);
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                >
+                  返回
                 </Button>
                 <Button type="submit" variant="primary" size="md" isLoading={isSubmitting}>
-                  確認重設隊員密碼
+                  <span>確認重設隊員密碼</span>
                 </Button>
               </div>
             </form>
@@ -350,7 +441,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         </DialogBody>
 
         <DialogFooter>
-          <Button variant="parchment" size="sm" onClick={onClose}>
+          <Button type="button" variant="parchment" size="sm" onClick={onClose}>
             關閉
           </Button>
         </DialogFooter>
