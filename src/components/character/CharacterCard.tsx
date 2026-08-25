@@ -19,8 +19,8 @@ interface CharacterCardProps {
   onOpenShardModal: (recordKey: string, boss: Boss, team: Team | null) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
   onOpenResetConfig: (character: Character, playerName: string) => void;
-  onOpenRenameModal: (character: Character) => void;
-  onDeleteCharacter: (character: Character, playerName: string) => void;
+  onOpenRenameModal: (character: Character, playerName: string) => void;
+  onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
 }
 
@@ -206,7 +206,7 @@ export function CharacterCard({
                 <Button
                   size="icon"
                   variant="parchment"
-                  onClick={() => onOpenRenameModal(character)}
+                  onClick={() => onOpenRenameModal(character, playerName)}
                   className="w-7 h-7"
                   title="重新命名角色"
                 >
@@ -216,7 +216,7 @@ export function CharacterCard({
                 <Button
                   size="icon"
                   variant="danger"
-                  onClick={() => onDeleteCharacter(character, playerName)}
+                  onClick={() => onDeleteCharacter(character.id, playerName)}
                   className="w-7 h-7"
                   title="刪除角色"
                 >
