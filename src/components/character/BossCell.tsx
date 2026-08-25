@@ -233,10 +233,7 @@ export function BossCell({
             title={`隊伍成員：${validMembers.map((m: any) => getCharName(m.charId) + (m.entryIndex === 2 ? '(2刷)' : '')).join('、')} (點擊開啟組隊設定)`}
           >
             <Users className="w-3 h-3 text-amber-400 shrink-0" />
-            <span className="truncate">
-              <span className="text-amber-300 font-black mr-0.5">隊友:</span>
-              <span className="text-slate-100">{teammatesDisplayText}</span>
-            </span>
+            <span className="truncate font-black text-amber-200">{teammatesDisplayText}</span>
           </div>
         )}
 
