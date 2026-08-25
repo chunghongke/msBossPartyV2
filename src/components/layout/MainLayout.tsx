@@ -18,6 +18,7 @@ interface MainLayoutProps {
   onOpenLoginModal: () => void;
   onOpenGroupModal: () => void;
   onOpenNotifModal: () => void;
+  onOpenNexonKeyModal?: () => void;
   onOpenAddPlayerModal: () => void;
   onOpenAddCharacterModal: (playerName: string) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
@@ -33,6 +34,7 @@ export function MainLayout({
   onOpenLoginModal,
   onOpenGroupModal,
   onOpenNotifModal,
+  onOpenNexonKeyModal,
   onOpenAddPlayerModal,
   onOpenAddCharacterModal,
   onOpenPartyModal,
@@ -70,7 +72,7 @@ export function MainLayout({
   };
 
   const scrollToCharacter = (charId: string) => {
-    const el = document.getElementById(`char-card-${charId}`);
+    const el = document.getElementById('char-card-' + charId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('ring-4', 'ring-amber-400');
@@ -101,6 +103,7 @@ export function MainLayout({
         onOpenLoginModal={onOpenLoginModal}
         onOpenGroupModal={onOpenGroupModal}
         onOpenNotifModal={onOpenNotifModal}
+        onOpenNexonKeyModal={onOpenNexonKeyModal}
         countdownText={countdown.text}
       />
 

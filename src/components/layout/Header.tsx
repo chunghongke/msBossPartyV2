@@ -3,9 +3,11 @@ import { useGroup } from '@/contexts/GroupContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotif } from '@/contexts/NotifContext';
 import { useAlert } from '@/contexts/AlertContext';
+import { getNexonApiKey } from '@/services/nexon';
 import { Button } from '@/components/ui/Button';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/Tooltip';
 import {
+  Key,
   Users,
   Share2,
   Clock,
@@ -22,6 +24,7 @@ interface HeaderProps {
   onOpenLoginModal?: () => void;
   onOpenGroupModal?: () => void;
   onOpenNotifModal?: () => void;
+  onOpenNexonKeyModal?: () => void;
   countdownText?: string;
 }
 
@@ -29,6 +32,7 @@ export function Header({
   onOpenLoginModal,
   onOpenGroupModal,
   onOpenNotifModal,
+  onOpenNexonKeyModal,
   countdownText,
 }: HeaderProps) {
   const { activeGroup, generateInviteLink } = useGroup();
@@ -62,10 +66,12 @@ export function Header({
     }
   };
 
+  const hasNexonKey = Boolean(getNexonApiKey());
+
   return (
     <TooltipProvider>
       <header className="sticky top-0 z-40 w-full bg-[#3B2C1A]/95 dark:bg-[#151C2C]/95 backdrop-blur-md border-b-2.5 border-kerning-stroke text-white shadow-lg transition-colors">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 border-2 border-kerning-stroke flex items-center justify-center text-2xl shrink-0 shadow-md">
               🍁
@@ -99,16 +105,13 @@ export function Header({
           </div>
 
           {countdownText && (
-            <div className="hidden md:flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/40 border border-amber-500/30 text-xs">
-              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span className="text-slate-300">重置倒數：</span>
-              <span className="font-fredoka font-bold text-amber-300 tracking-wider">
-                {countdownText}
-              </span>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-amber-500/30 text-xs font-bold text-amber-300 shadow-inner">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>{countdownText}</span>
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2">
             {activeGroup && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -132,6 +135,25 @@ export function Header({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>複製 Base64 邀請連結，小夥伴點擊即可直接加入！</TooltipContent>
+              </Tooltip>
+            )}
+
+            {onOpenNexonKeyModal && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={onOpenNexonKeyModal}
+                    className="w-9 h-9 relative text-amber-200 hover:text-amber-100"
+                  >
+                    <Key className="w-4 h-4" />
+                    {hasNexonKey && (
+                      <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-black" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Nexon Open API 金鑰設定 (角色立繪同步)</TooltipContent>
               </Tooltip>
             )}
 
