@@ -767,10 +767,10 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
           </DialogBody>
 
           <DialogFooter className="flex items-center justify-between">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <Button type="button" variant="parchment" onClick={onClose} disabled={isSubmitting}>
               取消
             </Button>
-            <Button type="submit" variant="primary" loading={isSubmitting}>
+            <Button type="submit" variant="primary" isLoading={isSubmitting}>
               儲存隊伍與排程
             </Button>
           </DialogFooter>
