@@ -101,28 +101,17 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const currentChar = allChars.find((c) => c.id === charId);
   const currentOwnerPlayerName = currentChar?.playerName;
 
-  // 篩選出該 BOSS 已排定的所有角色選項（包含首次刷與重置刷）
-  // 排除當前玩家名下的其他角色（因為同一玩家無法自己跟自己組隊）
-  const scheduledCharOptions: { char: any; entry: number }[] = [];
+  // 篩選出其他同伴玩家排定此 BOSS 的角色（排除當前玩家名下所有角色，因為當前編輯角色已獨立置頂顯示，其他角色無法自己跟自己組隊）
+  const otherScheduledCharOptions: { char: any; entry: number }[] = [];
   allChars.forEach((c) => {
     const isSamePlayer = Boolean(currentOwnerPlayerName && c.playerName === currentOwnerPlayerName);
-    const isCurrentChar = c.id === charId;
-
-    // 排除同玩家名下的其他角色（自己跟自己無法組隊）
-    if (isSamePlayer && !isCurrentChar) {
-      return;
-    }
+    if (isSamePlayer) return;
 
     const hasNormal = c.bossIds && c.bossIds.includes(bossId);
     const hasReset = c.resetBossIds && c.resetBossIds.includes(bossId);
 
-    if (isCurrentChar) {
-      // 當前角色只列出目前正在設定的輪次
-      scheduledCharOptions.push({ char: c, entry: entryIndex });
-    } else {
-      if (hasNormal) scheduledCharOptions.push({ char: c, entry: 1 });
-      if (hasReset) scheduledCharOptions.push({ char: c, entry: 2 });
-    }
+    if (hasNormal) otherScheduledCharOptions.push({ char: c, entry: 1 });
+    if (hasReset) otherScheduledCharOptions.push({ char: c, entry: 2 });
   });
 
   // 收集同 BOSS 其他已存在的隊伍（大於1人且有空位）供快速加入，排除單人隊伍 (single team)
@@ -154,7 +143,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const groupedCharOptions = useMemo(() => {
     const groupMap = new Map<string, { playerName: string; avatarEmoji?: string; options: { char: any; entry: number }[] }>();
 
-    scheduledCharOptions.forEach((opt) => {
+    otherScheduledCharOptions.forEach((opt) => {
       const pName = opt.char.playerName || '其他冒險者';
       if (!groupMap.has(pName)) {
         const pObj = players?.find((p) => p.name === pName);
@@ -168,7 +157,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     });
 
     return Array.from(groupMap.values());
-  }, [scheduledCharOptions, players]);
+  }, [otherScheduledCharOptions, players]);
 
   const handleToggleMember = (targetCharId: string, targetEntry: number) => {
     const exists = memberTargets.some((m) => m.charId === targetCharId && m.entryIndex === targetEntry);
@@ -413,22 +402,47 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                 </div>
               </div>
 
-              {/* 第 2 欄：👥 正式角色名冊（依玩家名稱分群手風琴折疊） */}
-              <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2">
+              {/* 第 2 欄：👥 正式角色名冊（頂部常駐顯示當前角色，下方依其他玩家手風琴折疊） */}
+              <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2.5">
                 <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-300/60 dark:border-slate-700">
                   <div className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-blue-500" />
                     <span>小隊正式角色</span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">
-                    共 {groupedCharOptions.length} 位玩家 ({scheduledCharOptions.length} 隻角色)
+                    共 {groupedCharOptions.length} 位隊友 ({otherScheduledCharOptions.length} 隻角色)
                   </span>
                 </div>
 
-                <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                {/* 👑 當前編輯的角色：直接常駐置頂顯示，不套用 accordion 折疊 */}
+                {currentChar && (
+                  <div className="p-2 rounded-xl border-2 border-amber-500 bg-amber-400/25 dark:bg-amber-950/40 shadow-xs flex items-center justify-between font-black text-xs text-amber-950 dark:text-amber-200 select-none">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-4 h-4 rounded-md bg-amber-500/30 flex items-center justify-center text-amber-900 dark:text-amber-300 text-xs shrink-0 font-bold">
+                        ✓
+                      </div>
+                      <span className="truncate font-black text-xs">{currentChar.name}</span>
+                      <span className="text-[10px] opacity-70">({currentChar.playerName})</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {entryIndex === 2 && (
+                        <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[9.5px] font-black">
+                          2刷
+                        </span>
+                      )}
+                      <span className="px-1.5 py-0.2 rounded bg-amber-400 text-slate-900 text-[9.5px] font-black shadow-xs">
+                        隊長 (當前角色)
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 其他同伴玩家手風琴折疊列表 */}
+                <div className="space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
                   {groupedCharOptions.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-400 italic">
-                      尚無其他玩家排定挑戰此 BOSS
+                    <div className="py-6 text-center text-xs text-slate-400 italic">
+                      尚無其他隊友排定挑戰此 BOSS
                     </div>
                   ) : (
                     groupedCharOptions.map((group) => {
@@ -480,7 +494,6 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                                 const isChecked = memberTargets.some(
                                   (m) => m.charId === c.id && m.entryIndex === entry
                                 );
-                                const isSelf = c.id === charId && entry === entryIndex;
 
                                 return (
                                   <label
@@ -507,11 +520,6 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                                       {entry === 2 && (
                                         <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[9.5px] font-black">
                                           2刷
-                                        </span>
-                                      )}
-                                      {isSelf && (
-                                        <span className="px-1.5 py-0.2 rounded bg-amber-400 text-slate-900 text-[9.5px] font-black">
-                                          隊長
                                         </span>
                                       )}
                                     </div>
