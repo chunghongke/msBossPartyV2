@@ -96,30 +96,51 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
 
   const maxPartySize = boss.maxPartySize || 6;
   const allChars = getAllCharacters();
+  const currentChar = allChars.find((c) => c.id === charId);
+  const currentOwnerPlayerName = currentChar?.playerName;
 
   // 篩選出該 BOSS 已排定的所有角色選項（包含首次刷與重置刷）
+  // 排除當前玩家名下的其他角色（因為同一玩家無法自己跟自己組隊）
   const scheduledCharOptions: { char: any; entry: number }[] = [];
   allChars.forEach((c) => {
+    const isSamePlayer = Boolean(currentOwnerPlayerName && c.playerName === currentOwnerPlayerName);
+    const isCurrentChar = c.id === charId;
+
+    // 排除同玩家名下的其他角色（自己跟自己無法組隊）
+    if (isSamePlayer && !isCurrentChar) {
+      return;
+    }
+
     const hasNormal = c.bossIds && c.bossIds.includes(bossId);
     const hasReset = c.resetBossIds && c.resetBossIds.includes(bossId);
-    if (hasNormal) scheduledCharOptions.push({ char: c, entry: 1 });
-    if (hasReset) scheduledCharOptions.push({ char: c, entry: 2 });
+
+    if (isCurrentChar) {
+      // 當前角色只列出目前正在設定的輪次
+      scheduledCharOptions.push({ char: c, entry: entryIndex });
+    } else {
+      if (hasNormal) scheduledCharOptions.push({ char: c, entry: 1 });
+      if (hasReset) scheduledCharOptions.push({ char: c, entry: 2 });
+    }
   });
 
-  // 收集同 BOSS 其他已存在的隊伍（大於1人且有空位）供快速加入
+  // 收集同 BOSS 其他已存在的隊伍（大於1人且有空位）供快速加入，排除單人隊伍 (single team)
   const existingOtherTeams = Object.values(store.teams || {}).filter((t) => {
     if (t.id === currentTeamId) return false;
+    if (t.id.startsWith('single_')) return false;
+    if (!t.memberTargets || t.memberTargets.length <= 1) return false;
+
     const isSameBossTeam = t.memberTargets.some((m) => {
       const rec = store.weeklyRecords[`rec_${m.charId}_${bossId}_${m.entryIndex}`];
       return Boolean(rec && rec.teamId === t.id);
     });
-    return isSameBossTeam && t.memberTargets.length > 0;
+    return isSameBossTeam;
   });
 
   const handleToggleMember = (targetCharId: string, targetEntry: number) => {
     const exists = memberTargets.some((m) => m.charId === targetCharId && m.entryIndex === targetEntry);
     if (exists) {
-      if (targetCharId === charId && targetEntry === entryIndex && memberTargets.length === 1) {
+      // 當前角色為隊長，不可取消勾選
+      if (targetCharId === charId && targetEntry === entryIndex) {
         return;
       }
       setMemberTargets(memberTargets.filter((m) => !(m.charId === targetCharId && m.entryIndex === targetEntry)));
