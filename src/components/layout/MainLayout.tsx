@@ -162,6 +162,10 @@ export function MainLayout({
     saveLocalCharacterOrder(playerName, reorderedChars.map((c) => c.id));
     setOrderVersion((v) => v + 1);
   };
+
+  const handleReorderPlayers = (_reorderedPlayers: Player[]) => {
+    setOrderVersion((v) => v + 1);
+  };
   const [viewMode, setViewMode] = useState<'compact' | 'detailed'>(() => {
     try {
       return (localStorage.getItem('boss_party_view_mode') as 'compact' | 'detailed') || 'compact';
@@ -250,6 +254,7 @@ export function MainLayout({
         onOpenAddCharacterModal={onOpenAddCharacterModal}
         onScrollToCharacter={scrollToCharacter}
         onReorderCharacters={handleReorderCharacters}
+        onReorderPlayers={handleReorderPlayers}
       />
 
       {/* 主要內容區 */}

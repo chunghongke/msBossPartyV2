@@ -2,7 +2,7 @@ import { useMemo, useState, DragEvent } from 'react';
 import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
-import { sortCharactersByLocalOrder, saveLocalCharacterOrder } from '@/utils/localOrder';
+import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
 import { UserPlus, Users, Crown, PlusCircle, GripVertical } from 'lucide-react';
 
 interface PlayerNavBarProps {
@@ -14,6 +14,7 @@ interface PlayerNavBarProps {
   onOpenAddCharacterModal?: (playerName: string) => void;
   onScrollToCharacter?: (charId: string) => void;
   onReorderCharacters?: (playerName: string, reorderedChars: Character[]) => void;
+  onReorderPlayers?: (reorderedPlayers: Player[]) => void;
 }
 
 export function PlayerNavBar({
@@ -25,20 +26,79 @@ export function PlayerNavBar({
   onOpenAddCharacterModal,
   onScrollToCharacter,
   onReorderCharacters,
+  onReorderPlayers,
 }: PlayerNavBarProps) {
   const { currentPlayer } = useAuth();
   const [draggingCharId, setDraggingCharId] = useState<string | null>(null);
   const [dragOverCharId, setDragOverCharId] = useState<string | null>(null);
   const [navOrderVersion, setNavOrderVersion] = useState(0);
 
-  // 1. 當前登入者一律排序在最前面
+  const [draggingPlayerName, setDraggingPlayerName] = useState<string | null>(null);
+  const [dragOverPlayerName, setDragOverPlayerName] = useState<string | null>(null);
+  const [playerOrderVersion, setPlayerOrderVersion] = useState(0);
+
+  // 1. 依據本地自訂排序 (支援 DnD 拖曳重排)
   const sortedPlayers = useMemo(() => {
-    if (!currentPlayer) return players;
-    const current = players.find((p) => p.name === currentPlayer.name);
-    if (!current) return players;
-    const others = players.filter((p) => p.name !== currentPlayer.name);
-    return [current, ...others];
-  }, [players, currentPlayer]);
+    return sortPlayersByLocalOrder(players, currentPlayer?.name);
+  }, [players, currentPlayer?.name, playerOrderVersion]);
+
+  // 玩家拖曳排序處理函式 (Player DnD Event Handlers)
+  const handlePlayerDragStart = (e: DragEvent<HTMLDivElement>, pName: string) => {
+    setDraggingPlayerName(pName);
+    e.dataTransfer.setData('text/plain', `player:${pName}`);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handlePlayerDragOver = (e: DragEvent<HTMLDivElement>, targetPlayerName: string) => {
+    if (!draggingPlayerName || draggingPlayerName === targetPlayerName) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverPlayerName !== targetPlayerName) {
+      setDragOverPlayerName(targetPlayerName);
+    }
+  };
+
+  const handlePlayerDragLeave = (_e: DragEvent<HTMLDivElement>, targetPlayerName: string) => {
+    if (dragOverPlayerName === targetPlayerName) {
+      setDragOverPlayerName(null);
+    }
+  };
+
+  const handlePlayerDrop = (e: DragEvent<HTMLDivElement>, targetPlayerName: string) => {
+    e.preventDefault();
+    const sourceData = draggingPlayerName || e.dataTransfer.getData('text/plain');
+    const sourcePlayerName = sourceData.startsWith('player:') ? sourceData.slice(7) : sourceData;
+
+    if (!sourcePlayerName || sourcePlayerName === targetPlayerName) {
+      setDraggingPlayerName(null);
+      setDragOverPlayerName(null);
+      return;
+    }
+
+    const currentList = [...sortedPlayers];
+    const fromIdx = currentList.findIndex((p) => p.name === sourcePlayerName);
+    const toIdx = currentList.findIndex((p) => p.name === targetPlayerName);
+
+    if (fromIdx !== -1 && toIdx !== -1) {
+      const [movedPlayer] = currentList.splice(fromIdx, 1);
+      currentList.splice(toIdx, 0, movedPlayer);
+
+      saveLocalPlayerOrder(currentList.map((p) => p.name));
+      setPlayerOrderVersion((v) => v + 1);
+
+      if (onReorderPlayers) {
+        onReorderPlayers(currentList);
+      }
+    }
+
+    setDraggingPlayerName(null);
+    setDragOverPlayerName(null);
+  };
+
+  const handlePlayerDragEnd = () => {
+    setDraggingPlayerName(null);
+    setDragOverPlayerName(null);
+  };
 
   // 當前選中的玩家物件
   const selectedPlayer = useMemo(() => {
@@ -122,33 +182,51 @@ export function PlayerNavBar({
               const isSelected = selectedPlayer?.name === p.name;
               const isSelf = currentPlayer?.name === p.name;
               const charCount = p.characters?.length || 0;
+              const isDragging = draggingPlayerName === p.name;
+              const isDragOver = dragOverPlayerName === p.name;
 
               return (
-                <button
+                <div
                   key={p.name}
-                  type="button"
-                  onClick={() => onSelectPlayer(p.name)}
+                  draggable={true}
+                  onDragStart={(e) => handlePlayerDragStart(e, p.name)}
+                  onDragOver={(e) => handlePlayerDragOver(e, p.name)}
+                  onDragLeave={(e) => handlePlayerDragLeave(e, p.name)}
+                  onDrop={(e) => handlePlayerDrop(e, p.name)}
+                  onDragEnd={handlePlayerDragEnd}
+                  onClick={() => {
+                    if (!isDragging) {
+                      onSelectPlayer(p.name);
+                    }
+                  }}
                   className={cn(
-                    'px-3.5 py-1.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all duration-100 border-1.5 select-none active:translate-y-[1px]',
-                    isSelected
+                    'group px-3.5 py-1.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0',
+                    isDragging
+                      ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
+                      : isDragOver
+                      ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
+                      : isSelected
                       ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_1.5px_0_rgba(0,0,0,0.35)] dark:shadow-[0_1.5px_0_#000000]'
                       : isSelf
                       ? 'border-amber-600/50 bg-amber-400/15 text-[#4A3B2C] dark:text-yellow-300 hover:bg-amber-400/25 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
                       : 'border-kerning-stroke/70 bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
                   )}
+                  title="左右拖曳可調整玩家排序，點擊可切換至該玩家"
                 >
-                  <span className="w-5 h-5 rounded-md bg-black/10 flex items-center justify-center text-xs shrink-0">
+                  <span className="w-5 h-5 rounded-md bg-black/10 flex items-center justify-center text-xs shrink-0 pointer-events-none">
                     {p.avatarEmoji || '👤'}
                   </span>
 
-                  <span className="truncate max-w-[110px]">{p.name}</span>
+                  <span className="truncate max-w-[110px] pointer-events-none">{p.name}</span>
 
-                  {p.isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0" />}
+                  {p.isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0 pointer-events-none" />}
 
-                  <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px] opacity-90">
+                  <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px] opacity-90 pointer-events-none font-fredoka">
                     {charCount}
                   </span>
-                </button>
+
+                  <GripVertical className="w-3 h-3 text-stone-400 group-hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
+                </div>
               );
             })}
 
