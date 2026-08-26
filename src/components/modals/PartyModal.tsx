@@ -5,6 +5,7 @@ import { MemberTarget, Team, RaidSchedule } from '@/types/party';
 import { getBoss } from '@/data/bosses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/utils/cn';
 import { Users, Clock, Zap, AlertCircle, Plus, Trash2, UserCheck, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface PartyModalProps {
