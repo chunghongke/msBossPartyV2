@@ -58,14 +58,11 @@ function sanitizeStoreAndTeams(
 
     // 找出此隊伍對應的 BOSS ID（從 weeklyRecords 尋找關聯）
     let teamBossId = '';
-    for (const m of team.memberTargets) {
-      for (const [k, r] of Object.entries(rawStore.weeklyRecords)) {
-        if (r && r.teamId === teamId && r.bossId) {
-          teamBossId = r.bossId;
-          break;
-        }
+    for (const r of Object.values(rawStore.weeklyRecords)) {
+      if (r && r.teamId === teamId && r.bossId) {
+        teamBossId = r.bossId;
+        break;
       }
-      if (teamBossId) break;
     }
 
     if (!teamBossId && teamId.startsWith('party_')) {
