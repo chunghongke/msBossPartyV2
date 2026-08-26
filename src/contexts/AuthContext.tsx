@@ -4,6 +4,19 @@ import { verifyPassword, canManagePlayer, canManageCharacter } from '@/services/
 
 const AUTH_PLAYER_KEY = 'boss_party_auth_player_name';
 
+function getStoredAuthPlayerName(): string | null {
+  try {
+    return (
+      localStorage.getItem('boss_party_auth_player_name') ||
+      localStorage.getItem('boss_auth_player') ||
+      localStorage.getItem('preferred_primary_user') ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 interface AuthContextType {
   currentPlayer: Player | null;
   isAdmin: boolean;
@@ -20,7 +33,7 @@ export const AuthProvider: React.FC<{
   players: Player[];
 }> = ({ children, players }) => {
   const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(() => {
-    return localStorage.getItem(AUTH_PLAYER_KEY);
+    return getStoredAuthPlayerName();
   });
 
   // 僅當本地儲存有有效登入名稱且存在於 players 時才認證成功；未登入者保持 null 訪客唯讀身分
@@ -46,12 +59,16 @@ export const AuthProvider: React.FC<{
 
     setCurrentPlayerName(targetPlayer.name);
     localStorage.setItem(AUTH_PLAYER_KEY, targetPlayer.name);
+    localStorage.setItem('boss_auth_player', targetPlayer.name);
+    localStorage.setItem('preferred_primary_user', targetPlayer.name);
     return { success: true };
   };
 
   const logout = () => {
     setCurrentPlayerName(null);
     localStorage.removeItem(AUTH_PLAYER_KEY);
+    localStorage.removeItem('boss_auth_player');
+    localStorage.removeItem('preferred_primary_user');
   };
 
   const canManagePlayerName = (targetPlayerName: string): boolean => {

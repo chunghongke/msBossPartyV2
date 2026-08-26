@@ -51,16 +51,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const prevIsOpen = useRef(false);
 
-  // 僅在彈窗剛被開啟時 (isOpen: false -> true) 初始化狀態，避免背景資料更新時重複重置畫面
+  // 彈窗開啟或雲端玩家資料同步時，確保模式與選擇狀態正確
   useEffect(() => {
     if (isOpen && !prevIsOpen.current) {
       prevIsOpen.current = true;
-      if (players.length === 0) {
-        setMode('register');
-      } else {
-        setMode('login');
-        setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
-      }
       setPasswordInput('');
       setRegName('');
       setRegEmoji('🍁');
@@ -72,14 +66,21 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     } else if (!isOpen) {
       prevIsOpen.current = false;
     }
-  }, [isOpen, currentPlayer]);
 
-  // 當開啟時若原本沒有選中玩家，且 players 資料剛由 Firebase 載入完成，補設定選中的玩家
-  useEffect(() => {
-    if (isOpen && players.length > 0 && mode === 'login' && !selectedPlayerName) {
-      setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
+    if (isOpen) {
+      if (players.length === 0) {
+        setMode('register');
+      } else {
+        // 小隊有玩家時，預設保持在登入模式 (除非使用者主動點擊了註冊填寫)
+        if (mode === 'register' && !regName) {
+          setMode('login');
+        }
+        if (!selectedPlayerName || !players.some((p) => p.name === selectedPlayerName)) {
+          setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
+        }
+      }
     }
-  }, [isOpen, players, mode, selectedPlayerName, currentPlayer]);
+  }, [isOpen, players, currentPlayer]);
 
   const targetPlayer = players.find((p) => p.name === selectedPlayerName);
   const hasPassword = Boolean(targetPlayer?.passwordHash);
