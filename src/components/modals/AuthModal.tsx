@@ -68,19 +68,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
 
     if (isOpen) {
-      if (players.length === 0) {
-        setMode('register');
-      } else {
-        // 小隊有玩家時，預設保持在登入模式 (除非使用者主動點擊了註冊填寫)
-        if (mode === 'register' && !regName) {
-          setMode('login');
-        }
-        if (!selectedPlayerName || !players.some((p) => p.name === selectedPlayerName)) {
+      if (!selectedPlayerName || !players.some((p) => p.name === selectedPlayerName)) {
+        if (players.length > 0) {
           setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
         }
       }
     }
-  }, [isOpen, players, currentPlayer]);
+  }, [isOpen, players, currentPlayer, selectedPlayerName]);
 
   const targetPlayer = players.find((p) => p.name === selectedPlayerName);
   const hasPassword = Boolean(targetPlayer?.passwordHash);
