@@ -9,10 +9,10 @@ import { UserPlus, Users, Crown, PlusCircle, GripVertical } from 'lucide-react';
 interface PlayerNavBarProps {
   players: Player[];
   selectedPlayerName: string | null;
+  guestCount?: number;
   onSelectPlayer: (playerName: string) => void;
   onOpenAddPlayerModal: () => void;
   onOpenAddCharacterModal?: (playerName: string) => void;
-  onScrollToGuests?: () => void;
   onScrollToCharacter?: (charId: string) => void;
   onReorderCharacters?: (playerName: string, reorderedChars: Character[]) => void;
 }
@@ -20,10 +20,10 @@ interface PlayerNavBarProps {
 export function PlayerNavBar({
   players,
   selectedPlayerName,
+  guestCount = 0,
   onSelectPlayer,
   onOpenAddPlayerModal,
   onOpenAddCharacterModal,
-  onScrollToGuests,
   onScrollToCharacter,
   onReorderCharacters,
 }: PlayerNavBarProps) {
@@ -164,24 +164,43 @@ export function PlayerNavBar({
             </button>
           </div>
 
-          {/* 右側工具按鈕 */}
+          {/* 右側工具按鈕：獨立切換至臨時隊友名冊 */}
           <div className="flex items-center gap-1.5 shrink-0 py-1 pr-1">
-            {onScrollToGuests && (
-              <Button
-                size="sm"
-                variant="parchment"
-                onClick={onScrollToGuests}
-                className="h-8 px-2.5 text-xs"
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">臨時隊友</span>
-              </Button>
-            )}
+            <button
+              type="button"
+              onClick={() => onSelectPlayer('__guests__')}
+              className={cn(
+                'h-8 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all select-none border-1.5 active:translate-y-[1px]',
+                selectedPlayerName === '__guests__'
+                  ? 'bg-gradient-to-b from-indigo-500 to-purple-600 text-white border-indigo-400 shadow-md scale-105 font-black ring-2 ring-indigo-400/50'
+                  : 'bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 border-kerning-stroke/70 dark:border-slate-700 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
+              )}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>臨時隊友</span>
+              {guestCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px] opacity-90 font-fredoka">
+                  {guestCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* 第二列：當前選中玩家所擁有的角色圓形頭像列 (支援 DnD 拖曳排序) */}
-        {selectedPlayer && (
+        {/* 第二列：若選中臨時隊友，顯示專屬提示；若選中玩家，顯示角色列表 */}
+        {selectedPlayerName === '__guests__' ? (
+          <div className="py-2 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
+            <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
+              <span className="text-xs font-black text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5 shrink-0">
+                <Users className="w-4 h-4" />
+                <span>👥 臨時隊友名冊 (Guest) 管理面板</span>
+              </span>
+              <span className="text-xs text-stone-500 dark:text-slate-400 font-bold hidden sm:inline">
+                （非固定常駐成員，點選上方任一玩家標籤可隨時返回角色清單）
+              </span>
+            </div>
+          </div>
+        ) : selectedPlayer && (
           <div className="py-2 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
             <div className="flex items-center gap-2.5 shrink-0 py-1 pl-1 pr-1">
               <span className="text-xs font-black text-stone-600 dark:text-slate-300 flex items-center gap-1 shrink-0">

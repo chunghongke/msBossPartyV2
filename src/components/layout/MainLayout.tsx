@@ -186,6 +186,9 @@ export function MainLayout({
 
   // 決定當前選中的玩家 (預設為登入者或第一位玩家)
   const effectiveSelectedPlayerName = useMemo(() => {
+    if (selectedPlayerName === '__guests__') {
+      return '__guests__';
+    }
     if (selectedPlayerName && players.some((p) => p.name === selectedPlayerName)) {
       return selectedPlayerName;
     }
@@ -248,10 +251,10 @@ export function MainLayout({
         key={`navbar-${effectiveSelectedPlayerName}-${orderVersion}`}
         players={players}
         selectedPlayerName={effectiveSelectedPlayerName}
+        guestCount={(store.guests || []).length}
         onSelectPlayer={handleSelectPlayer}
         onOpenAddPlayerModal={onOpenAddPlayerModal}
         onOpenAddCharacterModal={onOpenAddCharacterModal}
-        onScrollToGuests={scrollToGuests}
         onScrollToCharacter={scrollToCharacter}
         onReorderCharacters={handleReorderCharacters}
       />
@@ -286,6 +289,16 @@ export function MainLayout({
               <UserPlus className="w-4 h-4" />
               <span>新增第一位玩家</span>
             </Button>
+          </div>
+        ) : effectiveSelectedPlayerName === '__guests__' ? (
+          /* 獨立臨時隊友名冊管理專區 */
+          <div className="space-y-4">
+            <GuestSection
+              guests={store.guests || []}
+              store={store}
+              onAddGuest={addGuest}
+              onDeleteGuest={deleteGuest}
+            />
           </div>
         ) : (
           <div className="space-y-8">
@@ -451,13 +464,6 @@ export function MainLayout({
               );
             })}
 
-            {/* 臨時隊友管理專區 */}
-            <GuestSection
-              guests={store.guests || []}
-              store={store}
-              onAddGuest={addGuest}
-              onDeleteGuest={deleteGuest}
-            />
           </div>
         )}
       </main>
