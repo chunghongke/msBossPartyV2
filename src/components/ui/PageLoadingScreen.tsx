@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sparkles, Cloud } from 'lucide-react';
 
 interface PageLoadingScreenProps {
