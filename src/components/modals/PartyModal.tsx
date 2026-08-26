@@ -102,6 +102,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const currentOwnerPlayerName = currentChar?.playerName;
 
   // 篩選出其他同伴玩家排定此 BOSS 的角色（排除當前玩家名下所有角色，當前編輯角色已獨立置頂常駐）
+  // 並且排除「已在其他多人隊伍中」且「目前未被選中」的角色輪次（因為該隊伍已由左側「現有隊伍」整體呈現）
   const otherScheduledCharOptions: { char: any; entry: number }[] = [];
   allChars.forEach((c) => {
     const isSamePlayer = Boolean(currentOwnerPlayerName && c.playerName === currentOwnerPlayerName);
@@ -110,8 +111,29 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     const hasNormal = c.bossIds && c.bossIds.includes(bossId);
     const hasReset = c.resetBossIds && c.resetBossIds.includes(bossId);
 
-    if (hasNormal) otherScheduledCharOptions.push({ char: c, entry: 1 });
-    if (hasReset) otherScheduledCharOptions.push({ char: c, entry: 2 });
+    const checkAndPush = (entry: number) => {
+      const isSelectedInCurrent = memberTargets.some((m) => m.charId === c.id && m.entryIndex === entry);
+      const recKey = `rec_${c.id}_${bossId}_${entry}`;
+      const rec = store.weeklyRecords[recKey];
+      const otherTeamId = rec?.teamId;
+      const otherTeam = otherTeamId ? store.teams[otherTeamId] : null;
+      const isCoveredByOtherMultiTeam = Boolean(
+        otherTeam &&
+        otherTeamId !== currentTeamId &&
+        !otherTeamId.startsWith('single_') &&
+        (otherTeam.memberTargets?.length || 0) > 1
+      );
+
+      // 若該輪次已屬於其他多人隊伍，且目前尚未被選中，則不在個別清單重複列出
+      if (isCoveredByOtherMultiTeam && !isSelectedInCurrent) {
+        return;
+      }
+
+      otherScheduledCharOptions.push({ char: c, entry });
+    };
+
+    if (hasNormal) checkAndPush(1);
+    if (hasReset) checkAndPush(2);
   });
 
   // 收集同 BOSS 其他已存在的隊伍（大於1人且有空位）供快速加入，排除單人隊伍 (single team)
