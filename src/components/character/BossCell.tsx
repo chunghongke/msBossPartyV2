@@ -105,10 +105,7 @@ export function BossCell({
       isLongPressTriggered.current = false;
       return;
     }
-    if (!canManage) {
-      alert('⚠️ 唯讀模式：您只能修改自己角色的 BOSS 攻略狀態！');
-      return;
-    }
+    if (!canManage) return;
     onToggleStatus(recordKey, onOpenShardModal);
   };
 
@@ -186,12 +183,11 @@ export function BossCell({
   return (
     <div
       id={`boss-cell-${charId}-${boss.id}-${entryIndex}`}
-      
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchEnd}
+      onClick={canManage ? handleClick : undefined}
+      onContextMenu={canManage ? handleContextMenu : undefined}
+      onTouchStart={canManage ? handleTouchStart : undefined}
+      onTouchEnd={canManage ? handleTouchEnd : undefined}
+      onTouchMove={canManage ? handleTouchEnd : undefined}
       className={cn(
         'group relative flex flex-col justify-between rounded-2xl border-2.5 select-none overflow-hidden transition-all duration-200',
         canManage ? 'cursor-pointer' : 'cursor-default',

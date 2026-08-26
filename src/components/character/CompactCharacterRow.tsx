@@ -136,10 +136,7 @@ function SingleRowBossPill({
       isLongPress.current = false;
       return;
     }
-    if (!canManage) {
-      alert('⚠️ 唯讀模式：您只能修改自己角色的 BOSS 攻略狀態！');
-      return;
-    }
+    if (!canManage) return;
     onToggleStatus(recordKey, onOpenShardModal);
   };
 
@@ -151,10 +148,10 @@ function SingleRowBossPill({
 
   return (
     <div
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      onClick={canManage ? handleClick : undefined}
+      onContextMenu={canManage ? handleContextMenu : undefined}
+      onTouchStart={canManage ? handleTouchStart : undefined}
+      onTouchEnd={canManage ? handleTouchEnd : undefined}
       className={cn(
         'group relative flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border-1.5 transition-all duration-150 select-none overflow-hidden min-h-[46px] min-w-0',
         canManage ? 'cursor-pointer' : 'cursor-default',
@@ -491,6 +488,7 @@ export function CompactCharacterRow({
                   record={rec}
                   team={team}
                   guestList={store.guests || []}
+                  canManage={isOwnerOrAdmin}
                   onToggleStatus={onToggleStatus}
                   onOpenPartyModal={onOpenPartyModal}
                   onOpenShardModal={onOpenShardModal}
