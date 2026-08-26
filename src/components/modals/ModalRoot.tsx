@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Character } from '@/types/player';
 import { Boss } from '@/types/boss';
 import { Team } from '@/types/party';
@@ -45,20 +45,24 @@ export function useModalState() {
   const [shardTarget, setShardTarget] = useState<{ recordKey: string; boss: Boss; team: Team | null; pendingComplete?: boolean } | null>(null);
   const [scheduleInfoTeam, setScheduleInfoTeam] = useState<Team | null>(null);
 
-  const controller: ModalController = useMemo(() => ({
-    openGroupModal: () => setIsGroupOpen(true),
-    openLoginModal: () => setIsAuthOpen(true),
-    openNotifModal: () => setIsNotifOpen(true),
-    openNexonKeyModal: () => setIsNexonKeyOpen(true),
-    openAddPlayerModal: () => setIsAddPlayerOpen(true),
-    openAddCharacterModal: (playerName) => setAddCharPlayerName(playerName),
-    openRenameModal: (character) => setRenameChar(character),
-    openEditBosses: (character, playerName) => setEditBossChar({ char: character, playerName }),
-    openResetConfig: (character, playerName) => setResetConfigChar({ char: character, playerName }),
-    openPartyModal: (charId, bossId, entryIndex) => setPartyTarget({ charId, bossId, entryIndex }),
-    openShardModal: (recordKey, boss, team, pendingComplete) => setShardTarget({ recordKey, boss, team, pendingComplete }),
-    openScheduleInfo: (team) => setScheduleInfoTeam(team),
-  }), []);
+  const controller: ModalController = useMemo(
+    () => ({
+      openGroupModal: () => setIsGroupOpen(true),
+      openLoginModal: () => setIsAuthOpen(true),
+      openNotifModal: () => setIsNotifOpen(true),
+      openNexonKeyModal: () => setIsNexonKeyOpen(true),
+      openAddPlayerModal: () => setIsAddPlayerOpen(true),
+      openAddCharacterModal: (playerName: string) => setAddCharPlayerName(playerName),
+      openRenameModal: (character: Character) => setRenameChar(character),
+      openEditBosses: (character: Character, playerName: string) => setEditBossChar({ char: character, playerName }),
+      openResetConfig: (character: Character, playerName: string) => setResetConfigChar({ char: character, playerName }),
+      openPartyModal: (charId: string, bossId: string, entryIndex: number) => setPartyTarget({ charId, bossId, entryIndex }),
+      openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) =>
+        setShardTarget({ recordKey, boss, team, pendingComplete }),
+      openScheduleInfo: (team: Team) => setScheduleInfoTeam(team),
+    }),
+    []
+  );
 
   const modals = (
     <>
