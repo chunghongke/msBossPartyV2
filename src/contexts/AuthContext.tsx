@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { Player } from '@/types/player';
 import { verifyPassword, canManagePlayer, canManageCharacter } from '@/services/crypto';
 
