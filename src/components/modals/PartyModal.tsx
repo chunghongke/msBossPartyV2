@@ -209,6 +209,27 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
           return prev;
         }
 
+        // 關鍵檢查：同一位玩家在同一個隊伍中只能被勾選 1 隻角色
+        if (!targetCharId.startsWith('guest_')) {
+          const targetChar = allChars.find((c) => c.id === targetCharId);
+          const targetPlayerName = targetChar?.playerName;
+          if (targetPlayerName) {
+            const existingCharFromSamePlayer = prev.find((m) => {
+              if (m.charId.startsWith('guest_')) return false;
+              const c = allChars.find((x) => x.id === m.charId);
+              return c && c.playerName === targetPlayerName;
+            });
+
+            if (existingCharFromSamePlayer) {
+              const existingCharName = getCharName(existingCharFromSamePlayer.charId);
+              setErrorMsg(
+                `【${targetPlayerName}】已有角色【${existingCharName}】在隊伍中！同一玩家同一團只能派出 1 隻角色出戰。`
+              );
+              return prev;
+            }
+          }
+        }
+
         if (prev.length >= maxPartySize) {
           setErrorMsg(`此 BOSS 最多僅支援 ${maxPartySize} 人隊伍！`);
           return prev;
@@ -267,6 +288,28 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       setErrorMsg('⚠️ 唯讀模式：只有該角色擁有者或管理員可以儲存組隊設定！');
       return;
     }
+
+    // 嚴格卡控：同一個玩家在同一隊伍中只能被勾選 1 隻角色出戰
+    const playerToCharsMap = new Map<string, string[]>();
+    memberTargets.forEach((m) => {
+      if (m.charId.startsWith('guest_')) return;
+      const c = allChars.find((x) => x.id === m.charId);
+      if (c?.playerName) {
+        const list = playerToCharsMap.get(c.playerName) || [];
+        list.push(c.name);
+        playerToCharsMap.set(c.playerName, list);
+      }
+    });
+
+    for (const [pName, charNames] of playerToCharsMap.entries()) {
+      if (charNames.length > 1) {
+        setErrorMsg(
+          `玩家【${pName}】同時被勾選了 ${charNames.length} 隻角色（${charNames.join('、')}）！同一玩家同一團只能派出 1 隻角色出戰。`
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setErrorMsg('');
 
@@ -533,16 +576,24 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                                 const isChecked = memberTargets.some(
                                   (m) => m.charId === c.id && m.entryIndex === entry
                                 );
+                                const hasOtherInGroupChecked = !isChecked && selectedCountInGroup > 0;
 
                                 return (
                                   <div
                                     key={`${c.id}_${entry}`}
                                     onClick={() => handleToggleMember(c.id, entry)}
-                                    className={
-                                      'p-1.5 rounded-lg text-xs border transition-all flex items-center justify-between cursor-pointer select-none ' +
-                                      (isChecked
+                                    className={cn(
+                                      'p-1.5 rounded-lg text-xs border transition-all flex items-center justify-between cursor-pointer select-none',
+                                      isChecked
                                         ? 'bg-amber-400/20 border-amber-500 font-black text-amber-950 dark:text-amber-200 shadow-xs'
-                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-400')
+                                        : hasOtherInGroupChecked
+                                        ? 'bg-black/5 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-400'
+                                    )}
+                                    title={
+                                      hasOtherInGroupChecked
+                                        ? `【${group.playerName}】已派出其他角色出戰 (每個玩家限派 1 隻)`
+                                        : undefined
                                     }
                                   >
                                     <div className="flex items-center gap-1.5 truncate">
@@ -559,6 +610,11 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                                       {entry === 2 && (
                                         <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[9.5px] font-black">
                                           2刷
+                                        </span>
+                                      )}
+                                      {hasOtherInGroupChecked && (
+                                        <span className="text-[9px] text-stone-400 font-bold">
+                                          (已選其他角色)
                                         </span>
                                       )}
                                     </div>
