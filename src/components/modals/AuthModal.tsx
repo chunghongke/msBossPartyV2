@@ -336,6 +336,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                       {currentPlayer && (
                         <Button
+                          type="button"
                           size="sm"
                           variant="parchment"
                           onClick={() => {
