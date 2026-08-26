@@ -15,7 +15,7 @@ export const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      'fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-150',
       className
     )}
     {...props}
@@ -38,8 +38,10 @@ export const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 grid w-[94vw] translate-x-[-50%] translate-y-[-50%] gap-4 p-5 sm:p-6 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
-        'parchment-card rounded-3xl border-3.5 border-kerning-stroke shadow-parchment dark:bg-slate-800/95 dark:backdrop-blur-md dark:border-2 dark:border-slate-700 dark:shadow-game-card dark:text-slate-50 relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-sky-400 before:via-purple-400 before:to-yellow-400 dark:before:block before:hidden',
+        'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 grid w-[94vw] gap-4 p-5 sm:p-6 duration-150',
+        'parchment-card rounded-3xl border-3.5 border-kerning-stroke shadow-parchment',
+        'dark:bg-slate-800/95 dark:backdrop-blur-md dark:border-2 dark:border-slate-700 dark:shadow-game-card dark:text-slate-50 relative overflow-hidden',
+        'before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-sky-400 before:via-purple-400 before:to-yellow-400 dark:before:block before:hidden',
         maxWidthClass,
         className
       )}
@@ -55,7 +57,6 @@ export const DialogContent = React.forwardRef<
     </DialogPrimitive.Content>
   </DialogPortal>
 ));
-DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 export const DialogHeader = ({
   className,

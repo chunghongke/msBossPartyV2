@@ -152,6 +152,16 @@ export function PlayerNavBar({
                 </button>
               );
             })}
+
+            {/* 新增玩家虛線橢圓標籤 (與第二列新增角色樣式一致) */}
+            <button
+              type="button"
+              onClick={onOpenAddPlayerModal}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/35 text-amber-900 dark:text-amber-300 text-xs font-bold border-2 border-dashed border-amber-500/60 transition-colors shrink-0 cursor-pointer select-none"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>新增玩家</span>
+            </button>
           </div>
 
           {/* 右側工具按鈕 */}
@@ -167,16 +177,6 @@ export function PlayerNavBar({
                 <span className="hidden sm:inline">臨時隊友</span>
               </Button>
             )}
-
-            <Button
-              size="sm"
-              variant="gold"
-              onClick={onOpenAddPlayerModal}
-              className="h-8 px-3 text-xs"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>新增玩家</span>
-            </Button>
           </div>
         </div>
 
