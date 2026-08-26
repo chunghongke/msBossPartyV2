@@ -15,7 +15,7 @@ interface StoreContextType {
   getCharName: (charId: string) => string;
   toggleBossStatus: (recordKey: string) => Promise<void>;
   updateWeeklyRecord: (recordKey: string, partialRecord: Partial<WeeklyRecord>) => Promise<void>;
-  saveTeamAndRecords: (team: Team, updatedRecords: Record<string, WeeklyRecord>) => Promise<void>;
+  saveTeamAndRecords: (team: Team, updatedRecords: Record<string, WeeklyRecord>, bossId?: string) => Promise<void>;
   addGuest: (guestName: string) => Promise<Guest>;
   deleteGuest: (guestId: string) => Promise<void>;
   addPlayer: (newPlayer: Player) => Promise<void>;
@@ -324,22 +324,87 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   const saveTeamAndRecords = useCallback(
-    async (team: Team, updatedRecords: Record<string, WeeklyRecord>) => {
-      const nextTeams = {
-        ...store.teams,
-        [team.id]: team,
-      };
-      const nextRecords = {
-        ...store.weeklyRecords,
-        ...updatedRecords,
-      };
+    async (team: Team, updatedRecords: Record<string, WeeklyRecord>, bossId?: string) => {
+      const nextTeams = { ...store.teams };
+      const nextWeeklyRecords = { ...store.weeklyRecords, ...updatedRecords };
+
+      // 1. 取得本次組隊涵蓋的所有成員 targets
+      const currentTargets = team.memberTargets || [];
+
+      // 2. 針對加入本隊伍的所有成員，檢查並退出他們原本參與的其他隊伍 (避免雙重組隊與殘留幽靈隊友)
+      currentTargets.forEach((t) => {
+        Object.entries(nextTeams).forEach(([tId, existingTeam]) => {
+          if (tId === team.id) return;
+          if (tId.startsWith('single_')) return;
+
+          const hasMember = (existingTeam.memberTargets || []).some(
+            (m) => m.charId === t.charId && m.entryIndex === t.entryIndex
+          );
+
+          if (hasMember) {
+            // 從原隊伍移除此成員
+            const remainingMembers = (existingTeam.memberTargets || []).filter(
+              (m) => !(m.charId === t.charId && m.entryIndex === t.entryIndex)
+            );
+
+            if (remainingMembers.length <= 1) {
+              // 原隊伍剩餘人數 <= 1 人，自動解散該隊伍
+              delete nextTeams[tId];
+
+              // 若剩餘 1 人，將該隊友恢復為單人隊伍 (single team)
+              if (remainingMembers.length === 1) {
+                const solo = remainingMembers[0];
+                const bId = bossId || (existingTeam.id.startsWith('party_') ? existingTeam.id.split('_')[1] : '');
+                const recKey = bId ? `rec_${solo.charId}_${bId}_${solo.entryIndex}` : null;
+                const defaultSingleId = bId
+                  ? `single_${solo.charId}_${bId}_${solo.entryIndex}`
+                  : `single_${solo.charId}_${solo.entryIndex}`;
+
+                if (recKey && nextWeeklyRecords[recKey]) {
+                  nextWeeklyRecords[recKey] = {
+                    ...nextWeeklyRecords[recKey],
+                    teamId: defaultSingleId,
+                  };
+                }
+
+                nextTeams[defaultSingleId] = {
+                  id: defaultSingleId,
+                  memberTargets: [solo],
+                  schedule: null,
+                };
+              }
+            } else {
+              // 隊伍仍有多人，更新剩餘成員
+              nextTeams[tId] = {
+                ...existingTeam,
+                memberTargets: remainingMembers,
+              };
+            }
+          }
+        });
+      });
+
+      // 3. 寫入新隊伍與清理空隊伍
+      if (team.memberTargets.length > 0) {
+        nextTeams[team.id] = team;
+      } else {
+        delete nextTeams[team.id];
+      }
+
+      // 4. 再次呼叫 sanitizeStoreAndTeams 進行最終防禦性校驗
+      sanitizeStoreAndTeams(players, {
+        teams: nextTeams,
+        weeklyRecords: nextWeeklyRecords,
+        guests: store.guests || [],
+      });
+
       await saveStoreToCloud({
         ...store,
         teams: nextTeams,
-        weeklyRecords: nextRecords,
+        weeklyRecords: nextWeeklyRecords,
       });
     },
-    [store, saveStoreToCloud]
+    [store, players, saveStoreToCloud]
   );
 
   const addGuest = useCallback(

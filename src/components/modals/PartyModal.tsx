@@ -299,7 +299,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         };
       });
 
-      await saveTeamAndRecords(nextTeam, updatedRecords);
+      await saveTeamAndRecords(nextTeam, updatedRecords, bossId);
       onClose();
     } catch (err: any) {
       setErrorMsg(err?.message || '儲存失敗！');
