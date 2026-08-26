@@ -26,9 +26,9 @@ export function getNextResetCountdown(): { days: number; hours: number; minutes:
   const totalMinutes = Math.max(0, Math.floor(diffMs / 60000));
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-
-  const text = days > 0 ? `${days}天 ${hours}小時 ${minutes}分` : `${hours}小時 ${minutes}分`;
+  const hh = String(hours).padStart(2, '0');
+  const mm = String(minutes).padStart(2, '0');
+  const text = `${days} 天 ${hh} 小時 ${mm} 分`;
 
   return { days, hours, minutes, text };
 }
