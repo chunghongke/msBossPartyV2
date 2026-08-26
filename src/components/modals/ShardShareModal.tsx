@@ -40,95 +40,113 @@ export function ShardShareModal({
   const { store, getCharName, getAllCharacters, saveStoreToCloud } = useStore();
   const { currentPlayer, isAdmin } = useAuth();
 
+  const maxPartySize = boss?.maxPartySize || 1;
+  const totalShards = boss?.erionVestiges || 0;
+
+  // 計算初始成員名單工具函式 (即時同步運算，避免 Modal 打開時抖動)
+  const computeInitialMembers = () => {
+    if (!boss || !team) return { initialMode: 'shares' as ShardMode, memberStates: [] as ShardMemberState[], guests: 0 };
+    const rawMembers = team.memberTargets || [];
+    const validMembers = rawMembers.filter((m) => {
+      if (!m.charId.startsWith('guest_')) return true;
+      return (store.guests || []).some((g) => g.id === m.charId);
+    });
+
+    const formalMembers = validMembers.filter((m) => !m.charId.startsWith('guest_'));
+    const guests = validMembers.length - formalMembers.length;
+
+    const triggerRec = store.weeklyRecords[recordKey];
+    const initialMode: ShardMode = triggerRec?.shardMode || 'shares';
+
+    const fairAvg = maxPartySize / Math.max(1, validMembers.length);
+
+    // 1. 計算預設份數
+    const baseShare = Math.floor(maxPartySize / Math.max(1, validMembers.length));
+    let remainingShares = maxPartySize - baseShare * validMembers.length;
+
+    // 2. 計算預設數量 (均分)
+    const baseQty = Math.floor(totalShards / Math.max(1, validMembers.length));
+    let remainingQty = totalShards - baseQty * validMembers.length;
+
+    const memberStates: ShardMemberState[] = formalMembers.map((m) => {
+      const memberRecKey = `rec_${m.charId}_${boss.id}_${m.entryIndex}`;
+      const memberRec = store.weeklyRecords[memberRecKey];
+
+      const lastWeek =
+        memberRec && memberRec.lastWeekShardShares !== null && memberRec.lastWeekShardShares !== undefined
+          ? memberRec.lastWeekShardShares
+          : null;
+
+      const lastWeekQty =
+        memberRec && memberRec.lastWeekShardQuantity !== null && memberRec.lastWeekShardQuantity !== undefined
+          ? memberRec.lastWeekShardQuantity
+          : null;
+
+      // 建議份數：若上週拿超過均分，本週向下取整；若上週拿低於均分，本週向上取整
+      const suggested =
+        lastWeek !== null
+          ? lastWeek > fairAvg
+            ? Math.floor(fairAvg)
+            : Math.ceil(fairAvg)
+          : null;
+
+      // 當前份數值
+      let currentShare = memberRec?.shardShares;
+      if (typeof currentShare !== 'number') {
+        currentShare = baseShare + (remainingShares > 0 ? 1 : 0);
+        if (remainingShares > 0) remainingShares -= 1;
+      }
+
+      // 當前數量值
+      let currentQty = memberRec?.shardQuantity;
+      if (typeof currentQty !== 'number') {
+        currentQty = baseQty + (remainingQty > 0 ? 1 : 0);
+        if (remainingQty > 0) remainingQty -= 1;
+      }
+
+      return {
+        charId: m.charId,
+        entryIndex: m.entryIndex,
+        recordKey: memberRecKey,
+        name: getCharName(m.charId) + (m.entryIndex === 2 ? ' (重置)' : ''),
+        value: currentShare,
+        lastWeek,
+        suggested,
+        quantity: currentQty,
+        lastWeekQuantity: lastWeekQty,
+      };
+    });
+
+    return { initialMode, memberStates, guests };
+  };
+
   const [mode, setMode] = useState<ShardMode>('shares');
   const [members, setMembers] = useState<ShardMemberState[]>([]);
   const [guestCount, setGuestCount] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  const maxPartySize = boss?.maxPartySize || 1;
-  const totalShards = boss?.erionVestiges || 0;
+  // 追蹤彈窗開啟時的唯一特徵標籤，確保在首個 Render 週期內即時同步計算完成
+  const [lastInitKey, setLastInitKey] = useState<string>('');
+  const currentInitKey = isOpen && boss && team ? `${recordKey}_${boss.id}_${team.id}` : '';
 
-  // 初始化成員資料、歷史上週紀錄與建議份數
+  if (isOpen && boss && team && lastInitKey !== currentInitKey) {
+    setLastInitKey(currentInitKey);
+    const initial = computeInitialMembers();
+    setMembers(initial.memberStates);
+    setMode(initial.initialMode);
+    setGuestCount(initial.guests);
+    setErrorMsg('');
+  }
+
   useEffect(() => {
-    if (isOpen && boss && team) {
-      const rawMembers = team.memberTargets || [];
-      const validMembers = rawMembers.filter((m) => {
-        if (!m.charId.startsWith('guest_')) return true;
-        return (store.guests || []).some((g) => g.id === m.charId);
-      });
-
-      const formalMembers = validMembers.filter((m) => !m.charId.startsWith('guest_'));
-      const guests = validMembers.length - formalMembers.length;
-      setGuestCount(guests);
-
-      const triggerRec = store.weeklyRecords[recordKey];
-      const initialMode: ShardMode = triggerRec?.shardMode || 'shares';
-      setMode(initialMode);
-
-      const fairAvg = maxPartySize / Math.max(1, validMembers.length);
-
-      // 1. 計算預設份數
-      const baseShare = Math.floor(maxPartySize / Math.max(1, validMembers.length));
-      let remainingShares = maxPartySize - baseShare * validMembers.length;
-
-      // 2. 計算預設數量 (均分)
-      const baseQty = Math.floor(totalShards / Math.max(1, validMembers.length));
-      let remainingQty = totalShards - baseQty * validMembers.length;
-
-      const memberStates: ShardMemberState[] = formalMembers.map((m) => {
-        const memberRecKey = `rec_${m.charId}_${boss.id}_${m.entryIndex}`;
-        const memberRec = store.weeklyRecords[memberRecKey];
-
-        const lastWeek =
-          memberRec && memberRec.lastWeekShardShares !== null && memberRec.lastWeekShardShares !== undefined
-            ? memberRec.lastWeekShardShares
-            : null;
-
-        const lastWeekQty =
-          memberRec && memberRec.lastWeekShardQuantity !== null && memberRec.lastWeekShardQuantity !== undefined
-            ? memberRec.lastWeekShardQuantity
-            : null;
-
-        // 建議份數：若上週拿超過均分，本週向下取整；若上週拿低於均分，本週向上取整
-        const suggested =
-          lastWeek !== null
-            ? lastWeek > fairAvg
-              ? Math.floor(fairAvg)
-              : Math.ceil(fairAvg)
-            : null;
-
-        // 當前份數值
-        let currentShare = memberRec?.shardShares;
-        if (typeof currentShare !== 'number') {
-          currentShare = baseShare + (remainingShares > 0 ? 1 : 0);
-          if (remainingShares > 0) remainingShares -= 1;
-        }
-
-        // 當前數量值
-        let currentQty = memberRec?.shardQuantity;
-        if (typeof currentQty !== 'number') {
-          currentQty = baseQty + (remainingQty > 0 ? 1 : 0);
-          if (remainingQty > 0) remainingQty -= 1;
-        }
-
-        return {
-          charId: m.charId,
-          entryIndex: m.entryIndex,
-          recordKey: memberRecKey,
-          name: getCharName(m.charId) + (m.entryIndex === 2 ? ' (重置)' : ''),
-          value: currentShare,
-          lastWeek,
-          suggested,
-          quantity: currentQty,
-          lastWeekQuantity: lastWeekQty,
-        };
-      });
-
-      setMembers(memberStates);
+    if (!isOpen) {
+      setLastInitKey('');
+      setMembers([]);
       setErrorMsg('');
+      setIsSubmitting(false);
     }
-  }, [isOpen, boss, team, recordKey, store.weeklyRecords]);
+  }, [isOpen]);
 
   if (!boss || !team) return null;
 
