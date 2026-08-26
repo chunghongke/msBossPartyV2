@@ -73,7 +73,6 @@ export function useModalState() {
       <GroupModal
         isOpen={isGroupOpen}
         onClose={() => setIsGroupOpen(false)}
-        onOpenCreateNew={() => setIsGroupOpen(false)}
       />
 
       <AuthModal
