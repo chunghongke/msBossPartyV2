@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { ref, onValue, set } from 'firebase/database';
 import { Player, Character } from '@/types/player';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
-import { getBoss } from '@/data/bosses';
+import { getBoss, BOSSES } from '@/data/bosses';
 import { useGroup } from './GroupContext';
 import { getRtdb } from '@/services/firebase';
 
@@ -70,8 +70,12 @@ function sanitizeStoreAndTeams(
     }
 
     if (!teamBossId && teamId.startsWith('party_')) {
-      const parts = teamId.split('_');
-      if (parts.length >= 2) teamBossId = parts[1];
+      const match = BOSSES.find((b) => teamId.includes(`_${b.id}_`));
+      if (match) teamBossId = match.id;
+      else {
+        const parts = teamId.split('_');
+        if (parts.length >= 2) teamBossId = parts[1];
+      }
     }
 
     const validMembers = team.memberTargets.filter((m: any) => {
@@ -126,8 +130,12 @@ function sanitizeStoreAndTeams(
       }
     }
     if (!teamBossId && teamId.startsWith('party_')) {
-      const parts = teamId.split('_');
-      if (parts.length >= 2) teamBossId = parts[1];
+      const match = BOSSES.find((b) => teamId.includes(`_${b.id}_`));
+      if (match) teamBossId = match.id;
+      else {
+        const parts = teamId.split('_');
+        if (parts.length >= 2) teamBossId = parts[1];
+      }
     }
     if (!teamBossId) return;
 
@@ -439,18 +447,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 1. 取得本次組隊涵蓋的所有成員 targets
       const currentTargets = team.memberTargets || [];
 
-      // 2. 針對加入本隊伍的所有成員，檢查並退出他們原本參與的其他隊伍 (避免雙重組隊與殘留幽靈隊友)
+      // 2. 針對加入本隊伍的所有成員，檢查並退出他們原本參與的【同 BOSS】其他隊伍 (避免同一個 BOSS 雙重組隊)
       currentTargets.forEach((t) => {
         Object.entries(nextTeams).forEach(([tId, existingTeam]) => {
           if (tId === team.id) return;
           if (tId.startsWith('single_')) return;
+
+          // 判斷 existingTeam 是否屬於同一個 BOSS
+          let existingBossId = '';
+          for (const r of Object.values(nextWeeklyRecords)) {
+            if (r && r.teamId === tId && r.bossId) {
+              existingBossId = r.bossId;
+              break;
+            }
+          }
+          if (!existingBossId) {
+            const match = BOSSES.find((b) => tId.includes(`_${b.id}_`));
+            if (match) existingBossId = match.id;
+          }
+
+          // ⚠️ 關鍵隔離：只有在【同一個 BOSS】內，同個角色才不能同時存在兩個隊伍！
+          // 若為不同 BOSS（如極限賽蓮與燦爛凶星），絕對不能互相退出！
+          if (bossId && existingBossId && existingBossId !== bossId) {
+            return;
+          }
+          if (!existingBossId && bossId && !tId.includes(`_${bossId}_`)) {
+            return;
+          }
 
           const hasMember = (existingTeam.memberTargets || []).some(
             (m) => m.charId === t.charId && m.entryIndex === t.entryIndex
           );
 
           if (hasMember) {
-            // 從原隊伍移除此成員
+            // 從同 BOSS 的原隊伍移除此成員
             const remainingMembers = (existingTeam.memberTargets || []).filter(
               (m) => !(m.charId === t.charId && m.entryIndex === t.entryIndex)
             );
@@ -467,7 +497,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 );
 
                 if (!isSoloInNewTeam) {
-                  const bId = bossId || (existingTeam.id.startsWith('party_') ? existingTeam.id.split('_')[1] : '');
+                  const bId = bossId || existingBossId || '';
                   const recKey = bId ? `rec_${solo.charId}_${bId}_${solo.entryIndex}` : null;
                   const defaultSingleId = bId
                     ? `single_${solo.charId}_${bId}_${solo.entryIndex}`
