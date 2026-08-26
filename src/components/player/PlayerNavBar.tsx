@@ -1,7 +1,6 @@
 import { useMemo, useState, DragEvent } from 'react';
 import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder } from '@/utils/localOrder';
 import { UserPlus, Users, Crown, PlusCircle, GripVertical } from 'lucide-react';

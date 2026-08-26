@@ -203,13 +203,6 @@ export function MainLayout({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const scrollToGuests = () => {
-    const el = document.getElementById('guest-section');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   const scrollToCharacter = (charId: string) => {
     const el = document.getElementById('char-card-' + charId);
     if (el) {
