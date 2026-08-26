@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { MemberTarget, Team, RaidSchedule } from '@/types/party';
@@ -36,6 +37,7 @@ const TEMP_DAY_OPTIONS = [
 
 export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: PartyModalProps) {
   const { players, store, getAllCharacters, getCharName, addGuest, deleteGuest, saveTeamAndRecords } = useStore();
+  const { canManageChar } = useAuth();
 
   const boss = getBoss(bossId);
   const recordKey = `rec_${charId}_${bossId}_${entryIndex}`;
@@ -261,6 +263,10 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
+    if (currentOwnerPlayerName && !canManageChar(currentOwnerPlayerName)) {
+      setErrorMsg('⚠️ 唯讀模式：只有該角色擁有者或管理員可以儲存組隊設定！');
+      return;
+    }
     setIsSubmitting(true);
     setErrorMsg('');
 

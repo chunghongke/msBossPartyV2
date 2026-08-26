@@ -277,6 +277,7 @@ export function CharacterCard({
                     record={rec}
                     team={team}
                     guestList={store.guests || []}
+                    canManage={isOwnerOrAdmin}
                     onToggleStatus={onToggleStatus}
                     onOpenPartyModal={onOpenPartyModal}
                     onOpenShardModal={onOpenShardModal}

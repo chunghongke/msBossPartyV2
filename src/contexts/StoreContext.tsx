@@ -307,6 +307,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const bossId = targetRecord?.bossId || (typeof recordKey === 'string' ? recordKey.split('_')[2] : '');
       const boss = getBoss(bossId);
 
+      // 💡 12 隻 BOSS 上限檢查 (V1 經典防呆)
+      if (nextCompleted) {
+        const rawMembers =
+          targetTeamId && store.teams[targetTeamId]
+            ? store.teams[targetTeamId].memberTargets ||
+              (store.teams[targetTeamId].memberCharIds || []).map((id: any) => ({ charId: id, entryIndex: 1 }))
+            : [{ charId: targetRecord?.charId || (typeof recordKey === 'string' ? recordKey.split('_')[1] : ''), entryIndex: 1 }];
+
+        for (const m of rawMembers) {
+          if (!m.charId || m.charId.startsWith('guest_')) continue;
+          let completedCount = 0;
+          Object.entries(store.weeklyRecords).forEach(([k, r]) => {
+            if (k.startsWith(`rec_${m.charId}_`) && r && r.isCompleted) {
+              completedCount += 1;
+            }
+          });
+
+          if (completedCount >= 12) {
+            const charName = getCharName(m.charId);
+            alert(`⚠️ 角色【${charName}】本週 BOSS 攻略數量已達 12 隻上限！無法再增加擊破紀錄。`);
+            return;
+          }
+        }
+      }
+
       // 💡 當即將標記為「已完成」(nextCompleted === true) 時：
       // 若為多人隊伍且該 BOSS 有掉落艾里溫碎片：
       if (nextCompleted && targetTeamId && store.teams[targetTeamId] && boss && boss.erionVestiges > 0) {

@@ -394,15 +394,17 @@ export function MainLayout({
                           <span>同步全角色立繪</span>
                         </Button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="gold"
-                        onClick={() => onOpenAddCharacterModal(player.name)}
-                        className="h-7 px-2.5 text-xs font-bold"
-                      >
-                        <PlusCircle className="w-3.5 h-3.5" />
-                        <span>新增角色</span>
-                      </Button>
+                      {canManagePlayerName(player.name) && (
+                        <Button
+                          size="sm"
+                          variant="gold"
+                          onClick={() => onOpenAddCharacterModal(player.name)}
+                          className="h-7 px-2.5 text-xs font-bold"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          <span>新增角色</span>
+                        </Button>
+                      )}
                     </div>
                   </div>
 

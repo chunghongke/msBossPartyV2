@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext';
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Boss } from '@/types/boss';
@@ -36,7 +37,8 @@ export function ShardShareModal({
   recordKey,
   pendingComplete = false,
 }: ShardShareModalProps) {
-  const { store, getCharName, saveStoreToCloud } = useStore();
+  const { store, getCharName, getAllCharacters, saveStoreToCloud } = useStore();
+  const { currentPlayer, isAdmin } = useAuth();
 
   const [mode, setMode] = useState<ShardMode>('shares');
   const [members, setMembers] = useState<ShardMemberState[]>([]);
@@ -181,6 +183,20 @@ export function ShardShareModal({
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
+
+    // 檢查操作者是否為隊員或管理員
+    const allChars = getAllCharacters();
+    const isMemberOrAdmin =
+      isAdmin ||
+      members.some((m) => {
+        const c = allChars.find((x) => x.id === m.charId);
+        return c && c.playerName === currentPlayer?.name;
+      });
+
+    if (!isMemberOrAdmin) {
+      setErrorMsg('⚠️ 唯讀模式：只有該隊伍成員或管理員可以儲存艾里溫碎片分配！');
+      return;
+    }
 
     // 連續兩週相同份數的防呆提醒 (V1 貼心特性)
     if (mode === 'shares') {

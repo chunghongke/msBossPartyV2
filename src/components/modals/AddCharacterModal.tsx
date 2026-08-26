@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { useState, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/contexts/StoreContext';
@@ -111,7 +112,15 @@ const AddBossGroupCard = memo(function AddBossGroupCard({
 });
 
 export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyModal }: AddCharacterModalProps) {
-  const { addCharacter } = useStore();
+  const { addCharacter, players } = useStore();
+  const { currentPlayer, isAdmin } = useAuth();
+  const [selectedPlayerName, setSelectedPlayerName] = useState<string>(playerName);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedPlayerName(playerName);
+    }
+  }, [playerName, isOpen]);
 
   const [charName, setCharName] = useState('');
   const [characterImage, setCharacterImage] = useState('');
@@ -197,7 +206,7 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
         playerName,
       };
 
-      await addCharacter(playerName, newChar);
+      await addCharacter(selectedPlayerName, newChar);
       setCharName('');
       setCharacterImage('');
       setOcid('');
@@ -220,12 +229,32 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
         <DialogHeader>
           <DialogTitle>
             <UserPlus className="w-5 h-5" />
-            <span>為 {playerName} 新增角色</span>
+            <span>為 {selectedPlayerName} 新增角色</span>
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <DialogBody className="space-y-4 max-h-[74vh]">
+            {/* 玩家身分選擇 (管理員可自由指派，一般玩家鎖定自己) */}
+            {isAdmin ? (
+              <div className="p-2.5 rounded-2xl bg-[#FFF8E7] dark:bg-slate-800 border-2 border-[#D4B982] dark:border-slate-700 space-y-1">
+                <label className="block text-xs font-black text-[#5C3E14] dark:text-amber-300">
+                  👑 管理員專屬：指派角色給小隊玩家
+                </label>
+                <select
+                  value={selectedPlayerName}
+                  onChange={(e) => setSelectedPlayerName(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black text-[#3E2F20] dark:text-slate-100 focus:outline-none focus:border-amber-500"
+                >
+                  {players.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      👤 {p.name} {p.name === currentPlayer?.name ? '(自己)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
             <div className="flex flex-col sm:flex-row items-start gap-3">
               <div className="w-16 h-16 rounded-2xl bg-black/10 dark:bg-slate-800 border-2 border-kerning-stroke overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
                 {characterImage ? (

@@ -57,6 +57,7 @@ function SingleRowBossPill({
   record,
   team,
   guestList = [],
+  canManage = true,
   onToggleStatus,
   onOpenPartyModal,
   onOpenShardModal,
@@ -68,6 +69,7 @@ function SingleRowBossPill({
   record?: WeeklyRecord;
   team?: Team | null;
   guestList?: Array<{ id: string; name: string }>;
+  canManage?: boolean;
   onToggleStatus: (
     recordKey: string,
     onRequireShardModal?: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void
@@ -114,6 +116,7 @@ function SingleRowBossPill({
   const isLongPress = useRef(false);
 
   const handleTouchStart = () => {
+    if (!canManage) return;
     isLongPress.current = false;
     timerRef.current = setTimeout(() => {
       isLongPress.current = true;
@@ -133,11 +136,16 @@ function SingleRowBossPill({
       isLongPress.current = false;
       return;
     }
+    if (!canManage) {
+      alert('⚠️ 唯讀模式：您只能修改自己角色的 BOSS 攻略狀態！');
+      return;
+    }
     onToggleStatus(recordKey, onOpenShardModal);
   };
 
   const handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     onOpenPartyModal(charId, boss.id, entryIndex);
   };
 
@@ -148,12 +156,15 @@ function SingleRowBossPill({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       className={cn(
-        'group relative flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border-1.5 transition-all duration-150 select-none cursor-pointer overflow-hidden min-h-[46px] min-w-0',
+        'group relative flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border-1.5 transition-all duration-150 select-none overflow-hidden min-h-[46px] min-w-0',
+        canManage ? 'cursor-pointer' : 'cursor-default',
         isCompleted
           ? 'bg-[#EAE2D2]/50 dark:bg-slate-900/40 border-slate-300/40 dark:border-slate-800/40 opacity-30 grayscale contrast-75 brightness-75 shadow-none hover:opacity-60'
-          : 'bg-white dark:bg-slate-800 border-amber-400/80 dark:border-amber-400/80 shadow-[0_2px_6px_rgba(245,158,11,0.15)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400 hover:shadow-[0_3px_10px_rgba(245,158,11,0.25)] active:translate-y-[1px]'
+          : canManage
+          ? 'bg-white dark:bg-slate-800 border-amber-400/80 dark:border-amber-400/80 shadow-[0_2px_6px_rgba(245,158,11,0.15)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400 hover:shadow-[0_3px_10px_rgba(245,158,11,0.25)] active:translate-y-[1px]'
+          : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-xs'
       )}
-      title={`${boss.name}${entryIndex === 2 ? '(2刷)' : ''} - 隊伍: ${validMembers.map((m: any) => getCharName(m.charId)).join('、')}${scheduleText ? ` - 出團時間: ${scheduleText}` : ''} (點擊切換擊破狀態，右鍵開組隊)`}
+      title={`${boss.name}${entryIndex === 2 ? '(2刷)' : ''} - 隊伍: ${validMembers.map((m: any) => getCharName(m.charId)).join('、')}${scheduleText ? ` - 出團時間: ${scheduleText}` : ''}${canManage ? ' (點擊切換擊破狀態，右鍵開組隊)' : ' (唯讀)'}`}
     >
       {/* BOSS 圓形/方形微型頭像 */}
       <div className={cn(

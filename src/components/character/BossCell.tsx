@@ -13,6 +13,7 @@ interface BossCellProps {
   record?: WeeklyRecord;
   team?: Team | null;
   guestList?: Array<{ id: string; name: string }>;
+  canManage?: boolean;
   onToggleStatus: (
     recordKey: string,
     onRequireShardModal?: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void
@@ -49,6 +50,7 @@ export function BossCell({
   record,
   team,
   guestList = [],
+  canManage = true,
   onToggleStatus,
   onOpenPartyModal,
   onOpenShardModal,
@@ -83,6 +85,7 @@ export function BossCell({
   const isLongPressTriggered = useRef(false);
 
   const handleTouchStart = () => {
+    if (!canManage) return;
     isLongPressTriggered.current = false;
     timerRef.current = setTimeout(() => {
       isLongPressTriggered.current = true;
@@ -102,11 +105,16 @@ export function BossCell({
       isLongPressTriggered.current = false;
       return;
     }
+    if (!canManage) {
+      alert('⚠️ 唯讀模式：您只能修改自己角色的 BOSS 攻略狀態！');
+      return;
+    }
     onToggleStatus(recordKey, onOpenShardModal);
   };
 
   const handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     onOpenPartyModal(charId, boss.id, entryIndex);
   };
 
@@ -185,10 +193,13 @@ export function BossCell({
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
       className={cn(
-        'group relative flex flex-col justify-between rounded-2xl border-2.5 select-none cursor-pointer overflow-hidden transition-opacity transition-colors duration-200',
+        'group relative flex flex-col justify-between rounded-2xl border-2.5 select-none overflow-hidden transition-all duration-200',
+        canManage ? 'cursor-pointer' : 'cursor-default',
         isCompleted
           ? 'bg-[#E5DFD5]/50 dark:bg-slate-900/40 border-slate-300/40 dark:border-slate-800/40 opacity-30 grayscale contrast-75 brightness-75 shadow-none hover:opacity-65'
-          : 'bg-[#FFFDF9] dark:bg-slate-800 border-amber-500 dark:border-amber-400 shadow-[0_4px_16px_rgba(245,158,11,0.28)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)] ring-1.5 ring-amber-400/40 hover:border-amber-300 hover:shadow-[0_6px_22px_rgba(245,158,11,0.4)] active:translate-y-[1px]'
+          : canManage
+          ? 'bg-[#FFFDF9] dark:bg-slate-800 border-amber-500 dark:border-amber-400 shadow-[0_4px_16px_rgba(245,158,11,0.28)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)] ring-1.5 ring-amber-400/40 hover:border-amber-300 hover:shadow-[0_6px_22px_rgba(245,158,11,0.4)] active:translate-y-[1px]'
+          : 'bg-[#FFFDF9] dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-xs'
       )}
     >
       {/* 上半部：BOSS 圖片滿版區 (Full-cover Image Area) */}
@@ -235,7 +246,7 @@ export function BossCell({
           <div
             onClick={(e) => {
               e.stopPropagation();
-              onOpenPartyModal(charId, boss.id, entryIndex);
+              if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
             }}
             className="absolute bottom-1.5 left-2 z-10 max-w-[85%] px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-xs border border-amber-400/50 text-white text-[11px] font-bold shadow-md flex items-center gap-1.5 truncate hover:bg-black/95 hover:border-amber-300 transition-all cursor-pointer"
             title={`隊伍成員：${validMembers.map((m: any) => getCharName(m.charId) + (m.entryIndex === 2 ? '(2刷)' : '')).join('、')} (點擊開啟組隊設定)`}
@@ -256,7 +267,7 @@ export function BossCell({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onOpenPartyModal(charId, boss.id, entryIndex);
+              if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
             }}
             className={cn(
               'px-2 py-0.5 rounded-md font-black text-[11px] flex items-center gap-1 shadow-xs border transition-all',
@@ -325,13 +336,20 @@ export function BossCell({
             <span>{scheduleText || '設定時間'}</span>
           </button>
 
-          <button
-            type="button"
-            aria-label="組隊與排程設定"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenPartyModal(charId, boss.id, entryIndex);
-            }}
+          {canManage && (
+            <button
+              type="button"
+              aria-label="組隊與排程設定"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenPartyModal(charId, boss.id, entryIndex);
+              }}
+              className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/10 transition-colors"
+              title="開啟隊伍設定"
+            >
+              <MoreVertical className="w-3.5 h-3.5" />
+            </button>
+          )}
             className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/10 transition-colors"
             title="開啟隊伍設定"
           >
