@@ -146,15 +146,23 @@ export function MainLayout({
 
   const hasAutoPromptedAuth = useRef(false);
 
-  // 當使用者未登入時，在小隊資料載入完成後彈出登入/註冊彈窗 (僅在首次載入完成時觸發一次)
+  // 僅在瀏覽器「完全沒有儲存任何登入身分 (全新訪客 / 已按登出)」時，才在載入完成後自動彈出登入引導
   useEffect(() => {
-    if (!isStoreLoading && activeGroup && !currentPlayer) {
-      if (!hasAutoPromptedAuth.current) {
-        hasAutoPromptedAuth.current = true;
-        onOpenLoginModal();
-      }
-    } else if (currentPlayer) {
+    const hasStoredAuth = Boolean(
+      localStorage.getItem('boss_party_auth_player_name') ||
+      localStorage.getItem('boss_auth_player') ||
+      localStorage.getItem('preferred_primary_user')
+    );
+
+    // 若瀏覽器已辨識到登入者，絕對不主動彈出彈窗
+    if (hasStoredAuth || currentPlayer) {
       hasAutoPromptedAuth.current = false;
+      return;
+    }
+
+    if (!isStoreLoading && activeGroup && !hasAutoPromptedAuth.current) {
+      hasAutoPromptedAuth.current = true;
+      onOpenLoginModal();
     }
   }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 
