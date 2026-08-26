@@ -219,7 +219,7 @@ export function AuthModal({ isOpen, onClose, onOpenAddPlayerModal }: AuthModalPr
                         >
                           {players.map((p) => (
                             <option key={p.name} value={p.name}>
-                              {p.avatarEmoji || '👤'} {p.name} {p.isAdmin ? '👑 (隊長)' : ''}
+                              {p.avatarEmoji || '👤'} {p.name} {p.isAdmin ? '👑 (管理員)' : ''}
                             </option>
                           ))}
                         </select>
