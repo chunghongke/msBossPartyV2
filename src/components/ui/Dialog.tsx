@@ -41,7 +41,7 @@ export const DialogContent = React.forwardRef<
         'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] grid w-[94vw] gap-4 p-5 sm:p-6',
         'bg-[#FDF5E6] dark:bg-[#1E293B] text-[#4A3B2C] dark:text-slate-100',
         'parchment-card rounded-3xl border-3.5 border-kerning-stroke shadow-2xl',
-        'dark:border-2 dark:border-slate-700 dark:shadow-game-card relative overflow-hidden',
+        'dark:border-2 dark:border-slate-700 dark:shadow-game-card overflow-hidden',
         'before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-sky-400 before:via-purple-400 before:to-yellow-400 dark:before:block before:hidden',
         maxWidthClass,
         className
