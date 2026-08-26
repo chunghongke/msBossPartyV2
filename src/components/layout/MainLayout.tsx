@@ -144,14 +144,10 @@ export function MainLayout({
     }
   };
 
-  // 當使用者透過邀請連結加入且尚未登入時，在資料庫載入後自動彈出登入/加入引導
+  // 當使用者未登入時，在小隊資料載入完成後強制彈出登入/註冊彈窗
   useEffect(() => {
     if (!isStoreLoading && activeGroup && !currentPlayer) {
-      const isJustJoined = sessionStorage.getItem('boss_party_just_joined_invite');
-      if (isJustJoined === 'true') {
-        sessionStorage.removeItem('boss_party_just_joined_invite');
-        onOpenLoginModal();
-      }
+      onOpenLoginModal();
     }
   }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 

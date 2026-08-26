@@ -90,6 +90,10 @@ export function useModalState() {
       <AddPlayerModal
         isOpen={isAddPlayerOpen}
         onClose={() => setIsAddPlayerOpen(false)}
+        onCancel={() => {
+          setIsAddPlayerOpen(false);
+          setIsAuthOpen(true);
+        }}
       />
 
       <AddCharacterModal

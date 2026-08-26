@@ -149,9 +149,14 @@ export function AuthModal({ isOpen, onClose, onOpenAddPlayerModal }: AuthModalPr
       <DialogContent maxWidthClass="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            <UserCheck className="w-5 h-5" />
-            <span>玩家身分登入與切換</span>
+            <UserCheck className="w-5 h-5 text-amber-500" />
+            <span>{isMandatory ? '🍁 歡迎！請登入或建立玩家身分' : '玩家身分登入與切換'}</span>
           </DialogTitle>
+          {isMandatory && (
+            <p className="text-xs text-stone-600 dark:text-slate-300 font-bold mt-1 text-left">
+              👋 進入小隊前請先選擇您的玩家帳號登入，或點擊下方「建立新玩家身分」加入小隊。
+            </p>
+          )}
         </DialogHeader>
 
         <DialogBody className="space-y-4">
@@ -470,9 +475,11 @@ export function AuthModal({ isOpen, onClose, onOpenAddPlayerModal }: AuthModalPr
 
         {!isLoginSuccess && (
           <DialogFooter>
-            <Button type="button" variant="parchment" size="sm" onClick={onClose}>
-              關閉
-            </Button>
+            {!isMandatory && (
+              <Button type="button" variant="parchment" size="sm" onClick={onClose}>
+                關閉
+              </Button>
+            )}
           </DialogFooter>
         )}
       </DialogContent>

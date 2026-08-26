@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { useState, FormEvent } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
@@ -11,8 +12,10 @@ interface AddPlayerModalProps {
   onClose: () => void;
 }
 
-export function AddPlayerModal({ isOpen, onClose }: AddPlayerModalProps) {
+export function AddPlayerModal({ isOpen, onClose, onCancel }: AddPlayerModalProps & { onCancel?: () => void }) {
   const { players, addPlayer } = useStore();
+  const { currentPlayer, login } = useAuth();
+  const isMandatory = !currentPlayer;
 
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🍁');
@@ -49,13 +52,17 @@ export function AddPlayerModal({ isOpen, onClose }: AddPlayerModalProps) {
 
     try {
       const passHash = await hashPassword(password.trim());
-      await addPlayer({
+      const newPlayer = {
         name: cleanName,
         avatarEmoji: emoji || '👤',
         passwordHash: passHash,
-        isAdmin: false,
+        isAdmin: players.length === 0, // 小隊第一位建立者自動為管理員
         characters: [],
-      });
+      };
+      await addPlayer(newPlayer);
+
+      // 自動登入為新建立的玩家
+      await login(cleanName, password.trim(), [...players, newPlayer]);
 
       setName('');
       setPassword('');
@@ -70,8 +77,25 @@ export function AddPlayerModal({ isOpen, onClose }: AddPlayerModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
-      <DialogContent maxWidthClass="max-w-md">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open: boolean) => {
+        if (!open) {
+          if (onCancel) onCancel();
+          else onClose();
+        }
+      }}
+    >
+      <DialogContent
+        maxWidthClass="max-w-md"
+        hideCloseButton={isMandatory}
+        onPointerDownOutside={(e) => {
+          if (isMandatory) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isMandatory) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             <UserPlus className="w-5 h-5" />
@@ -151,8 +175,16 @@ export function AddPlayerModal({ isOpen, onClose }: AddPlayerModalProps) {
           </DialogBody>
 
           <DialogFooter>
-            <Button type="button" variant="parchment" size="sm" onClick={onClose}>
-              取消
+            <Button
+              type="button"
+              variant="parchment"
+              size="sm"
+              onClick={() => {
+                if (onCancel) onCancel();
+                else onClose();
+              }}
+            >
+              {isMandatory ? '返回登入選單' : '取消'}
             </Button>
             <Button type="submit" variant="gold" size="md" isLoading={isSubmitting}>
               <span>建立玩家</span>
