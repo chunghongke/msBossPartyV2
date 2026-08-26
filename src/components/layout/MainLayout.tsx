@@ -21,6 +21,7 @@ import { Boss } from '@/types/boss';
 import { UserPlus, PlusCircle, ArrowUp, RefreshCw, LayoutList, LayoutGrid } from 'lucide-react';
 
 interface MainLayoutProps {
+  isGlobalLoading?: boolean;
   onOpenLoginModal: () => void;
   onOpenGroupModal: () => void;
   onOpenNotifModal: () => void;
@@ -37,6 +38,7 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({
+  isGlobalLoading: propIsGlobalLoading,
   onOpenLoginModal,
   onOpenGroupModal,
   onOpenNotifModal,
@@ -145,27 +147,36 @@ export function MainLayout({
     }
   };
 
+  const isGlobalLoading = typeof propIsGlobalLoading === 'boolean' 
+    ? propIsGlobalLoading 
+    : (isGroupLoading || (Boolean(activeGroup) && isStoreLoading));
+
   const hasAutoPromptedAuth = useRef(false);
 
-  // 僅在瀏覽器「完全沒有儲存任何登入身分 (全新訪客 / 已按登出)」時，才在載入完成後自動彈出登入引導
+  // 僅在全域資料完全載入完成 (isGlobalLoading === false) 且為未登入訪客時，才在背景彈出登入引導
   useEffect(() => {
+    // 若還在雲端資料載入階段或無小隊，絕對不觸發任何彈窗
+    if (isGlobalLoading || !activeGroup) {
+      return;
+    }
+
     const hasStoredAuth = Boolean(
       localStorage.getItem('boss_party_auth_player_name') ||
       localStorage.getItem('boss_auth_player') ||
       localStorage.getItem('preferred_primary_user')
     );
 
-    // 若瀏覽器已辨識到登入者，絕對不主動彈出彈窗
+    // 若瀏覽器已辨識到登入者，直接放行，絕對不主動彈出彈窗
     if (hasStoredAuth || currentPlayer) {
       hasAutoPromptedAuth.current = false;
       return;
     }
 
-    if (!isStoreLoading && activeGroup && !hasAutoPromptedAuth.current) {
+    if (!hasAutoPromptedAuth.current) {
       hasAutoPromptedAuth.current = true;
       onOpenLoginModal();
     }
-  }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
+  }, [isGlobalLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 
   const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
   const [orderVersion, setOrderVersion] = useState(0);
@@ -234,8 +245,8 @@ export function MainLayout({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // 1. 若正在載入小隊群組或正在從 Firebase RTDB 載入小隊資料，顯示全螢幕楓葉 Loading 動畫
-  if (isGroupLoading || (activeGroup && isStoreLoading)) {
+  // 1. 若全域正在載入中 (群組初始化或 Firebase RTDB 同步)，顯示全螢幕楓葉 Loading 動畫
+  if (isGlobalLoading) {
     return <PageLoadingScreen groupName={activeGroup?.name} />;
   }
 

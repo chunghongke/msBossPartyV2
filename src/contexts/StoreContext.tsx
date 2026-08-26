@@ -160,12 +160,17 @@ function sanitizeStoreAndTeams(
 }
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { activeGroup } = useGroup();
+  const { activeGroup, isLoading: isGroupLoading } = useGroup();
   const [players, setPlayers] = useState<Player[]>([]);
   const [store, setStore] = useState<StoreData>(DEFAULT_STORE);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    if (isGroupLoading) {
+      setIsLoading(true);
+      return;
+    }
+
     if (!activeGroup?.firebaseConfig) {
       setPlayers([]);
       setStore(DEFAULT_STORE);
@@ -249,7 +254,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       unsub();
     };
-  }, [activeGroup]);
+  }, [activeGroup, isGroupLoading]);
 
   const savePlayersToCloud = useCallback(
     async (newPlayers: Player[]) => {
@@ -739,7 +744,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         players,
         store,
-        isLoading,
+        isLoading: isGroupLoading || (Boolean(activeGroup) && isLoading),
         toggleBossStatus,
         updateWeeklyRecord,
         saveTeamAndRecords,

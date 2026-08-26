@@ -2,6 +2,7 @@ import React from 'react';
 import { GroupProvider } from './contexts/GroupContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { StoreProvider, useStore } from './contexts/StoreContext';
+import { useGroup } from './contexts/GroupContext';
 import { NotifProvider } from './contexts/NotifContext';
 import { AlertProvider } from './contexts/AlertContext';
 import { MainLayout } from './components/layout/MainLayout';
@@ -9,11 +10,16 @@ import { useModalState } from './components/modals/ModalRoot';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 function AppContent() {
+  const { activeGroup, isLoading: isGroupLoading } = useGroup();
+  const { isLoading: isStoreLoading } = useStore();
   const { controller, modals } = useModalState();
+
+  const isGlobalLoading = isGroupLoading || (Boolean(activeGroup) && isStoreLoading);
 
   return (
     <>
       <MainLayout
+        isGlobalLoading={isGlobalLoading}
         onOpenLoginModal={controller.openLoginModal}
         onOpenGroupModal={controller.openGroupModal}
         onOpenNotifModal={controller.openNotifModal}
@@ -28,7 +34,7 @@ function AppContent() {
         onDeleteCharacter={() => {}}
         onShowScheduleInfo={controller.openScheduleInfo}
       />
-      {modals}
+      {!isGlobalLoading && modals}
     </>
   );
 }
