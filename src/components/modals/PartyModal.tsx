@@ -136,11 +136,19 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     if (hasReset) checkAndPush(2);
   });
 
-  // 收集同 BOSS 其他已存在的隊伍（大於1人且有空位）供快速加入，排除單人隊伍 (single team)
+  // 收集同 BOSS 其他已存在的隊伍（大於1人且有空位）供快速加入
+  // 排除：
+  // 1. 當前正在編輯的隊伍 (t.id === currentTeamId)
+  // 2. 單人隊伍 (t.id.startsWith('single_') 或人數 <= 1)
+  // 3. 包含當前編輯角色（無論首刷或重置刷）的隊伍 (t.memberTargets.some(m => m.charId === charId))
   const existingOtherTeams = Object.values(store.teams || {}).filter((t) => {
     if (t.id === currentTeamId) return false;
     if (t.id.startsWith('single_')) return false;
     if (!t.memberTargets || t.memberTargets.length <= 1) return false;
+
+    // 若隊伍中已經包含當前角色（無論是首刷還是重置刷），則不顯示於左側快速加入
+    const containsCurrentChar = t.memberTargets.some((m) => m.charId === charId);
+    if (containsCurrentChar) return false;
 
     const isSameBossTeam = t.memberTargets.some((m) => {
       const rec = store.weeklyRecords[`rec_${m.charId}_${bossId}_${m.entryIndex}`];
