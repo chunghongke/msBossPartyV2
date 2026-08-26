@@ -135,8 +135,6 @@ function SingleRowBossPill({
     onOpenPartyModal(charId, boss.id, entryIndex);
   };
 
-  const removedCompletedList = getRemovedCompletedBosses(character);
-
   return (
     <div
       onClick={handleClick}
@@ -247,7 +245,7 @@ export function CompactCharacterRow({
   onShowScheduleInfo,
 }: CompactCharacterRowProps) {
   const { currentPlayer, canManageChar } = useAuth();
-  const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber } = useCalculator(store);
+  const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
 
   const isSelf = currentPlayer?.name === playerName;
   const isOwnerOrAdmin = canManageChar(playerName);
@@ -255,6 +253,7 @@ export function CompactCharacterRow({
   const crystalStats = calculateCrystal(character);
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
+  const removedCompletedList = getRemovedCompletedBosses(character);
 
   const orderedBossEntries = useMemo(() => {
     const entries: { boss: Boss; entryIndex: 1 | 2 }[] = [];
