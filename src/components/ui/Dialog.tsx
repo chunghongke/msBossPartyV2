@@ -15,7 +15,7 @@ export const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-150',
+      'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity',
       className
     )}
     {...props}
@@ -38,9 +38,10 @@ export const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 grid w-[94vw] gap-4 p-5 sm:p-6 duration-150',
-        'parchment-card rounded-3xl border-3.5 border-kerning-stroke shadow-parchment',
-        'dark:bg-slate-800/95 dark:backdrop-blur-md dark:border-2 dark:border-slate-700 dark:shadow-game-card dark:text-slate-50 relative overflow-hidden',
+        'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] grid w-[94vw] gap-4 p-5 sm:p-6',
+        'bg-[#FDF5E6] dark:bg-[#1E293B] text-[#4A3B2C] dark:text-slate-100',
+        'parchment-card rounded-3xl border-3.5 border-kerning-stroke shadow-2xl',
+        'dark:border-2 dark:border-slate-700 dark:shadow-game-card relative overflow-hidden',
         'before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-sky-400 before:via-purple-400 before:to-yellow-400 dark:before:block before:hidden',
         maxWidthClass,
         className
@@ -49,7 +50,7 @@ export const DialogContent = React.forwardRef<
     >
       {children}
       {!hideCloseButton && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-xl p-1 text-stone-600 dark:text-stone-300 hover:bg-black/10 transition-colors focus:outline-none disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-xl p-1 text-stone-600 dark:text-stone-300 hover:bg-black/10 dark:hover:bg-white/10 transition-colors focus:outline-none disabled:pointer-events-none">
           <X className="h-5 w-5" />
           <span className="sr-only">關閉</span>
         </DialogPrimitive.Close>
@@ -57,6 +58,7 @@ export const DialogContent = React.forwardRef<
     </DialogPrimitive.Content>
   </DialogPortal>
 ));
+DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 export const DialogHeader = ({
   className,
@@ -111,7 +113,7 @@ export const DialogDescription = React.forwardRef<
     {...props}
   />
 ));
-DialogDescription.displayName = DialogPrimitive.Description.displayName;
+DialogDescription.displayName = 'DialogDescription';
 
 export const DialogBody = ({
   className,
