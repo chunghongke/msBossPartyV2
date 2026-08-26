@@ -11,10 +11,10 @@
   }
 
   .dark {
-    --bg-main: #0B172B;
+    --bg-main: #0F172A;
     --card-parchment: #1E293B;
     --card-parchment-border: #334155;
-    --text-parchment: #F1F5F9;
+    --text-parchment: #F8FAFC;
   }
 
   body {
@@ -30,7 +30,7 @@
   border: 2.5px solid #212121;
 }
 
-/* 羊皮紙卡片底紋效果 */
+/* 羊皮紙卡片底紋效果 (Light Theme 保留原本溫潤質感，Dark Theme 採用 Neo-Retro Cyber-Arcane) */
 .parchment-card {
   background-color: #FDF5E6;
   border: 2.5px solid #212121;
@@ -39,15 +39,21 @@
 }
 
 .dark .parchment-card {
-  background-color: #1E293B;
-  border: 2.5px solid #334155;
-  box-shadow: 0 4px 0 #0F172A, 0 6px 14px rgba(0, 0, 0, 0.4);
+  background-color: rgba(30, 41, 59, 0.94);
+  border: 2px solid #334155;
+  box-shadow: 0 4px 0 0 #0F172A, inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
 }
 
 /* 登入者自己專屬金色相框 */
 .gold-frame {
   border: 3px solid #FFD700;
   box-shadow: 0 4px 0 #B8860B, 0 0 16px rgba(255, 215, 0, 0.35);
+}
+
+.dark .gold-frame {
+  border: 2.5px solid #FACC15;
+  box-shadow: 0 4px 0 #0F172A, 0 0 16px rgba(250, 204, 21, 0.35);
 }
 
 /* 數字厚黑字體陰影 (傷害數字風格 - 僅用於 Fredoka 英文與數字) */
@@ -61,7 +67,16 @@
      1px  1px 0 #212121;
 }
 
-/* 客製化捲軸 */
+.dark .maple-number-glow {
+  text-shadow: 
+    -1px -1px 0 #0F172A,
+     1px -1px 0 #0F172A,
+    -1px  1px 0 #0F172A,
+     1px  1px 0 #0F172A,
+     0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+/* 客製化捲軸 (Dark mode: Slate-900 / Slate-700 / Sky-400) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -77,6 +92,18 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #FFA726;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border: 1.5px solid #1E293B;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #38BDF8;
 }
 
 /* BOSS 卡片閃爍聚焦高亮動畫 (方案 ③ 點擊聚焦) */
