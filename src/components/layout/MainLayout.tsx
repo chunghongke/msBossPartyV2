@@ -9,6 +9,7 @@ import { useWeeklyReset } from '@/hooks/useWeeklyReset';
 import { useCalculator } from '@/hooks/useCalculator';
 import { Header } from './Header';
 import { SetupWizard } from '@/components/group/SetupWizard';
+import { PageLoadingScreen } from '@/components/ui/PageLoadingScreen';
 import { PlayerNavBar } from '@/components/player/PlayerNavBar';
 import { CharacterCard } from '@/components/character/CharacterCard';
 import { CompactCharacterRow } from '@/components/character/CompactCharacterRow';
@@ -233,7 +234,12 @@ export function MainLayout({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // 若尚未選擇群組，顯示 Setup Wizard
+  // 1. 若正在載入小隊群組或正在從 Firebase RTDB 載入小隊資料，顯示全螢幕楓葉 Loading 動畫
+  if (isGroupLoading || (activeGroup && isStoreLoading)) {
+    return <PageLoadingScreen groupName={activeGroup?.name} />;
+  }
+
+  // 2. 若尚未選擇群組，顯示 Setup Wizard
   if (!activeGroup && !isGroupLoading) {
     return <SetupWizard />;
   }
