@@ -35,7 +35,7 @@ const TEMP_DAY_OPTIONS = [
 ];
 
 export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: PartyModalProps) {
-  const { store, getAllCharacters, getCharName, addGuest, deleteGuest, saveTeamAndRecords } = useStore();
+  const { players, store, getAllCharacters, getCharName, addGuest, deleteGuest, saveTeamAndRecords } = useStore();
 
   const boss = getBoss(bossId);
   const recordKey = `rec_${charId}_${bossId}_${entryIndex}`;
@@ -157,7 +157,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     scheduledCharOptions.forEach((opt) => {
       const pName = opt.char.playerName || '其他冒險者';
       if (!groupMap.has(pName)) {
-        const pObj = store.players?.find((p) => p.name === pName);
+        const pObj = players?.find((p) => p.name === pName);
         groupMap.set(pName, {
           playerName: pName,
           avatarEmoji: pObj?.avatarEmoji || '👤',
@@ -168,7 +168,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     });
 
     return Array.from(groupMap.values());
-  }, [scheduledCharOptions, store.players]);
+  }, [scheduledCharOptions, players]);
 
   const handleToggleMember = (targetCharId: string, targetEntry: number) => {
     const exists = memberTargets.some((m) => m.charId === targetCharId && m.entryIndex === targetEntry);
