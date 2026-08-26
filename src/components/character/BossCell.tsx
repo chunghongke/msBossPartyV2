@@ -13,7 +13,10 @@ interface BossCellProps {
   record?: WeeklyRecord;
   team?: Team | null;
   guestList?: Array<{ id: string; name: string }>;
-  onToggleStatus: (recordKey: string) => void;
+  onToggleStatus: (
+    recordKey: string,
+    onRequireShardModal?: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void
+  ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal?: (recordKey: string, boss: Boss, team: Team | null) => void;
   onShowScheduleInfo?: (team: Team) => void;
@@ -99,7 +102,7 @@ export function BossCell({
       isLongPressTriggered.current = false;
       return;
     }
-    onToggleStatus(recordKey);
+    onToggleStatus(recordKey, onOpenShardModal);
   };
 
   const handleContextMenu = (e: MouseEvent) => {
@@ -153,20 +156,23 @@ export function BossCell({
     }
   };
 
-  // 艾里溫碎片標籤文字
+  // 艾里溫碎片標籤文字與是否未設定判斷
+  const isShardUnset =
+    isMultiParty &&
+    (record?.shardShares === null || record?.shardShares === undefined) &&
+    (record?.shardQuantity === null || record?.shardQuantity === undefined);
+
   const shardTagText = (() => {
     if (!boss.erionVestiges) return '';
     if (!isMultiParty) {
-      return isQuantityMode ? `${totalShards}個 (全拿)` : `${maxPartySize}/${maxPartySize}份 (全拿)`;
+      return isQuantityMode ? `${totalShards}顆 (全拿)` : `${maxPartySize}/${maxPartySize}份 (全拿)`;
     }
     if (isQuantityMode) {
       const hasChosen = record?.shardQuantity !== null && record?.shardQuantity !== undefined;
-      const currentQty = hasChosen ? record.shardQuantity : Math.floor(totalShards / teamSize);
-      return `${currentQty}/${totalShards}個`;
+      return hasChosen ? `${record.shardQuantity}顆` : `?/${totalShards}顆`;
     }
     const hasChosen = record?.shardShares !== null && record?.shardShares !== undefined;
-    const currentShares = hasChosen ? record.shardShares : 1;
-    return `${currentShares}/${maxPartySize}份`;
+    return hasChosen ? `${record.shardShares}/${maxPartySize}份` : `?/${maxPartySize}份`;
   })();
 
   return (
@@ -274,14 +280,22 @@ export function BossCell({
                 }
               }}
               className={cn(
-                'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black border transition-colors',
+                'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black border transition-all',
                 isMultiParty
-                  ? 'bg-purple-500/20 hover:bg-purple-500/35 text-purple-700 dark:text-purple-300 border-purple-400/50 cursor-pointer'
+                  ? isShardUnset
+                    ? 'bg-amber-500/20 hover:bg-amber-500/35 text-amber-800 dark:text-amber-300 border-amber-500/60 animate-pulse cursor-pointer'
+                    : 'bg-purple-500/20 hover:bg-purple-500/35 text-purple-700 dark:text-purple-300 border-purple-400/50 cursor-pointer'
                   : 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-300/40 cursor-default'
               )}
-              title={isMultiParty ? '點擊設定隊員艾里溫碎片分配' : '單人隊伍自動全拿碎片'}
+              title={
+                isMultiParty
+                  ? isShardUnset
+                    ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
+                    : '點擊設定隊員艾里溫碎片分配'
+                  : '單人隊伍自動全拿碎片'
+              }
             >
-              <Sparkles className="w-2.5 h-2.5 text-purple-500" />
+              <Sparkles className={cn('w-2.5 h-2.5', isShardUnset ? 'text-amber-600' : 'text-purple-500')} />
               <span>{shardTagText}</span>
             </button>
           )}

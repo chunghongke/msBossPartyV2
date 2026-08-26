@@ -13,7 +13,10 @@ interface CompactCharacterRowProps {
   character: Character;
   playerName: string;
   store: StoreData;
-  onToggleStatus: (recordKey: string) => void;
+  onToggleStatus: (
+    recordKey: string,
+    onRequireShardModal?: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void
+  ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal: (recordKey: string, boss: Boss, team: Team | null) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
@@ -65,7 +68,10 @@ function SingleRowBossPill({
   record?: WeeklyRecord;
   team?: Team | null;
   guestList?: Array<{ id: string; name: string }>;
-  onToggleStatus: (recordKey: string) => void;
+  onToggleStatus: (
+    recordKey: string,
+    onRequireShardModal?: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void
+  ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal?: (recordKey: string, boss: Boss, team: Team | null) => void;
   onShowScheduleInfo?: (team: Team) => void;
@@ -127,7 +133,7 @@ function SingleRowBossPill({
       isLongPress.current = false;
       return;
     }
-    onToggleStatus(recordKey);
+    onToggleStatus(recordKey, onOpenShardModal);
   };
 
   const handleContextMenu = (e: MouseEvent) => {
@@ -199,17 +205,44 @@ function SingleRowBossPill({
 
       {/* 右側小膠囊：出團時間 / 艾里溫碎片 */}
       <div className="flex items-center gap-0.5 shrink-0">
-        {boss.erionVestiges > 0 && isMultiParty && onOpenShardModal && (
+        {boss.erionVestiges > 0 && (
           <span
             onClick={(e) => {
               e.stopPropagation();
-              onOpenShardModal(recordKey, boss, team || null);
+              if (isMultiParty && onOpenShardModal) {
+                onOpenShardModal(recordKey, boss, team || null);
+              }
             }}
-            className="px-1 py-0.2 rounded bg-purple-500/10 border border-purple-300/40 text-purple-600 dark:text-purple-300 font-black text-[8px] flex items-center gap-0.5 hover:bg-purple-500/20"
-            title="點擊分配艾里溫碎片"
+            className={cn(
+              'px-1 py-0.2 rounded font-black text-[8px] flex items-center gap-0.5 transition-all',
+              isMultiParty
+                ? (record?.shardShares === null || record?.shardShares === undefined) &&
+                  (record?.shardQuantity === null || record?.shardQuantity === undefined)
+                  ? 'bg-amber-500/20 border border-amber-400 text-amber-800 dark:text-amber-300 animate-pulse cursor-pointer'
+                  : 'bg-purple-500/10 border border-purple-300/40 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 cursor-pointer'
+                : 'bg-purple-500/10 border border-purple-300/30 text-purple-600 dark:text-purple-300 opacity-75 cursor-default'
+            )}
+            title={
+              isMultiParty
+                ? (record?.shardShares === null || record?.shardShares === undefined) &&
+                  (record?.shardQuantity === null || record?.shardQuantity === undefined)
+                  ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
+                  : '點擊設定艾里溫碎片分配'
+                : '單人隊伍自動全拿碎片'
+            }
           >
             <Sparkles className="w-2 h-2 text-purple-500" />
-            <span>{record?.shardQuantity !== null && record?.shardQuantity !== undefined ? `${record.shardQuantity}個` : `${record?.shardShares || 1}/${boss.maxPartySize}`}</span>
+            <span>
+              {!isMultiParty
+                ? `${boss.maxPartySize}/${boss.maxPartySize}份`
+                : record?.shardMode === 'quantity'
+                ? record.shardQuantity !== null && record.shardQuantity !== undefined
+                  ? `${record.shardQuantity}顆`
+                  : `?/${boss.erionVestiges}顆`
+                : record?.shardShares !== null && record?.shardShares !== undefined
+                ? `${record.shardShares}/${boss.maxPartySize}份`
+                : `?/${boss.maxPartySize}份`}
+            </span>
           </span>
         )}
 

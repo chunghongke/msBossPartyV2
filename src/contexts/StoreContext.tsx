@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { ref, onValue, set } from 'firebase/database';
 import { Player, Character } from '@/types/player';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
+import { getBoss } from '@/data/bosses';
 import { useGroup } from './GroupContext';
 import { getRtdb } from '@/services/firebase';
 
@@ -13,7 +14,10 @@ interface StoreContextType {
   saveStoreToCloud: (store: StoreData) => Promise<void>;
   getAllCharacters: () => (Character & { playerName: string })[];
   getCharName: (charId: string) => string;
-  toggleBossStatus: (recordKey: string) => Promise<void>;
+  toggleBossStatus: (
+    recordKey: string,
+    onRequireShardModal?: (recordKey: string, boss: any, team: any, pendingComplete?: boolean) => void
+  ) => Promise<void>;
   updateWeeklyRecord: (recordKey: string, partialRecord: Partial<WeeklyRecord>) => Promise<void>;
   saveTeamAndRecords: (team: Team, updatedRecords: Record<string, WeeklyRecord>, bossId?: string) => Promise<void>;
   addGuest: (guestName: string) => Promise<Guest>;
@@ -292,28 +296,71 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   const toggleBossStatus = useCallback(
-    async (recordKey: string) => {
+    async (
+      recordKey: string,
+      onRequireShardModal?: (recordKey: string, boss: any, team: any, pendingComplete?: boolean) => void
+    ) => {
       const targetRecord = store.weeklyRecords[recordKey];
       const targetTeamId = targetRecord?.teamId;
       const nextCompleted = !targetRecord?.isCompleted;
+
+      const bossId = targetRecord?.bossId || (typeof recordKey === 'string' ? recordKey.split('_')[2] : '');
+      const boss = getBoss(bossId);
+
+      // 💡 當即將標記為「已完成」(nextCompleted === true) 時：
+      // 若為多人隊伍且該 BOSS 有掉落艾里溫碎片：
+      if (nextCompleted && targetTeamId && store.teams[targetTeamId] && boss && boss.erionVestiges > 0) {
+        const team = store.teams[targetTeamId];
+        const rawMembers = team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex: 1 }));
+        const validMembers = rawMembers.filter((m: any) => {
+          if (!m.charId.startsWith('guest_')) return true;
+          return (store.guests || []).some((g) => g.id === m.charId);
+        });
+
+        const isMulti = validMembers.length > 1;
+        if (isMulti) {
+          const actualTeamSize = validMembers.length;
+          const maxPartySize = boss.maxPartySize || 1;
+          const dividesEvenly = maxPartySize % actualTeamSize === 0;
+
+          // 1. 份數除不盡（如 4人打 6人王）：攔截並主動彈出 ShardShareModal 分配視窗！
+          if (!dividesEvenly && onRequireShardModal) {
+            onRequireShardModal(recordKey, boss, team, true);
+            return;
+          }
+        }
+      }
 
       const nextRecords = { ...store.weeklyRecords };
 
       if (targetTeamId && store.teams[targetTeamId]) {
         const team = store.teams[targetTeamId];
-        const bossId = targetRecord?.bossId || (typeof recordKey === 'string' ? recordKey.split('_')[2] : '');
+        const rawMembers = team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex: 1 }));
+        const validMembers = rawMembers.filter((m: any) => {
+          if (!m.charId.startsWith('guest_')) return true;
+          return (store.guests || []).some((g) => g.id === m.charId);
+        });
 
-        const members = team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex: 1 }));
-        members.forEach((member) => {
+        const isMulti = validMembers.length > 1;
+        const actualTeamSize = validMembers.length;
+        const maxPartySize = boss?.maxPartySize || 1;
+        const dividesEvenly = Boolean(boss && boss.erionVestiges > 0 && isMulti && maxPartySize % actualTeamSize === 0);
+        const fairShare = dividesEvenly ? maxPartySize / actualTeamSize : null;
+
+        rawMembers.forEach((member: any) => {
           const mKey = `rec_${member.charId}_${bossId}_${member.entryIndex}`;
+          const existing = nextRecords[mKey] || {
+            charId: member.charId,
+            bossId,
+            entryIndex: member.entryIndex,
+            teamId: targetTeamId,
+          };
+
           nextRecords[mKey] = {
-            ...(nextRecords[mKey] || {
-              charId: member.charId,
-              bossId,
-              entryIndex: member.entryIndex,
-              teamId: targetTeamId,
-            }),
+            ...existing,
             isCompleted: nextCompleted,
+            // 若為整除且剛剛打勾完成，自動均分份數
+            ...(nextCompleted && dividesEvenly && fairShare !== null ? { shardShares: fairShare } : {}),
           };
         });
       } else {

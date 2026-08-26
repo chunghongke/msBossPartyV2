@@ -25,8 +25,7 @@ export interface ModalController {
   openRenameModal: (character: Character) => void;
   openEditBosses: (character: Character, playerName: string) => void;
   openResetConfig: (character: Character, playerName: string) => void;
-  openPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
-  openShardModal: (recordKey: string, boss: Boss, team: Team | null) => void;
+  openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void;
   openScheduleInfo: (team: Team) => void;
 }
 
@@ -42,7 +41,7 @@ export function useModalState() {
   const [editBossChar, setEditBossChar] = useState<{ char: Character; playerName: string } | null>(null);
   const [resetConfigChar, setResetConfigChar] = useState<{ char: Character; playerName: string } | null>(null);
   const [partyTarget, setPartyTarget] = useState<{ charId: string; bossId: string; entryIndex: number } | null>(null);
-  const [shardTarget, setShardTarget] = useState<{ recordKey: string; boss: Boss; team: Team | null } | null>(null);
+  const [shardTarget, setShardTarget] = useState<{ recordKey: string; boss: Boss; team: Team | null; pendingComplete?: boolean } | null>(null);
   const [scheduleInfoTeam, setScheduleInfoTeam] = useState<Team | null>(null);
 
   const controller: ModalController = {
@@ -56,7 +55,7 @@ export function useModalState() {
     openEditBosses: (character, playerName) => setEditBossChar({ char: character, playerName }),
     openResetConfig: (character, playerName) => setResetConfigChar({ char: character, playerName }),
     openPartyModal: (charId, bossId, entryIndex) => setPartyTarget({ charId, bossId, entryIndex }),
-    openShardModal: (recordKey, boss, team) => setShardTarget({ recordKey, boss, team }),
+    openShardModal: (recordKey, boss, team, pendingComplete) => setShardTarget({ recordKey, boss, team, pendingComplete }),
     openScheduleInfo: (team) => setScheduleInfoTeam(team),
   };
 
@@ -137,6 +136,7 @@ export function useModalState() {
           recordKey={shardTarget.recordKey}
           boss={shardTarget.boss}
           team={shardTarget.team}
+          pendingComplete={shardTarget.pendingComplete}
         />
       )}
 

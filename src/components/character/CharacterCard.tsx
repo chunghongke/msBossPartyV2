@@ -14,7 +14,10 @@ interface CharacterCardProps {
   character: Character;
   playerName: string;
   store: StoreData;
-  onToggleStatus: (recordKey: string) => void;
+  onToggleStatus: (
+    recordKey: string,
+    onRequireShardModal?: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void
+  ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal: (recordKey: string, boss: Boss, team: Team | null) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
