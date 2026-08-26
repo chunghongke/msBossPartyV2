@@ -250,7 +250,7 @@ export function ShardShareModal({
       <DialogContent maxWidthClass="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            <Sparkles className="w-5 h-5 text-purple-500" />
+            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             <span>🔹 {boss.name} - 艾里溫碎片分配</span>
           </DialogTitle>
         </DialogHeader>
@@ -265,12 +265,12 @@ export function ShardShareModal({
                 className={cn(
                   'flex-1 py-1.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer',
                   mode === 'shares'
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-sm border border-purple-300'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm border border-amber-600/40'
                     : 'text-stone-600 dark:text-stone-300 hover:bg-black/5 dark:hover:bg-white/5'
                 )}
               >
                 <span>🔹 份數模式</span>
-                <span className="text-[10px] opacity-85 font-mono">(0 ~ {maxPartySize} 份)</span>
+                <span className="text-[10px] opacity-90 font-mono">(0 ~ {maxPartySize} 份)</span>
               </button>
 
               <button
@@ -279,22 +279,22 @@ export function ShardShareModal({
                 className={cn(
                   'flex-1 py-1.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer',
                   mode === 'quantity'
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-sm border border-purple-300'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm border border-amber-600/40'
                     : 'text-stone-600 dark:text-stone-300 hover:bg-black/5 dark:hover:bg-white/5'
                 )}
               >
                 <span>🔢 顆數模式</span>
-                <span className="text-[10px] opacity-85 font-mono">(0 ~ {totalShards} 顆)</span>
+                <span className="text-[10px] opacity-90 font-mono">(0 ~ {totalShards} 顆)</span>
               </button>
             </div>
 
-            {/* 提示 Banner */}
-            <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2">
-              <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+            {/* 提示 Banner (溫暖淺羊皮色調) */}
+            <div className="p-2.5 rounded-xl bg-[#FFF8E7] dark:bg-slate-800 border-1.5 border-[#D4B982] dark:border-slate-700 text-xs text-[#5C3E14] dark:text-amber-200 flex items-start gap-2 shadow-2xs">
+              <Info className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
               {mode === 'shares' ? (
                 <span>
-                  以 BOSS 最大人數上限（共 <strong>{maxPartySize} 份</strong>）進行分配。每份約{' '}
-                  <strong className="text-purple-700 dark:text-purple-300 font-mono">
+                  以 BOSS 最大人數上限（共 <strong className="text-[#3E2F20] dark:text-amber-300">{maxPartySize} 份</strong>）進行分配。每份約{' '}
+                  <strong className="text-amber-700 dark:text-amber-300 font-mono">
                     {(totalShards / maxPartySize).toFixed(1)}
                   </strong>{' '}
                   顆碎片。
@@ -302,7 +302,7 @@ export function ShardShareModal({
               ) : (
                 <span>
                   直接輸入本週各隊員實際取得的碎片顆數（含交易後）。BOSS 總掉落碎片：
-                  <strong className="text-purple-700 dark:text-purple-300 font-mono"> {totalShards} 顆</strong>。
+                  <strong className="text-amber-700 dark:text-amber-300 font-mono"> {totalShards} 顆</strong>。
                 </span>
               )}
             </div>
@@ -338,7 +338,7 @@ export function ShardShareModal({
                           <button
                             type="button"
                             onClick={() => handleApplySuggested(idx)}
-                            className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded-md hover:bg-emerald-500/25 transition-colors flex items-center gap-0.5 cursor-pointer"
+                            className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/40 px-1.5 py-0.2 rounded-md hover:bg-emerald-500/25 transition-colors flex items-center gap-0.5 cursor-pointer"
                             title="點擊立即套用建議輪替份數"
                           >
                             <Sparkles className="w-2.5 h-2.5" />
@@ -354,7 +354,7 @@ export function ShardShareModal({
                         <select
                           value={m.value}
                           onChange={(e) => handleUpdateShare(idx, e.target.value)}
-                          className="px-3 py-1.5 text-xs font-black rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#3E2F20] dark:text-slate-100 focus:outline-none focus:border-purple-500"
+                          className="px-3 py-1.5 text-xs font-black rounded-xl border-2 border-[#D4B982] dark:border-slate-700 bg-white dark:bg-slate-900 text-[#3E2F20] dark:text-slate-100 focus:outline-none focus:border-amber-500"
                         >
                           {Array.from({ length: maxPartySize + 1 }).map((_, i) => (
                             <option key={i} value={i}>
@@ -370,7 +370,7 @@ export function ShardShareModal({
                             max={totalShards}
                             value={m.quantity}
                             onChange={(e) => handleUpdateQuantity(idx, e.target.value)}
-                            className="w-16 px-2 py-1 text-xs font-black text-center rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#3E2F20] dark:text-slate-100 focus:outline-none focus:border-purple-500"
+                            className="w-16 px-2 py-1 text-xs font-black text-center rounded-xl border-2 border-[#D4B982] dark:border-slate-700 bg-white dark:bg-slate-900 text-[#3E2F20] dark:text-slate-100 focus:outline-none focus:border-amber-500"
                           />
                           <span className="text-xs font-bold text-stone-500 dark:text-slate-400">
                             / {totalShards} 顆
@@ -384,16 +384,16 @@ export function ShardShareModal({
 
               {/* Guest 臨時隊友餘額列 */}
               {guestCount > 0 && (
-                <div className="p-2.5 rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 flex items-center justify-between gap-3 text-xs">
+                <div className="p-2.5 rounded-2xl border-2 border-dashed border-[#D4B982] dark:border-slate-700 bg-[#FFF8E7]/60 dark:bg-slate-800/40 flex items-center justify-between gap-3 text-xs">
                   <div>
-                    <span className="font-black text-indigo-900 dark:text-indigo-200">
+                    <span className="font-black text-[#5C3E14] dark:text-amber-200">
                       👥 Guest（共 {guestCount} 位）
                     </span>
                     <span className="text-[10px] text-stone-500 dark:text-slate-400 block">
                       非固定成員，自動分配扣除正式隊員後的剩餘份數
                     </span>
                   </div>
-                  <div className="font-black font-fredoka text-sm text-indigo-700 dark:text-indigo-300">
+                  <div className="font-black font-fredoka text-sm text-amber-700 dark:text-amber-300">
                     {mode === 'shares'
                       ? sharesRemainder >= 0
                         ? `${sharesRemainder} 份`

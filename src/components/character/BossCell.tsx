@@ -283,9 +283,9 @@ export function BossCell({
                 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black border transition-all',
                 isMultiParty
                   ? isShardUnset
-                    ? 'bg-amber-500/20 hover:bg-amber-500/35 text-amber-800 dark:text-amber-300 border-amber-500/60 animate-pulse cursor-pointer'
-                    : 'bg-purple-500/20 hover:bg-purple-500/35 text-purple-700 dark:text-purple-300 border-purple-400/50 cursor-pointer'
-                  : 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-300/40 cursor-default'
+                    ? 'bg-amber-500/20 hover:bg-amber-500/35 text-amber-900 dark:text-amber-200 border-amber-500/60 animate-pulse cursor-pointer'
+                    : 'bg-[#FFF8E7] dark:bg-slate-800 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border-[#D4B982] dark:border-slate-700 cursor-pointer shadow-2xs'
+                  : 'bg-black/5 dark:bg-slate-800 text-stone-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 cursor-default'
               )}
               title={
                 isMultiParty
@@ -295,7 +295,7 @@ export function BossCell({
                   : '單人隊伍自動全拿碎片'
               }
             >
-              <Sparkles className={cn('w-2.5 h-2.5', isShardUnset ? 'text-amber-600' : 'text-purple-500')} />
+              <Sparkles className={cn('w-2.5 h-2.5', isShardUnset ? 'text-amber-600' : 'text-amber-500')} />
               <span>{shardTagText}</span>
             </button>
           )}

@@ -219,8 +219,8 @@ function SingleRowBossPill({
                 ? (record?.shardShares === null || record?.shardShares === undefined) &&
                   (record?.shardQuantity === null || record?.shardQuantity === undefined)
                   ? 'bg-amber-500/20 border border-amber-400 text-amber-800 dark:text-amber-300 animate-pulse cursor-pointer'
-                  : 'bg-purple-500/10 border border-purple-300/40 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 cursor-pointer'
-                : 'bg-purple-500/10 border border-purple-300/30 text-purple-600 dark:text-purple-300 opacity-75 cursor-default'
+                  : 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982] dark:border-slate-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer shadow-2xs'
+                : 'bg-black/5 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-stone-600 dark:text-slate-400 opacity-75 cursor-default'
             )}
             title={
               isMultiParty
@@ -231,7 +231,7 @@ function SingleRowBossPill({
                 : '單人隊伍自動全拿碎片'
             }
           >
-            <Sparkles className="w-2 h-2 text-purple-500" />
+            <Sparkles className="w-2 h-2 text-amber-500" />
             <span>
               {!isMultiParty
                 ? `${boss.maxPartySize}/${boss.maxPartySize}份`

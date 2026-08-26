@@ -206,15 +206,15 @@ export function CharacterCard({
             </div>
 
             {/* 2. 艾里溫碎片膠囊 */}
-            <div className="flex items-center gap-2.5 px-3 py-2 bg-[#F7EFFF] dark:bg-purple-950/40 rounded-xl border-2 border-purple-300 dark:border-purple-800 shadow-sm">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 via-purple-500 to-indigo-600 border-1.5 border-purple-900 flex items-center justify-center text-white shadow-xs shrink-0">
+            <div className="flex items-center gap-2.5 px-3 py-2 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-2 border-[#D4B982] dark:border-slate-700 shadow-sm">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 border-1.5 border-amber-700 flex items-center justify-center text-white shadow-xs shrink-0">
                 <Sparkles className="w-3.5 h-3.5 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-black text-purple-700 dark:text-purple-300 leading-none mb-0.5">
+                <div className="text-[10px] font-black text-[#5C3E14] dark:text-amber-300 leading-none mb-0.5">
                   艾里溫碎片
                 </div>
-                <div className="font-fredoka font-black text-sm text-purple-900 dark:text-purple-200 truncate">
+                <div className="font-fredoka font-black text-sm text-[#5C3E14] dark:text-amber-200 truncate">
                   {formatShardNumber(shardStats.earned)} / {formatShardNumber(shardStats.expected)} 碎片
                 </div>
               </div>
