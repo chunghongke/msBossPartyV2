@@ -27,8 +27,7 @@ export function PlayerNavBar({
   onScrollToCharacter,
   onReorderCharacters,
   onReorderPlayers,
-}: PlayerNavBarProps) {
-  const { currentPlayer } = useAuth();
+  const { currentPlayer, isAdmin } = useAuth();
   const [draggingCharId, setDraggingCharId] = useState<string | null>(null);
   const [dragOverCharId, setDragOverCharId] = useState<string | null>(null);
   const [navOrderVersion, setNavOrderVersion] = useState(0);
@@ -230,15 +229,17 @@ export function PlayerNavBar({
               );
             })}
 
-            {/* 新增玩家虛線橢圓標籤 (與第二列新增角色樣式一致) */}
-            <button
-              type="button"
-              onClick={onOpenAddPlayerModal}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/35 text-amber-900 dark:text-amber-300 text-xs font-bold border-2 border-dashed border-amber-500/60 transition-colors shrink-0 cursor-pointer select-none"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>新增玩家</span>
-            </button>
+            {/* 新增玩家虛線橢圓標籤 (僅管理員顯示) */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAddPlayerModal}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/35 text-amber-900 dark:text-amber-300 text-xs font-bold border-2 border-dashed border-amber-500/60 transition-colors shrink-0 cursor-pointer select-none"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>新增玩家</span>
+              </button>
+            )}
           </div>
 
           {/* 右側工具按鈕：獨立切換至臨時隊友名冊 */}
@@ -337,7 +338,7 @@ export function PlayerNavBar({
                 );
               })}
 
-              {onOpenAddCharacterModal && (
+              {onOpenAddCharacterModal && (isAdmin || selectedPlayer.name === currentPlayer?.name) && (
                 <button
                   type="button"
                   onClick={() => onOpenAddCharacterModal(selectedPlayer.name)}
