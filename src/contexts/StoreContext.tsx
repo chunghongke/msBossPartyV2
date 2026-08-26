@@ -110,7 +110,38 @@ function sanitizeStoreAndTeams(
     }
   });
 
-  // 2. 幽靈隊伍 GC：清除沒有任何 weeklyRecord 引用的非 single_ 隊伍
+  // 2. 雙向同步校驗：確保多人隊伍內的所有成員，其 weeklyRecord 的 teamId 均正確指向該多人隊伍
+  Object.entries(rawStore.teams).forEach(([teamId, team]) => {
+    if (teamId.startsWith('single_') || !team || !team.memberTargets || team.memberTargets.length <= 1) return;
+
+    let teamBossId = '';
+    for (const r of Object.values(rawStore.weeklyRecords)) {
+      if (r && r.teamId === teamId && r.bossId) {
+        teamBossId = r.bossId;
+        break;
+      }
+    }
+    if (!teamBossId && teamId.startsWith('party_')) {
+      const parts = teamId.split('_');
+      if (parts.length >= 2) teamBossId = parts[1];
+    }
+    if (!teamBossId) return;
+
+    team.memberTargets.forEach((m: any) => {
+      if (m.charId.startsWith('guest_')) return;
+      const recKey = `rec_${m.charId}_${teamBossId}_${m.entryIndex}`;
+      const rec = rawStore.weeklyRecords[recKey];
+      if (rec && rec.teamId !== teamId) {
+        rawStore.weeklyRecords[recKey] = {
+          ...rec,
+          teamId,
+        };
+        hasChanged = true;
+      }
+    });
+  });
+
+  // 3. 幽靈隊伍 GC：清除沒有任何 weeklyRecord 引用的非 single_ 隊伍
   const allRecords = Object.values(rawStore.weeklyRecords);
   Object.keys(rawStore.teams).forEach((teamId) => {
     if (teamId.startsWith('single_')) return;
@@ -326,7 +357,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const saveTeamAndRecords = useCallback(
     async (team: Team, updatedRecords: Record<string, WeeklyRecord>, bossId?: string) => {
       const nextTeams = { ...store.teams };
-      const nextWeeklyRecords = { ...store.weeklyRecords, ...updatedRecords };
+      const nextWeeklyRecords = { ...store.weeklyRecords };
 
       // 1. 取得本次組隊涵蓋的所有成員 targets
       const currentTargets = team.memberTargets || [];
@@ -351,27 +382,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // 原隊伍剩餘人數 <= 1 人，自動解散該隊伍
               delete nextTeams[tId];
 
-              // 若剩餘 1 人，將該隊友恢復為單人隊伍 (single team)
+              // 若剩餘 1 人，且該隊友「沒有加入新隊伍」，將其恢復為單人隊伍 (single team)
               if (remainingMembers.length === 1) {
                 const solo = remainingMembers[0];
-                const bId = bossId || (existingTeam.id.startsWith('party_') ? existingTeam.id.split('_')[1] : '');
-                const recKey = bId ? `rec_${solo.charId}_${bId}_${solo.entryIndex}` : null;
-                const defaultSingleId = bId
-                  ? `single_${solo.charId}_${bId}_${solo.entryIndex}`
-                  : `single_${solo.charId}_${solo.entryIndex}`;
+                const isSoloInNewTeam = currentTargets.some(
+                  (m) => m.charId === solo.charId && m.entryIndex === solo.entryIndex
+                );
 
-                if (recKey && nextWeeklyRecords[recKey]) {
-                  nextWeeklyRecords[recKey] = {
-                    ...nextWeeklyRecords[recKey],
-                    teamId: defaultSingleId,
+                if (!isSoloInNewTeam) {
+                  const bId = bossId || (existingTeam.id.startsWith('party_') ? existingTeam.id.split('_')[1] : '');
+                  const recKey = bId ? `rec_${solo.charId}_${bId}_${solo.entryIndex}` : null;
+                  const defaultSingleId = bId
+                    ? `single_${solo.charId}_${bId}_${solo.entryIndex}`
+                    : `single_${solo.charId}_${solo.entryIndex}`;
+
+                  if (recKey && nextWeeklyRecords[recKey]) {
+                    nextWeeklyRecords[recKey] = {
+                      ...nextWeeklyRecords[recKey],
+                      teamId: defaultSingleId,
+                    };
+                  }
+
+                  nextTeams[defaultSingleId] = {
+                    id: defaultSingleId,
+                    memberTargets: [solo],
+                    schedule: null,
                   };
                 }
-
-                nextTeams[defaultSingleId] = {
-                  id: defaultSingleId,
-                  memberTargets: [solo],
-                  schedule: null,
-                };
               }
             } else {
               // 隊伍仍有多人，更新剩餘成員
@@ -391,7 +428,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         delete nextTeams[team.id];
       }
 
-      // 4. 再次呼叫 sanitizeStoreAndTeams 進行最終防禦性校驗
+      // 4. 強制覆蓋寫入所有新隊伍成員的 updatedRecords，確保每個成員的 weeklyRecord 100% 正確指向新隊伍
+      Object.entries(updatedRecords).forEach(([recKey, recVal]) => {
+        nextWeeklyRecords[recKey] = {
+          ...(nextWeeklyRecords[recKey] || {}),
+          ...recVal,
+          teamId: team.id,
+        };
+      });
+
+      // 5. 再次呼叫 sanitizeStoreAndTeams 進行最終雙向校驗與防禦修復
       sanitizeStoreAndTeams(players, {
         teams: nextTeams,
         weeklyRecords: nextWeeklyRecords,
