@@ -27,6 +27,7 @@ export function PlayerNavBar({
   onScrollToCharacter,
   onReorderCharacters,
   onReorderPlayers,
+}: PlayerNavBarProps) {
   const { currentPlayer, isAdmin } = useAuth();
   const [draggingCharId, setDraggingCharId] = useState<string | null>(null);
   const [dragOverCharId, setDragOverCharId] = useState<string | null>(null);
