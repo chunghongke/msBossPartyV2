@@ -105,9 +105,10 @@ export function Header({
           </div>
 
           {countdownText && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-amber-500/30 text-xs font-bold text-amber-300 shadow-inner">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>{countdownText}</span>
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/30 border border-amber-500/30 text-xs font-bold text-amber-300 shadow-inner select-none">
+              <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="text-stone-300 dark:text-slate-400">距離週王重置剩餘:</span>
+              <span className="font-fredoka font-black text-amber-300 dark:text-amber-300">{countdownText}</span>
             </div>
           )}
 
