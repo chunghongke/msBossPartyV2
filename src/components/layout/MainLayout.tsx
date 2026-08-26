@@ -195,6 +195,11 @@ export function MainLayout({
     return players[0]?.name || null;
   }, [selectedPlayerName, players, currentPlayer]);
 
+  const handleSelectPlayer = (name: string) => {
+    setSelectedPlayerName(name);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const scrollToGuests = () => {
     const el = document.getElementById('guest-section');
     if (el) {
@@ -243,7 +248,7 @@ export function MainLayout({
         key={`navbar-${effectiveSelectedPlayerName}-${orderVersion}`}
         players={players}
         selectedPlayerName={effectiveSelectedPlayerName}
-        onSelectPlayer={setSelectedPlayerName}
+        onSelectPlayer={handleSelectPlayer}
         onOpenAddPlayerModal={onOpenAddPlayerModal}
         onOpenAddCharacterModal={onOpenAddCharacterModal}
         onScrollToGuests={scrollToGuests}
