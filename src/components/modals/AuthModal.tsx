@@ -144,9 +144,27 @@ export function AuthModal({ isOpen, onClose, onOpenAddPlayerModal }: AuthModalPr
     }
   };
 
+  const isMandatory = !currentPlayer;
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
-      <DialogContent maxWidthClass="max-w-md">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open: boolean) => {
+        if (!isMandatory && !open) {
+          onClose();
+        }
+      }}
+    >
+      <DialogContent
+        maxWidthClass="max-w-md"
+        hideCloseButton={isMandatory}
+        onPointerDownOutside={(e) => {
+          if (isMandatory) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isMandatory) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             <UserCheck className="w-5 h-5 text-amber-500" />
