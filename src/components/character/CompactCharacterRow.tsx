@@ -217,7 +217,7 @@ function SingleRowBossPill({
           <span
             onClick={(e) => {
               e.stopPropagation();
-              if (isMultiParty && onOpenShardModal) {
+              if (canManage && isMultiParty && onOpenShardModal) {
                 onOpenShardModal(recordKey, boss, team || null);
               }
             }}
@@ -226,16 +226,24 @@ function SingleRowBossPill({
               isMultiParty
                 ? (record?.shardShares === null || record?.shardShares === undefined) &&
                   (record?.shardQuantity === null || record?.shardQuantity === undefined)
-                  ? 'bg-amber-500/20 border border-amber-400 text-amber-800 dark:text-amber-300 animate-pulse cursor-pointer'
-                  : 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982] dark:border-slate-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer shadow-2xs'
+                  ? canManage
+                    ? 'bg-amber-500/20 border border-amber-400 text-amber-800 dark:text-amber-300 animate-pulse cursor-pointer'
+                    : 'bg-amber-500/10 border border-amber-400/30 text-amber-800/60 dark:text-amber-300/60 cursor-default'
+                  : canManage
+                    ? 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982] dark:border-slate-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer shadow-2xs'
+                    : 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982]/60 dark:border-slate-700 text-amber-800/70 dark:text-amber-300/70 cursor-default shadow-none'
                 : 'bg-black/5 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-stone-600 dark:text-slate-400 opacity-75 cursor-default'
             )}
             title={
               isMultiParty
                 ? (record?.shardShares === null || record?.shardShares === undefined) &&
                   (record?.shardQuantity === null || record?.shardQuantity === undefined)
-                  ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
-                  : '點擊設定艾里溫碎片分配'
+                  ? canManage
+                    ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
+                    : '尚未設定艾里溫碎片分配 (唯讀)'
+                  : canManage
+                    ? '點擊設定艾里溫碎片分配'
+                    : '艾里溫碎片分配 (唯讀)'
                 : '單人隊伍自動全拿碎片'
             }
           >

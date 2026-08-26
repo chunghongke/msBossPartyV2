@@ -266,12 +266,13 @@ export function BossCell({
               if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
             }}
             className={cn(
-              'px-2 py-0.5 rounded-md font-black text-[11px] flex items-center gap-1 shadow-xs border transition-all',
+              'px-2 py-0.5 rounded-lg text-xs font-bold border shadow-2xs flex items-center gap-1 transition-all',
+              canManage ? 'cursor-pointer' : 'cursor-default',
               isMultiParty
                 ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 border-amber-600 hover:brightness-105'
                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-slate-400'
             )}
-            title="點擊設定組隊成員"
+            title={canManage ? '點擊設定組隊成員' : '組隊成員 (唯讀)'}
           >
             <Users className="w-3 h-3" />
             <span>{isMultiParty ? `${teamSize} 人團` : '單人'}</span>
@@ -282,7 +283,7 @@ export function BossCell({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (isMultiParty) {
+                if (canManage && isMultiParty) {
                   onOpenShardModal(recordKey, boss, team || null);
                 }
               }}
@@ -290,15 +291,23 @@ export function BossCell({
                 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black border transition-all',
                 isMultiParty
                   ? isShardUnset
-                    ? 'bg-amber-500/20 hover:bg-amber-500/35 text-amber-900 dark:text-amber-200 border-amber-500/60 animate-pulse cursor-pointer'
-                    : 'bg-[#FFF8E7] dark:bg-slate-800 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border-[#D4B982] dark:border-slate-700 cursor-pointer shadow-2xs'
+                    ? canManage
+                      ? 'bg-amber-500/20 hover:bg-amber-500/35 text-amber-900 dark:text-amber-200 border-amber-500/60 animate-pulse cursor-pointer'
+                      : 'bg-amber-500/10 text-amber-900/60 dark:text-amber-200/60 border-amber-500/30 cursor-default'
+                    : canManage
+                      ? 'bg-[#FFF8E7] dark:bg-slate-800 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border-[#D4B982] dark:border-slate-700 cursor-pointer shadow-2xs'
+                      : 'bg-[#FFF8E7] dark:bg-slate-800 text-amber-800/70 dark:text-amber-300/70 border-[#D4B982]/60 dark:border-slate-700 cursor-default shadow-none'
                   : 'bg-black/5 dark:bg-slate-800 text-stone-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 cursor-default'
               )}
               title={
                 isMultiParty
                   ? isShardUnset
-                    ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
-                    : '點擊設定隊員艾里溫碎片分配'
+                    ? canManage
+                      ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
+                      : '尚未設定艾里溫碎片分配 (唯讀)'
+                    : canManage
+                      ? '點擊設定隊員艾里溫碎片分配'
+                      : '隊員艾里溫碎片分配 (唯讀)'
                   : '單人隊伍自動全拿碎片'
               }
             >
