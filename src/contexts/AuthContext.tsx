@@ -23,18 +23,9 @@ export const AuthProvider: React.FC<{
     return localStorage.getItem(AUTH_PLAYER_KEY);
   });
 
+  // 僅當本地儲存有有效登入名稱且存在於 players 時才認證成功；未登入者保持 null 訪客唯讀身分
   const currentPlayer = players.find((p) => p.name === currentPlayerName) || null;
   const isAdmin = Boolean(currentPlayer?.isAdmin);
-
-  useEffect(() => {
-    if (!currentPlayerName && players.length > 0) {
-      const defaultUser = players.find((p) => p.isAdmin) || players[0];
-      if (defaultUser && !defaultUser.passwordHash) {
-        setCurrentPlayerName(defaultUser.name);
-        localStorage.setItem(AUTH_PLAYER_KEY, defaultUser.name);
-      }
-    }
-  }, [players, currentPlayerName]);
 
   const login = async (
     playerName: string,
