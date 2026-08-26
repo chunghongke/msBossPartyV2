@@ -1,10 +1,10 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { MemberTarget, Team, RaidSchedule } from '@/types/party';
 import { getBoss } from '@/data/bosses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { Users, Clock, Zap, AlertCircle, Plus, Trash2, UserCheck } from 'lucide-react';
+import { Users, Clock, Zap, AlertCircle, Plus, Trash2, UserCheck, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface PartyModalProps {
   isOpen: boolean;
@@ -55,6 +55,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const [hasTemp, setHasTemp] = useState<boolean>(false);
 
   const [quickGuestName, setQuickGuestName] = useState<string>('');
+  const [expandedPlayerNames, setExpandedPlayerNames] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -89,6 +90,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       }
 
       setErrorMsg('');
+      setExpandedPlayerNames(new Set());
     }
   }, [isOpen, charId, bossId, entryIndex, currentTeam, boss]);
 
@@ -135,6 +137,38 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     });
     return isSameBossTeam;
   });
+
+  const togglePlayerAccordion = (pName: string) => {
+    setExpandedPlayerNames((prev) => {
+      const next = new Set(prev);
+      if (next.has(pName)) {
+        next.delete(pName);
+      } else {
+        next.add(pName);
+      }
+      return next;
+    });
+  };
+
+  // 依玩家名稱分群正式角色名冊
+  const groupedCharOptions = useMemo(() => {
+    const groupMap = new Map<string, { playerName: string; avatarEmoji?: string; options: { char: any; entry: number }[] }>();
+
+    scheduledCharOptions.forEach((opt) => {
+      const pName = opt.char.playerName || '其他冒險者';
+      if (!groupMap.has(pName)) {
+        const pObj = store.players?.find((p) => p.name === pName);
+        groupMap.set(pName, {
+          playerName: pName,
+          avatarEmoji: pObj?.avatarEmoji || '👤',
+          options: [],
+        });
+      }
+      groupMap.get(pName)!.options.push(opt);
+    });
+
+    return Array.from(groupMap.values());
+  }, [scheduledCharOptions, store.players]);
 
   const handleToggleMember = (targetCharId: string, targetEntry: number) => {
     const exists = memberTargets.some((m) => m.charId === targetCharId && m.entryIndex === targetEntry);
@@ -379,7 +413,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                 </div>
               </div>
 
-              {/* 第 2 欄：👥 正式角色名冊 */}
+              {/* 第 2 欄：👥 正式角色名冊（依玩家名稱分群手風琴折疊） */}
               <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2">
                 <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-300/60 dark:border-slate-700">
                   <div className="flex items-center gap-1.5">
@@ -387,55 +421,106 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                     <span>小隊正式角色</span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold">
-                    共 {scheduledCharOptions.length} 隻
+                    共 {groupedCharOptions.length} 位玩家 ({scheduledCharOptions.length} 隻角色)
                   </span>
                 </div>
 
                 <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
-                  {scheduledCharOptions.length === 0 ? (
+                  {groupedCharOptions.length === 0 ? (
                     <div className="py-8 text-center text-xs text-slate-400 italic">
-                      尚無角色排定挑戰此 BOSS
+                      尚無其他玩家排定挑戰此 BOSS
                     </div>
                   ) : (
-                    scheduledCharOptions.map(({ char: c, entry }) => {
-                      const isChecked = memberTargets.some((m) => m.charId === c.id && m.entryIndex === entry);
-                      const isSelf = c.id === charId && entry === entryIndex;
+                    groupedCharOptions.map((group) => {
+                      const isExpanded = expandedPlayerNames.has(group.playerName);
+                      const selectedCountInGroup = group.options.filter((opt) =>
+                        memberTargets.some((m) => m.charId === opt.char.id && m.entryIndex === opt.entry)
+                      ).length;
 
                       return (
-                        <label
-                          key={`${c.id}_${entry}`}
-                          onClick={() => handleToggleMember(c.id, entry)}
-                          className={
-                            'p-2 rounded-xl text-xs border-2 transition-all flex items-center justify-between cursor-pointer select-none ' +
-                            (isChecked
-                              ? 'bg-amber-400/20 border-amber-500 font-black text-amber-950 dark:text-amber-200 shadow-xs'
-                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400')
-                          }
+                        <div
+                          key={group.playerName}
+                          className="rounded-xl border border-slate-300/90 dark:border-slate-700/90 overflow-hidden bg-white/70 dark:bg-slate-800/70 shadow-xs"
                         >
-                          <div className="flex items-center gap-2 truncate">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              readOnly
-                              className="rounded border-slate-400 text-amber-500 pointer-events-none"
-                            />
-                            <span className="truncate font-bold">{c.name}</span>
-                            <span className="text-[10px] opacity-60">({c.playerName})</span>
+                          {/* 玩家手風琴標題列 (點擊展開/收合) */}
+                          <div
+                            onClick={() => togglePlayerAccordion(group.playerName)}
+                            className="p-2 flex items-center justify-between cursor-pointer select-none bg-slate-100/90 dark:bg-slate-800 hover:bg-amber-100/70 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-5 h-5 rounded-md bg-black/10 flex items-center justify-center text-xs shrink-0">
+                                {group.avatarEmoji || '👤'}
+                              </span>
+                              <span className="font-black text-xs text-[#3E2F20] dark:text-slate-100 truncate">
+                                {group.playerName}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold">
+                                ({group.options.length}隻)
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {selectedCountInGroup > 0 && (
+                                <span className="px-1.5 py-0.2 rounded bg-amber-400 text-slate-900 font-black text-[9.5px] border border-amber-500 shadow-xs">
+                                  已選 {selectedCountInGroup}
+                                </span>
+                              )}
+                              {isExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                              )}
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            {entry === 2 && (
-                              <span className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-black">
-                                2刷
-                              </span>
-                            )}
-                            {isSelf && (
-                              <span className="px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-900 text-[10px] font-black">
-                                隊長
-                              </span>
-                            )}
-                          </div>
-                        </label>
+                          {/* 手風琴內部角色列表 */}
+                          {isExpanded && (
+                            <div className="p-1.5 space-y-1 bg-black/5 dark:bg-black/20 border-t border-slate-200 dark:border-slate-700 animate-in fade-in-50 duration-100">
+                              {group.options.map(({ char: c, entry }) => {
+                                const isChecked = memberTargets.some(
+                                  (m) => m.charId === c.id && m.entryIndex === entry
+                                );
+                                const isSelf = c.id === charId && entry === entryIndex;
+
+                                return (
+                                  <label
+                                    key={`${c.id}_${entry}`}
+                                    onClick={() => handleToggleMember(c.id, entry)}
+                                    className={
+                                      'p-1.5 rounded-lg text-xs border transition-all flex items-center justify-between cursor-pointer select-none ' +
+                                      (isChecked
+                                        ? 'bg-amber-400/20 border-amber-500 font-black text-amber-950 dark:text-amber-200 shadow-xs'
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-400')
+                                    }
+                                  >
+                                    <div className="flex items-center gap-1.5 truncate">
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        readOnly
+                                        className="rounded border-slate-400 text-amber-500 pointer-events-none w-3.5 h-3.5"
+                                      />
+                                      <span className="truncate font-bold">{c.name}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {entry === 2 && (
+                                        <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[9.5px] font-black">
+                                          2刷
+                                        </span>
+                                      )}
+                                      {isSelf && (
+                                        <span className="px-1.5 py-0.2 rounded bg-amber-400 text-slate-900 text-[9.5px] font-black">
+                                          隊長
+                                        </span>
+                                      )}
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       );
                     })
                   )}
