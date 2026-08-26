@@ -51,6 +51,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const prevIsOpen = useRef(false);
 
+  const selectablePlayers = currentPlayer
+    ? players.filter((p) => p.name !== currentPlayer.name)
+    : players;
+
   // 彈窗開啟或雲端玩家資料同步時，確保模式與選擇狀態正確
   useEffect(() => {
     if (isOpen && !prevIsOpen.current) {
@@ -68,13 +72,15 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
 
     if (isOpen) {
-      if (!selectedPlayerName || !players.some((p) => p.name === selectedPlayerName)) {
-        if (players.length > 0) {
-          setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
+      if (!selectedPlayerName || !selectablePlayers.some((p) => p.name === selectedPlayerName)) {
+        if (selectablePlayers.length > 0) {
+          setSelectedPlayerName(selectablePlayers[0].name);
+        } else {
+          setSelectedPlayerName('');
         }
       }
     }
-  }, [isOpen, players, currentPlayer, selectedPlayerName]);
+  }, [isOpen, selectablePlayers, selectedPlayerName]);
 
   const targetPlayer = players.find((p) => p.name === selectedPlayerName);
   const hasPassword = Boolean(targetPlayer?.passwordHash);
@@ -359,11 +365,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     )}
                   </div>
 
-                  {players.length > 0 ? (
+                  {selectablePlayers.length > 0 ? (
                     <>
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          選擇要登入 / 切換的玩家 <span className="text-red-500">*</span>
+                          {currentPlayer ? '選擇要切換登入的隊員' : '選擇要登入的玩家'} <span className="text-red-500">*</span>
                         </label>
                         <select
                           value={selectedPlayerName}
@@ -375,9 +381,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                           }}
                           className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500 shadow-xs"
                         >
-                          {players.map((p) => (
+                          {selectablePlayers.map((p) => (
                             <option key={p.name} value={p.name}>
-                              {p.avatarEmoji || '👤'} {p.name} {p.name === currentPlayer?.name ? '⭐ (目前登入中)' : ''} {p.isAdmin ? '👑 (管理員)' : ''}
+                              {p.avatarEmoji || '👤'} {p.name} {p.isAdmin ? '👑 (管理員)' : ''}
                             </option>
                           ))}
                         </select>
@@ -407,6 +413,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         </div>
                       )}
                     </>
+                  ) : currentPlayer ? (
+                    <div className="py-4 px-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 text-xs text-[#5C3E14] dark:text-amber-300 font-bold text-center">
+                      🍁 小隊目前只有您一位隊員。若要邀請新隊友加入，可透過右上角「分享小隊」複製邀請連結發給隊友！
+                    </div>
                   ) : (
                     <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
                       小隊目前尚無任何玩家，請先建立新玩家身分！
@@ -478,9 +488,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       )}
                     </div>
 
-                    <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} disabled={players.length === 0}>
-                      <span>{currentPlayer?.name === selectedPlayerName ? '確認登入' : `切換為「${selectedPlayerName}」登入`}</span>
-                    </Button>
+                    {selectablePlayers.length > 0 && (
+                      <Button type="submit" variant="primary" size="md" isLoading={isSubmitting}>
+                        <span>{currentPlayer ? `切換為「${selectedPlayerName}」登入` : '確認登入'}</span>
+                      </Button>
+                    )}
                   </div>
                 </form>
               )}
