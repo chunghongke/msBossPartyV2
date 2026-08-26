@@ -111,7 +111,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setTimeout(() => {
         setIsLoginSuccess(false);
         onClose();
-      }, 900);
+      }, 600);
     } finally {
       setIsSubmitting(false);
     }
@@ -275,7 +275,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             ) : mode === 'change_password' ? (
               <>
                 <KeyRound className="w-5 h-5 text-amber-500" />
-                <span>修改我的登入密碼</span>
+                <span>修改登入密碼</span>
               </>
             ) : mode === 'admin_reset' ? (
               <>
@@ -285,7 +285,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             ) : (
               <>
                 <UserCheck className="w-5 h-5 text-amber-500" />
-                <span>{isMandatory ? '🍁 歡迎！請登入或建立玩家身分' : '玩家身分登入與切換'}</span>
+                <span>{isMandatory ? '🍁 歡迎！請登入或建立玩家身分' : '切換玩家身分 / 登入'}</span>
               </>
             )}
           </DialogTitle>
@@ -324,25 +324,42 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               {mode === 'login' && (
                 <form onSubmit={handleLogin} className="space-y-3.5">
                   {/* 目前登入狀態膠囊 */}
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-lg shadow-inner">
-                        {currentPlayer?.avatarEmoji || '👤'}
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-stone-500 dark:text-slate-400">目前登入玩家</div>
-                        <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100 flex items-center gap-1">
-                          <span>{currentPlayer?.name || '尚未登入'}</span>
-                          {isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-lg shadow-inner">
+                          {currentPlayer?.avatarEmoji || '👤'}
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-bold text-stone-500 dark:text-slate-400">目前登入身分</div>
+                          <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100 flex items-center gap-1">
+                            <span>{currentPlayer?.name || '尚未登入 (訪客)'}</span>
+                            {isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
+                      {currentPlayer && (
+                        <Button
+                          size="sm"
+                          variant="parchment"
+                          onClick={() => {
+                            logout();
+                            setErrorMsg('');
+                            setSuccessMsg('');
+                          }}
+                          className="h-7 text-xs"
+                          title="登出當前玩家身分"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>登出</span>
+                        </Button>
+                      )}
+                    </div>
                     {currentPlayer && (
-                      <Button size="sm" variant="parchment" onClick={logout} className="h-7 text-xs">
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>登出</span>
-                      </Button>
+                      <div className="text-[10.5px] text-[#5C3E14] dark:text-amber-300/90 font-bold bg-amber-500/10 px-2 py-1 rounded-lg">
+                        💡 若要切換成其他隊員，請直接在下方選單選取該隊員並登入，無須先按登出。
+                      </div>
                     )}
                   </div>
 
@@ -364,7 +381,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         >
                           {players.map((p) => (
                             <option key={p.name} value={p.name}>
-                              {p.avatarEmoji || '👤'} {p.name} {p.isAdmin ? '👑 (管理員)' : ''}
+                              {p.avatarEmoji || '👤'} {p.name} {p.name === currentPlayer?.name ? '⭐ (目前登入中)' : ''} {p.isAdmin ? '👑 (管理員)' : ''}
                             </option>
                           ))}
                         </select>
@@ -464,7 +481,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </div>
 
                     <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} disabled={players.length === 0}>
-                      <span>{currentPlayer?.name === selectedPlayerName ? '確認登入' : '切換玩家登入'}</span>
+                      <span>{currentPlayer?.name === selectedPlayerName ? '確認登入' : `切換為「${selectedPlayerName}」登入`}</span>
                     </Button>
                   </div>
                 </form>
