@@ -433,20 +433,22 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                   <div className="pt-2 flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="gold"
-                        size="sm"
-                        onClick={() => {
-                          setMode('register');
-                          setErrorMsg('');
-                          setSuccessMsg('');
-                        }}
-                        className="text-xs h-8"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>我是新隊員</span>
-                      </Button>
+                      {!currentPlayer && (
+                        <Button
+                          type="button"
+                          variant="gold"
+                          size="sm"
+                          onClick={() => {
+                            setMode('register');
+                            setErrorMsg('');
+                            setSuccessMsg('');
+                          }}
+                          className="text-xs h-8 font-bold"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>我是新隊員</span>
+                        </Button>
+                      )}
 
                       {currentPlayer && (
                         <button
