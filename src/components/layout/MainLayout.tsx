@@ -51,7 +51,7 @@ export function MainLayout({
   onShowScheduleInfo,
 }: MainLayoutProps) {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
-  const { currentPlayer } = useAuth();
+  const { currentPlayer, canManagePlayerName } = useAuth();
   const { players, store, isLoading: isStoreLoading, toggleBossStatus, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud } = useStore();
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
   const { calculateCrystal, formatCrystal } = useCalculator(store);
