@@ -135,6 +135,8 @@ function SingleRowBossPill({
     onOpenPartyModal(charId, boss.id, entryIndex);
   };
 
+  const removedCompletedList = getRemovedCompletedBosses(character);
+
   return (
     <div
       onClick={handleClick}
@@ -412,6 +414,21 @@ export function CompactCharacterRow({
           </div>
         </div>
       </div>
+
+      {/* 已完成但移出清單的提示條 (V1 經典功能) */}
+      {removedCompletedList.length > 0 && (
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 dark:bg-amber-950/40 border border-amber-500/40 rounded-xl text-xs font-bold text-amber-900 dark:text-amber-300"
+          title="這些 BOSS 已經從清單移除，本週完成紀錄仍會計入次數，但不可再切換攻略狀態"
+        >
+          <span className="text-sm">🗑️</span>
+          <span>已完成但移出清單：</span>
+          <span className="font-black text-amber-950 dark:text-amber-200">
+            {removedCompletedList.map((r) => r.bossName).join('、')}
+          </span>
+          <span className="text-[10px] opacity-75 ml-auto hidden sm:inline">(紀錄保留且計入本週進度)</span>
+        </div>
+      )}
 
       {/* 單列 12 格 BOSS 排版 (Single Row: 12 Columns Grid) */}
       {hasBosses ? (

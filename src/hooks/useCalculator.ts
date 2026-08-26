@@ -150,8 +150,42 @@ export function useCalculator(store: StoreData) {
     [store]
   );
 
+  /**
+   * 找出角色「本週已完成，但已被移出 BOSS 清單」的紀錄（唯讀顯示、不可再互動切換）
+   */
+  const getRemovedCompletedBosses = useCallback(
+    (character: Character): { bossId: string; entryIndex: number; bossName: string }[] => {
+      const removed: { bossId: string; entryIndex: number; bossName: string }[] = [];
+      if (!store.weeklyRecords) return removed;
+
+      Object.values(store.weeklyRecords).forEach((record) => {
+        if (!record || record.charId !== character.id || !record.isCompleted) return;
+
+        const stillAssigned =
+          record.entryIndex === 2
+            ? character.resetBossIds && character.resetBossIds.includes(record.bossId)
+            : character.bossIds && character.bossIds.includes(record.bossId);
+
+        if (stillAssigned) return;
+
+        const boss = getBoss(record.bossId);
+        if (!boss) return;
+
+        removed.push({
+          bossId: record.bossId,
+          entryIndex: record.entryIndex,
+          bossName: record.entryIndex === 2 ? `${boss.name}(重置)` : boss.name,
+        });
+      });
+
+      return removed;
+    },
+    [store.weeklyRecords]
+  );
+
   return {
     calculateCrystal,
+    getRemovedCompletedBosses,
     calculateShard,
     getProgress,
     formatCrystal,
