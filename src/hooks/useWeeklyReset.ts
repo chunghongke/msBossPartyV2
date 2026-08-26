@@ -42,13 +42,6 @@ export function useWeeklyReset(
 ) {
   const [countdown, setCountdown] = useState(getNextResetCountdown());
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(getNextResetCountdown());
-    }, 30000);
-    return () => clearInterval(timer);
-  }, []);
-
   const checkAndPerformWeeklyReset = useCallback(async () => {
     if (isStoreLoading || !store || Object.keys(store.weeklyRecords || {}).length === 0) return;
 
@@ -57,18 +50,36 @@ export function useWeeklyReset(
       return;
     }
 
+    // 若第一次套用（無 lastResetWeekKey），記錄當前基準週，不洗掉既有資料
+    if (!store.lastResetWeekKey) {
+      await saveStore({
+        ...store,
+        lastResetWeekKey: currentWeekKey,
+      });
+      return;
+    }
+
     const updatedRecords: Record<string, WeeklyRecord> = {};
     Object.entries(store.weeklyRecords).forEach(([key, rec]) => {
       updatedRecords[key] = {
         ...rec,
         isCompleted: false,
-        lastWeekShardShares: rec.shardShares ?? null,
-        lastWeekShardQuantity: rec.shardQuantity ?? null,
+        // 艾里溫碎片：若上週有完成且有紀錄，存入 lastWeek 作為本週提示
+        lastWeekShardShares:
+          rec.isCompleted && rec.shardShares !== null && rec.shardShares !== undefined
+            ? rec.shardShares
+            : (rec.lastWeekShardShares ?? null),
+        lastWeekShardQuantity:
+          rec.isCompleted && rec.shardQuantity !== null && rec.shardQuantity !== undefined
+            ? rec.shardQuantity
+            : (rec.lastWeekShardQuantity ?? null),
+        shardShares: null,
+        shardQuantity: null,
       };
     });
 
     const updatedTeams: Record<string, Team> = {};
-    Object.entries(store.teams).forEach(([tId, team]) => {
+    Object.entries(store.teams || {}).forEach(([tId, team]) => {
       if (team.schedule && team.schedule.tempOverride) {
         updatedTeams[tId] = {
           ...team,
@@ -89,8 +100,23 @@ export function useWeeklyReset(
       lastResetWeekKey: currentWeekKey,
     };
 
+    console.log(`🗓️ 偵測到新的一週（${currentWeekKey}），已重置每週 BOSS 完成狀態與臨時時間`);
     await saveStore(nextStore);
   }, [store, saveStore, isStoreLoading]);
+
+  // 定期每 30 秒更新倒數計時器，並自動檢測是否跨週四 00:00 自動觸發重置
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(getNextResetCountdown());
+      if (!isStoreLoading && store) {
+        const currentWeekKey = getCurrentResetWeekKey();
+        if (!store.lastResetWeekKey || store.lastResetWeekKey !== currentWeekKey) {
+          checkAndPerformWeeklyReset();
+        }
+      }
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [isStoreLoading, store, checkAndPerformWeeklyReset]);
 
   const ensureDefaultSingleTeams = useCallback(async () => {
     if (isStoreLoading || !players || players.length === 0) return;
