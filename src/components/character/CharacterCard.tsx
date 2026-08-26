@@ -38,7 +38,7 @@ export function CharacterCard({
   onShowScheduleInfo,
 }: CharacterCardProps) {
   const { currentPlayer, canManageChar } = useAuth();
-  const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber } = useCalculator(store);
+  const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
 
   const isSelf = currentPlayer?.name === playerName;
   const isOwnerOrAdmin = canManageChar(playerName);
@@ -46,6 +46,7 @@ export function CharacterCard({
   const crystalStats = calculateCrystal(character);
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
+  const removedCompletedList = getRemovedCompletedBosses(character);
 
   // 100% 固定原本 BOSS 順序（永不跳動重排，保留完美空間記憶與消除畫面撕裂感）
   const orderedBossEntries = useMemo(() => {
@@ -241,7 +242,22 @@ export function CharacterCard({
         {/* ========================================================
             右側：滿版 BOSS 卡片網格 (4 欄 3 列，對齊 12 隻 BOSS)
             ======================================================== */}
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="flex-1 min-w-0 flex flex-col justify-center space-y-2.5">
+          {/* 已完成但移出清單的提示條 (V1 經典功能) */}
+          {removedCompletedList.length > 0 && (
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/15 dark:bg-amber-950/40 border-2 border-amber-500/40 rounded-2xl text-xs font-bold text-amber-900 dark:text-amber-300"
+              title="這些 BOSS 已經從清單移除，本週完成紀錄仍會計入次數，但不可再切換攻略狀態"
+            >
+              <span className="text-base">🗑️</span>
+              <span>已完成但移出清單：</span>
+              <span className="font-black text-amber-950 dark:text-amber-200">
+                {removedCompletedList.map((r) => r.bossName).join('、')}
+              </span>
+              <span className="text-[11px] opacity-75 ml-auto hidden sm:inline">(紀錄保留且計入本週進度)</span>
+            </div>
+          )}
+
           {hasBosses ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 sm:gap-3.5">
               {orderedBossEntries.map(({ boss, entryIndex }) => {
