@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/contexts/StoreContext';
 import { Boss } from '@/types/boss';
-import { Team, ShardMode, WeeklyRecord } from '@/types/party';
+import { Team, ShardMode } from '@/types/party';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
-import { Sparkles, AlertCircle, Check, Info, Users } from 'lucide-react';
+import { Sparkles, AlertCircle, Check, Info } from 'lucide-react';
 
 interface ShardShareModalProps {
   isOpen: boolean;

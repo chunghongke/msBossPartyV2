@@ -25,6 +25,7 @@ export interface ModalController {
   openRenameModal: (character: Character) => void;
   openEditBosses: (character: Character, playerName: string) => void;
   openResetConfig: (character: Character, playerName: string) => void;
+  openPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void;
   openScheduleInfo: (team: Team) => void;
 }
