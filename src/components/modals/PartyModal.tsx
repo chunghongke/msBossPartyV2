@@ -160,29 +160,32 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   }, [otherScheduledCharOptions, players]);
 
   const handleToggleMember = (targetCharId: string, targetEntry: number) => {
-    const exists = memberTargets.some((m) => m.charId === targetCharId && m.entryIndex === targetEntry);
-    if (exists) {
-      // 當前角色為隊長，不可取消勾選
-      if (targetCharId === charId && targetEntry === entryIndex) {
-        return;
-      }
-      setMemberTargets(memberTargets.filter((m) => !(m.charId === targetCharId && m.entryIndex === targetEntry)));
-      setErrorMsg('');
-    } else {
-      // 檢查是否已用另一種身分加入
-      const hasOtherEntry = memberTargets.some((m) => m.charId === targetCharId);
-      if (hasOtherEntry && !targetCharId.startsWith('guest_')) {
-        setErrorMsg('同一角色不能同時以「首次刷」與「重置刷」出現在同一隊伍中！');
-        return;
-      }
-
-      if (memberTargets.length >= maxPartySize) {
-        setErrorMsg(`此 BOSS 最多僅支援 ${maxPartySize} 人隊伍！`);
-        return;
-      }
-      setErrorMsg('');
-      setMemberTargets([...memberTargets, { charId: targetCharId, entryIndex: targetEntry }]);
+    // 當前角色為隊長，不可取消勾選
+    if (targetCharId === charId && targetEntry === entryIndex) {
+      return;
     }
+
+    setMemberTargets((prev) => {
+      const exists = prev.some((m) => m.charId === targetCharId && m.entryIndex === targetEntry);
+      if (exists) {
+        setErrorMsg('');
+        return prev.filter((m) => !(m.charId === targetCharId && m.entryIndex === targetEntry));
+      } else {
+        const hasOtherEntry = prev.some((m) => m.charId === targetCharId);
+        if (hasOtherEntry && !targetCharId.startsWith('guest_')) {
+          setErrorMsg('同一角色不能同時以「首次刷」與「重置刷」出現在同一隊伍中！');
+          return prev;
+        }
+
+        if (prev.length >= maxPartySize) {
+          setErrorMsg(`此 BOSS 最多僅支援 ${maxPartySize} 人隊伍！`);
+          return prev;
+        }
+
+        setErrorMsg('');
+        return [...prev, { charId: targetCharId, entryIndex: targetEntry }];
+      }
+    });
   };
 
   const handleQuickJoin = (targetTeam: Team) => {
@@ -496,9 +499,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                                 );
 
                                 return (
-                                  <label
-                                    key={`${c.id}_${entry}`}
-                                    onClick={() => handleToggleMember(c.id, entry)}
+                                  <div key={`${c.id}_${entry}`} onClick={() => handleToggleMember(c.id, entry)}
                                     className={
                                       'p-1.5 rounded-lg text-xs border transition-all flex items-center justify-between cursor-pointer select-none ' +
                                       (isChecked
@@ -523,7 +524,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                                         </span>
                                       )}
                                     </div>
-                                  </label>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -606,7 +607,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                             />
                             <span className="truncate font-bold">{g.name}</span>
                             <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">(Guest)</span>
-                          </label>
+                          </div>
 
                           <button
                             type="button"
@@ -644,7 +645,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                       className="rounded border-slate-400 text-amber-500"
                     />
                     <span>📅 常態每週固定時間：</span>
-                  </label>
+                  </div>
 
                   {hasRecurring ? (
                     <div className="flex items-center gap-2 pt-0.5">
@@ -700,7 +701,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                       className="rounded border-slate-400 text-amber-500"
                     />
                     <span>⚡ 僅修改本週時間（下週自動恢復）：</span>
-                  </label>
+                  </div>
 
                   {hasTemp ? (
                     <div className="flex items-center gap-2 pt-0.5">
