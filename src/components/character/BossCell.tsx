@@ -350,11 +350,6 @@ export function BossCell({
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
           )}
-            className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/10 transition-colors"
-            title="開啟隊伍設定"
-          >
-            <MoreVertical className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
     </div>
