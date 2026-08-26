@@ -45,7 +45,7 @@ export function useModalState() {
   const [shardTarget, setShardTarget] = useState<{ recordKey: string; boss: Boss; team: Team | null; pendingComplete?: boolean } | null>(null);
   const [scheduleInfoTeam, setScheduleInfoTeam] = useState<Team | null>(null);
 
-  const controller: ModalController = {
+  const controller: ModalController = useMemo(() => ({
     openGroupModal: () => setIsGroupOpen(true),
     openLoginModal: () => setIsAuthOpen(true),
     openNotifModal: () => setIsNotifOpen(true),
@@ -58,7 +58,7 @@ export function useModalState() {
     openPartyModal: (charId, bossId, entryIndex) => setPartyTarget({ charId, bossId, entryIndex }),
     openShardModal: (recordKey, boss, team, pendingComplete) => setShardTarget({ recordKey, boss, team, pendingComplete }),
     openScheduleInfo: (team) => setScheduleInfoTeam(team),
-  };
+  }), []);
 
   const modals = (
     <>

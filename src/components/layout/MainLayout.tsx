@@ -144,10 +144,17 @@ export function MainLayout({
     }
   };
 
-  // 當使用者未登入時，在小隊資料載入完成後強制彈出登入/註冊彈窗
+  const hasAutoPromptedAuth = useRef(false);
+
+  // 當使用者未登入時，在小隊資料載入完成後彈出登入/註冊彈窗 (僅在首次載入完成時觸發一次)
   useEffect(() => {
     if (!isStoreLoading && activeGroup && !currentPlayer) {
-      onOpenLoginModal();
+      if (!hasAutoPromptedAuth.current) {
+        hasAutoPromptedAuth.current = true;
+        onOpenLoginModal();
+      }
+    } else if (currentPlayer) {
+      hasAutoPromptedAuth.current = false;
     }
   }, [isStoreLoading, activeGroup, currentPlayer, onOpenLoginModal]);
 

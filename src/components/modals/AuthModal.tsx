@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
@@ -49,16 +49,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const isMandatory = !currentPlayer;
 
-  // 當彈窗開啟或玩家清單更新時初始化
+  const prevIsOpen = useRef(false);
+
+  // 僅在彈窗剛被開啟時 (isOpen: false -> true) 初始化狀態，避免背景資料更新時重複重置畫面
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpen.current) {
+      prevIsOpen.current = true;
       if (players.length === 0) {
         setMode('register');
       } else {
         setMode('login');
-        if (!selectedPlayerName || !players.some((p) => p.name === selectedPlayerName)) {
-          setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
-        }
+        setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
       }
       setPasswordInput('');
       setRegName('');
@@ -68,8 +69,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setErrorMsg('');
       setSuccessMsg('');
       setIsLoginSuccess(false);
+    } else if (!isOpen) {
+      prevIsOpen.current = false;
     }
-  }, [isOpen, currentPlayer, players]);
+  }, [isOpen, currentPlayer]);
+
+  // 當開啟時若原本沒有選中玩家，且 players 資料剛由 Firebase 載入完成，補設定選中的玩家
+  useEffect(() => {
+    if (isOpen && players.length > 0 && mode === 'login' && !selectedPlayerName) {
+      setSelectedPlayerName(currentPlayer?.name || players[0]?.name || '');
+    }
+  }, [isOpen, players, mode, selectedPlayerName, currentPlayer]);
 
   const targetPlayer = players.find((p) => p.name === selectedPlayerName);
   const hasPassword = Boolean(targetPlayer?.passwordHash);
