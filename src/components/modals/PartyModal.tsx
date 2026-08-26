@@ -71,7 +71,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         setHasRecurring(true);
         setRecurringDay(currentTeam.schedule.recurring.dayOfWeek);
         const recurringTimeStr = currentTeam?.schedule?.recurring?.timeStr || (currentTeam?.schedule?.recurring as any)?.time || '21:00';
-    const [h, m] = (typeof recurringTimeStr === 'string' ? recurringTimeStr : '21:00').split(':');
+        const [h, m] = (typeof recurringTimeStr === 'string' ? recurringTimeStr : '21:00').split(':');
         setRecurringHour(h || '21');
         setRecurringMin(m || '00');
       } else {
@@ -82,7 +82,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         setHasTemp(true);
         setTempDay(currentTeam.schedule.tempOverride.dayOfWeek);
         const tempTimeStr = currentTeam?.schedule?.tempOverride?.timeStr || (currentTeam?.schedule?.tempOverride as any)?.time || '21:00';
-    const [th, tm] = (typeof tempTimeStr === 'string' ? tempTimeStr : '21:00').split(':');
+        const [th, tm] = (typeof tempTimeStr === 'string' ? tempTimeStr : '21:00').split(':');
         setTempHour(th || '21');
         setTempMin(tm || '00');
       } else {
@@ -101,7 +101,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const currentChar = allChars.find((c) => c.id === charId);
   const currentOwnerPlayerName = currentChar?.playerName;
 
-  // 篩選出其他同伴玩家排定此 BOSS 的角色（排除當前玩家名下所有角色，因為當前編輯角色已獨立置頂顯示，其他角色無法自己跟自己組隊）
+  // 篩選出其他同伴玩家排定此 BOSS 的角色（排除當前玩家名下所有角色，當前編輯角色已獨立置頂常駐）
   const otherScheduledCharOptions: { char: any; entry: number }[] = [];
   allChars.forEach((c) => {
     const isSamePlayer = Boolean(currentOwnerPlayerName && c.playerName === currentOwnerPlayerName);
@@ -139,7 +139,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     });
   };
 
-  // 依玩家名稱分群正式角色名冊
+  // 依玩家名稱分群其他同伴的正式角色名冊
   const groupedCharOptions = useMemo(() => {
     const groupMap = new Map<string, { playerName: string; avatarEmoji?: string; options: { char: any; entry: number }[] }>();
 
@@ -194,7 +194,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
       return;
     }
     const filtered = targetTeam.memberTargets.filter((m) => m.charId !== charId);
-    setMemberTargets([...filtered, { charId, entryIndex }]);
+    setMemberTargets([{ charId, entryIndex }, ...filtered]);
     setErrorMsg('');
   };
 
@@ -210,7 +210,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     try {
       const g = await addGuest(clean);
       if (g) {
-        setMemberTargets([...memberTargets, { charId: g.id, entryIndex: 1 }]);
+        setMemberTargets((prev) => [...prev, { charId: g.id, entryIndex: 1 }]);
       }
       setQuickGuestName('');
       setErrorMsg('');
@@ -223,7 +223,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
     if (!confirm('確定要刪除此 Guest 隊友嗎？(所有已存在該 Guest 的隊伍將同步移除)')) return;
     try {
       await deleteGuest(guestId);
-      setMemberTargets(memberTargets.filter((m) => m.charId !== guestId));
+      setMemberTargets((prev) => prev.filter((m) => m.charId !== guestId));
     } catch (err: any) {
       setErrorMsg(err?.message || '刪除失敗！');
     }
@@ -308,7 +308,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                 </div>
               </div>
 
-              {/* 隊伍成員頭像槽位 */}
+              {/* 已選隊員名單微型預覽 */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {Array.from({ length: maxPartySize }).map((_, i) => {
                   const m = memberTargets[i];
@@ -346,9 +346,9 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
             </div>
 
             {/* ========================================================
-                V1 經典三欄橫式排版 (3-Column Horizontal Layout)
+                三欄排版 (3-Column Layout)
                 Column 1: ⚡ 快捷加入現成隊伍
-                Column 2: 👥 小隊正式角色名冊
+                Column 2: 👥 小隊正式角色名冊 (置頂隊長 + 其他玩家手風琴)
                 Column 3: 👤 Guest 臨時隊友
                 ======================================================== */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-start">
@@ -499,7 +499,9 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                                 );
 
                                 return (
-                                  <div key={`${c.id}_${entry}`} onClick={() => handleToggleMember(c.id, entry)}
+                                  <div
+                                    key={`${c.id}_${entry}`}
+                                    onClick={() => handleToggleMember(c.id, entry)}
                                     className={
                                       'p-1.5 rounded-lg text-xs border transition-all flex items-center justify-between cursor-pointer select-none ' +
                                       (isChecked
@@ -595,7 +597,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400')
                           }
                         >
-                          <label
+                          <div
                             onClick={() => handleToggleMember(g.id, 1)}
                             className="flex items-center gap-2 truncate cursor-pointer flex-1 select-none"
                           >
@@ -603,19 +605,19 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                               type="checkbox"
                               checked={isChecked}
                               readOnly
-                              className="rounded border-slate-400 text-sky-500 pointer-events-none"
+                              className="rounded border-slate-400 text-sky-500 pointer-events-none w-3.5 h-3.5"
                             />
                             <span className="truncate font-bold">{g.name}</span>
-                            <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">(Guest)</span>
+                            <span className="text-[10px] text-sky-600 font-bold">(Guest)</span>
                           </div>
 
                           <button
                             type="button"
                             onClick={() => handleDeleteGuest(g.id)}
-                            className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                            className="w-5 h-5 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shrink-0 ml-1"
                             title="刪除此 Guest"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       );
@@ -626,33 +628,35 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
             </div>
 
             {/* ========================================================
-                ⏰ 隊伍出團時間排程設定 (Cloud Shared Schedule)
+                排程設定區塊 (固定常態時間 vs 本週臨時改期)
                 ======================================================== */}
-            <div className="p-3.5 bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 space-y-3">
-              <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span>⏰ 隊伍出團時間排程（選填，雲端即時共享）</span>
+            <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-black/25 border-2 border-slate-300 dark:border-slate-700 space-y-3">
+              <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5 pb-1 border-b border-slate-300/60 dark:border-slate-700">
+                <Clock className="w-4 h-4 text-purple-500" />
+                <span>隊伍出團時間排程 (選填，雲端即時共享)</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                {/* 常態固定時間 */}
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 font-bold cursor-pointer select-none text-slate-700 dark:text-slate-300">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. 常態固定時間 */}
+                <div className="space-y-2 p-2.5 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={hasRecurring}
                       onChange={(e) => setHasRecurring(e.target.checked)}
                       className="rounded border-slate-400 text-amber-500"
                     />
-                    <span>📅 常態每週固定時間：</span>
-                  </div>
+                    <span className="font-black text-xs text-slate-800 dark:text-slate-100">
+                      📅 常態每週固定時間：
+                    </span>
+                  </label>
 
                   {hasRecurring ? (
-                    <div className="flex items-center gap-2 pt-0.5">
+                    <div className="flex items-center gap-2 pt-1">
                       <select
                         value={recurringDay}
                         onChange={(e) => setRecurringDay(Number(e.target.value))}
-                        className="flex-1 px-2.5 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
+                        className="px-2 py-1 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 font-bold"
                       >
                         {DAY_OPTIONS.map((d) => (
                           <option key={d.value} value={d.value}>
@@ -660,11 +664,12 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                           </option>
                         ))}
                       </select>
+
                       <div className="flex items-center gap-1">
                         <select
                           value={recurringHour}
                           onChange={(e) => setRecurringHour(e.target.value)}
-                          className="px-2 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                          className="px-1.5 py-1 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 font-bold"
                         >
                           {hourOptions.map((h) => (
                             <option key={h} value={h}>
@@ -672,11 +677,11 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                             </option>
                           ))}
                         </select>
-                        <span className="font-black text-slate-400">:</span>
+                        <span className="font-bold">:</span>
                         <select
                           value={recurringMin}
                           onChange={(e) => setRecurringMin(e.target.value)}
-                          className="px-2 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                          className="px-1.5 py-1 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 font-bold"
                         >
                           {minOptions.map((m) => (
                             <option key={m} value={m}>
@@ -687,28 +692,30 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                       </div>
                     </div>
                   ) : (
-                    <div className="text-[11px] text-slate-400 italic pl-5">未設定常態時間</div>
+                    <div className="text-[11px] text-slate-400 italic pt-1">未設定常態時間</div>
                   )}
                 </div>
 
-                {/* 本週臨時改期 */}
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 font-bold cursor-pointer select-none text-amber-600 dark:text-amber-400">
+                {/* 2. 本週臨時改期 */}
+                <div className="space-y-2 p-2.5 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={hasTemp}
                       onChange={(e) => setHasTemp(e.target.checked)}
-                      className="rounded border-slate-400 text-amber-500"
+                      className="rounded border-slate-400 text-orange-500"
                     />
-                    <span>⚡ 僅修改本週時間（下週自動恢復）：</span>
-                  </div>
+                    <span className="font-black text-xs text-orange-600 dark:text-orange-400">
+                      ⚡ 僅修改本週時間 (下週自動恢復)：
+                    </span>
+                  </label>
 
                   {hasTemp ? (
-                    <div className="flex items-center gap-2 pt-0.5">
+                    <div className="flex items-center gap-2 pt-1">
                       <select
                         value={tempDay}
                         onChange={(e) => setTempDay(Number(e.target.value))}
-                        className="flex-1 px-2.5 py-1.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
+                        className="px-2 py-1 text-xs rounded-lg border-2 border-orange-300 dark:border-orange-900/60 bg-orange-50 dark:bg-slate-900 font-bold text-orange-900 dark:text-orange-200"
                       >
                         {TEMP_DAY_OPTIONS.map((d) => (
                           <option key={d.value} value={d.value}>
@@ -716,11 +723,12 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                           </option>
                         ))}
                       </select>
+
                       <div className="flex items-center gap-1">
                         <select
                           value={tempHour}
                           onChange={(e) => setTempHour(e.target.value)}
-                          className="px-2 py-1.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                          className="px-1.5 py-1 text-xs rounded-lg border-2 border-orange-300 dark:border-orange-900/60 bg-orange-50 dark:bg-slate-900 font-bold text-orange-900 dark:text-orange-200"
                         >
                           {hourOptions.map((h) => (
                             <option key={h} value={h}>
@@ -728,11 +736,11 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                             </option>
                           ))}
                         </select>
-                        <span className="font-black text-amber-500">:</span>
+                        <span className="font-bold">:</span>
                         <select
                           value={tempMin}
                           onChange={(e) => setTempMin(e.target.value)}
-                          className="px-2 py-1.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-800 font-mono font-bold text-center"
+                          className="px-1.5 py-1 text-xs rounded-lg border-2 border-orange-300 dark:border-orange-900/60 bg-orange-50 dark:bg-slate-900 font-bold text-orange-900 dark:text-orange-200"
                         >
                           {minOptions.map((m) => (
                             <option key={m} value={m}>
@@ -743,26 +751,27 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                       </div>
                     </div>
                   ) : (
-                    <div className="text-[11px] text-slate-400 italic pl-5">未設定本週臨時改期</div>
+                    <div className="text-[11px] text-slate-400 italic pt-1">未設定本週臨時改期</div>
                   )}
                 </div>
               </div>
             </div>
 
+            {/* 錯誤警告訊息 */}
             {errorMsg && (
-              <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
+              <div className="p-2.5 rounded-xl bg-red-500/10 border-2 border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2 animate-in fade-in-50">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
           </DialogBody>
 
-          <DialogFooter>
-            <Button type="button" variant="parchment" size="sm" onClick={onClose}>
+          <DialogFooter className="flex items-center justify-between">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               取消
             </Button>
-            <Button type="submit" variant="gold" size="md" isLoading={isSubmitting}>
-              <span>儲存隊伍與排程</span>
+            <Button type="submit" variant="primary" loading={isSubmitting}>
+              儲存隊伍與排程
             </Button>
           </DialogFooter>
         </form>
