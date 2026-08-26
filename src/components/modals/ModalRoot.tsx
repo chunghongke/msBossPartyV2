@@ -17,7 +17,7 @@ import { NexonKeyModal } from './NexonKeyModal';
 
 export interface ModalController {
   openGroupModal: () => void;
-  openLoginModal: () => void;
+  openLoginModal: (preselectedPlayerName?: string) => void;
   openNotifModal: () => void;
   openNexonKeyModal: () => void;
   openAddPlayerModal: () => void;
@@ -33,6 +33,7 @@ export interface ModalController {
 export function useModalState() {
   const [isGroupOpen, setIsGroupOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authPreselectedPlayer, setAuthPreselectedPlayer] = useState<string | undefined>(undefined);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isNexonKeyOpen, setIsNexonKeyOpen] = useState(false);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
@@ -48,7 +49,10 @@ export function useModalState() {
   const controller: ModalController = useMemo(
     () => ({
       openGroupModal: () => setIsGroupOpen(true),
-      openLoginModal: () => setIsAuthOpen(true),
+      openLoginModal: (preselectedPlayerName?: string) => {
+        setAuthPreselectedPlayer(preselectedPlayerName);
+        setIsAuthOpen(true);
+      },
       openNotifModal: () => setIsNotifOpen(true),
       openNexonKeyModal: () => setIsNexonKeyOpen(true),
       openAddPlayerModal: () => setIsAddPlayerOpen(true),
@@ -74,11 +78,11 @@ export function useModalState() {
 
       <AuthModal
         isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onOpenAddPlayerModal={() => {
+        onClose={() => {
           setIsAuthOpen(false);
-          setIsAddPlayerOpen(true);
+          setAuthPreselectedPlayer(undefined);
         }}
+        preselectedPlayerName={authPreselectedPlayer}
       />
 
       <NotificationModal
@@ -94,9 +98,9 @@ export function useModalState() {
       <AddPlayerModal
         isOpen={isAddPlayerOpen}
         onClose={() => setIsAddPlayerOpen(false)}
-        onCancel={() => {
+        onSwitchToLogin={(targetName) => {
           setIsAddPlayerOpen(false);
-          setIsAuthOpen(true);
+          controller.openLoginModal(targetName);
         }}
       />
 

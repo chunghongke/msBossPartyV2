@@ -11,11 +11,12 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenAddPlayerModal?: () => void;
+  preselectedPlayerName?: string;
 }
 
 type AuthMode = 'login' | 'register' | 'change_password' | 'admin_reset';
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalProps) {
   const { currentPlayer, isAdmin, login, logout } = useAuth();
   const { players, addPlayer, updatePlayer } = useStore();
 
@@ -72,7 +73,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
 
     if (isOpen) {
-      if (!selectedPlayerName || !selectablePlayers.some((p) => p.name === selectedPlayerName)) {
+      if (preselectedPlayerName && players.some((p) => p.name === preselectedPlayerName)) {
+        setSelectedPlayerName(preselectedPlayerName);
+      } else if (!selectedPlayerName || !selectablePlayers.some((p) => p.name === selectedPlayerName)) {
         if (selectablePlayers.length > 0) {
           setSelectedPlayerName(selectablePlayers[0].name);
         } else {
@@ -80,7 +83,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         }
       }
     }
-  }, [isOpen, selectablePlayers, selectedPlayerName]);
+  }, [isOpen, selectablePlayers, selectedPlayerName, preselectedPlayerName, players]);
 
   const targetPlayer = players.find((p) => p.name === selectedPlayerName);
   const hasPassword = Boolean(targetPlayer?.passwordHash);
