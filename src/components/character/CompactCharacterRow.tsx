@@ -279,7 +279,8 @@ function SingleRowBossPill({
           </span>
         )}
         </div>
-      </HoverCard.Trigger>
+      </div>
+    </HoverCard.Trigger>
 
       <HoverCard.Portal>
         <HoverCard.Content
