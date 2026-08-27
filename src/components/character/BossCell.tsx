@@ -192,7 +192,7 @@ export function BossCell({
         'group relative flex flex-col justify-between rounded-2xl border-2.5 select-none overflow-hidden transition-all duration-200',
         canManage ? 'cursor-pointer' : 'cursor-default',
         isCompleted
-          ? 'bg-[#E5DFD5]/50 dark:bg-slate-900/40 border-slate-300/40 dark:border-slate-800/40 opacity-30 grayscale contrast-75 brightness-75 shadow-none hover:opacity-65'
+          ? 'bg-[#F4ECE1] dark:bg-slate-900 border-slate-400 dark:border-slate-600 shadow-md opacity-90 hover:opacity-100'
           : canManage
           ? 'bg-[#FFFDF9] dark:bg-slate-800 border-amber-500 dark:border-amber-400 shadow-[0_4px_16px_rgba(245,158,11,0.28)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.6)] ring-1.5 ring-amber-400/40 hover:border-amber-300 hover:shadow-[0_6px_22px_rgba(245,158,11,0.4)] active:translate-y-[1px]'
           : 'bg-[#FFFDF9] dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-xs'
@@ -207,7 +207,7 @@ export function BossCell({
           loading="lazy"
           className={cn(
             'w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300',
-            isCompleted ? 'grayscale contrast-90 brightness-50' : 'brightness-110 contrast-105 saturate-105'
+            isCompleted ? 'grayscale contrast-90 brightness-75' : 'brightness-110 contrast-105 saturate-105'
           )}
           onError={(e) => {
             (e.target as HTMLElement).style.display = 'none';

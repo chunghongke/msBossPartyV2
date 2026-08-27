@@ -288,7 +288,7 @@ function SingleRowBossPill({
           align="center"
           sideOffset={8}
           collisionPadding={16}
-          className="z-50 w-[300px] sm:w-[340px] animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 duration-150 drop-shadow-2xl outline-none"
+          className="z-50 w-[300px] sm:w-[340px] bg-[#FFFDF9] dark:bg-slate-900 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 duration-150 drop-shadow-2xl outline-none overflow-hidden"
         >
           <BossCell
             boss={boss}
