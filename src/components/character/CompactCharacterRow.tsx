@@ -385,12 +385,12 @@ export function CompactCharacterRow({
         {/* 左側：角色小圓頭像 ＋ 名稱 ＋ 操作工具 ＋ 🪙 結晶錢 ＋ ✨ 碎片數量 (V1 經典左側排版) */}
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <div className="relative group/avatar shrink-0">
-            <div className="w-7 h-7 rounded-full bg-slate-900 border-1.5 border-amber-400 overflow-hidden flex items-center justify-center shadow-xs cursor-pointer">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#FFF5DC] to-[#ECD2A8] dark:from-slate-700 dark:to-slate-900 border-1.5 border-amber-600/50 overflow-hidden flex items-center justify-center shadow-inner cursor-pointer">
               {character.characterImage ? (
                 <img
                   src={character.characterImage}
                   alt={character.name}
-                  className="w-full h-full object-cover object-top"
+                  className="w-full h-full object-cover object-top group-hover/avatar:scale-110 transition-transform pointer-events-none"
                   onError={(e: any) => {
                     e.target.style.display = 'none';
                   }}
@@ -402,7 +402,7 @@ export function CompactCharacterRow({
 
             {/* Hover 浮出 180px 高清立繪預覽 */}
             {character.characterImage && (
-              <div className="hidden group-hover/avatar:block absolute left-0 top-9 z-50 p-2 bg-white dark:bg-slate-900 border-2 border-amber-400 rounded-2xl shadow-2xl pointer-events-none w-44 h-44 animate-in zoom-in-75 duration-150">
+              <div className="hidden group-hover/avatar:block absolute left-0 top-9 z-50 p-2 bg-gradient-to-b from-[#FFFDF9] to-[#F6ECD5] dark:from-slate-800 dark:to-slate-900 border-2 border-amber-400 rounded-2xl shadow-2xl pointer-events-none w-44 h-44 animate-in zoom-in-75 duration-150">
                 <img
                   src={character.characterImage}
                   alt={character.name}
