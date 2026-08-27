@@ -207,15 +207,15 @@ export function BossCell({
           loading="lazy"
           className={cn(
             'w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300',
-            isCompleted ? 'grayscale contrast-90 brightness-50' : 'brightness-105 contrast-105 saturate-110'
+            isCompleted ? 'grayscale contrast-90 brightness-50' : 'brightness-110 contrast-105 saturate-105'
           )}
           onError={(e) => {
             (e.target as HTMLElement).style.display = 'none';
           }}
         />
 
-        {/* 漸層陰影遮罩：確保頂部與底部文字清晰 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/55 pointer-events-none" />
+        {/* 漸層陰影遮罩：調亮遮罩，保持頂部文字清晰同時突顯立繪明亮度 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/35 pointer-events-none" />
 
         {/* 頂部左側：BOSS 名稱 (英文/中文) */}
         <div className="absolute top-2 left-2.5 z-10 flex items-baseline gap-1 pointer-events-none">
