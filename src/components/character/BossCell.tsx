@@ -256,9 +256,9 @@ export function BossCell({
       </div>
 
       {/* 下半部：底部資訊列 (Bottom Info Strip) */}
-      <div className="px-2.5 py-1.5 bg-[#F6ECD5] dark:bg-slate-900/90 border-t-2 border-kerning-stroke flex items-center justify-between gap-1 text-xs">
+      <div className="px-2.5 py-1.5 bg-[#F6ECD5] dark:bg-slate-900/90 border-t-2 border-kerning-stroke flex items-center justify-between gap-1.5 text-xs">
         {/* 左側：隊友身分/人數緞帶徽章 + 艾里溫碎片 */}
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 shrink-0">
           <button
             type="button"
             onClick={(e) => {
@@ -266,7 +266,7 @@ export function BossCell({
               if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
             }}
             className={cn(
-              'px-2 py-0.5 rounded-lg text-xs font-bold border shadow-2xs flex items-center gap-1 transition-all',
+              'px-2 py-0.5 rounded-lg text-xs font-bold border shadow-2xs flex items-center gap-1 transition-all shrink-0 whitespace-nowrap',
               canManage ? 'cursor-pointer' : 'cursor-default',
               isMultiParty
                 ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 border-amber-600 hover:brightness-105'
@@ -274,8 +274,8 @@ export function BossCell({
             )}
             title={canManage ? '點擊設定組隊成員' : '組隊成員 (唯讀)'}
           >
-            <Users className="w-3 h-3" />
-            <span>{isMultiParty ? `${teamSize} 人團` : '單人'}</span>
+            <Users className="w-3 h-3 shrink-0" />
+            <span className="shrink-0 whitespace-nowrap">{isMultiParty ? `${teamSize} 人團` : '單人'}</span>
           </button>
 
           {boss.erionVestiges > 0 && onOpenShardModal && (
