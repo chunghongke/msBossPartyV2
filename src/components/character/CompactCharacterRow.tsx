@@ -7,6 +7,8 @@ import { useCalculator } from '@/hooks/useCalculator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { cn } from '@/utils/cn';
+import * as HoverCard from '@radix-ui/react-hover-card';
+import { BossCell } from './BossCell';
 import { Edit2, Ticket, Sparkles, UserX, Users, Clock } from 'lucide-react';
 
 interface CompactCharacterRowProps {
@@ -147,22 +149,23 @@ function SingleRowBossPill({
   };
 
   return (
-    <div
-      onClick={canManage ? handleClick : undefined}
-      onContextMenu={canManage ? handleContextMenu : undefined}
-      onTouchStart={canManage ? handleTouchStart : undefined}
-      onTouchEnd={canManage ? handleTouchEnd : undefined}
-      className={cn(
-        'group relative flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border-1.5 transition-all duration-150 select-none overflow-hidden min-h-[46px] min-w-0',
-        canManage ? 'cursor-pointer' : 'cursor-default',
-        isCompleted
-          ? 'bg-[#EAE2D2]/50 dark:bg-slate-900/40 border-slate-300/40 dark:border-slate-800/40 opacity-30 grayscale contrast-75 brightness-75 shadow-none hover:opacity-60'
-          : canManage
-          ? 'bg-white dark:bg-slate-800 border-amber-400/80 dark:border-amber-400/80 shadow-[0_2px_6px_rgba(245,158,11,0.15)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400 hover:shadow-[0_3px_10px_rgba(245,158,11,0.25)] active:translate-y-[1px]'
-          : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-xs'
-      )}
-      title={`${boss.name}${entryIndex === 2 ? '(2刷)' : ''} - 隊伍: ${validMembers.map((m: any) => getCharName(m.charId)).join('、')}${scheduleText ? ` - 出團時間: ${scheduleText}` : ''}${canManage ? ' (點擊切換擊破狀態，右鍵開組隊)' : ' (唯讀)'}`}
-    >
+    <HoverCard.Root openDelay={250} closeDelay={200}>
+      <HoverCard.Trigger asChild>
+        <div
+          onClick={canManage ? handleClick : undefined}
+          onContextMenu={canManage ? handleContextMenu : undefined}
+          onTouchStart={canManage ? handleTouchStart : undefined}
+          onTouchEnd={canManage ? handleTouchEnd : undefined}
+          className={cn(
+            'group relative flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border-1.5 transition-all duration-150 select-none overflow-hidden min-h-[46px] min-w-0',
+            canManage ? 'cursor-pointer' : 'cursor-default',
+            isCompleted
+              ? 'bg-[#EAE2D2]/50 dark:bg-slate-900/40 border-slate-300/40 dark:border-slate-800/40 opacity-30 grayscale contrast-75 brightness-75 shadow-none hover:opacity-60'
+              : canManage
+              ? 'bg-white dark:bg-slate-800 border-amber-400/80 dark:border-amber-400/80 shadow-[0_2px_6px_rgba(245,158,11,0.15)] dark:shadow-[0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400 hover:shadow-[0_3px_10px_rgba(245,158,11,0.25)] active:translate-y-[1px]'
+              : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 shadow-xs'
+          )}
+        >
       {/* BOSS 圓形/方形微型頭像 */}
       <div className={cn(
         'w-7 h-7 rounded-lg overflow-hidden bg-slate-900 shrink-0 relative flex items-center justify-center border',
@@ -275,8 +278,33 @@ function SingleRowBossPill({
             <Clock className="w-2 h-2" />
           </span>
         )}
-      </div>
-    </div>
+        </div>
+      </HoverCard.Trigger>
+
+      <HoverCard.Portal>
+        <HoverCard.Content
+          side="top"
+          align="center"
+          sideOffset={8}
+          collisionPadding={16}
+          className="z-50 w-[240px] sm:w-[260px] animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 duration-150 drop-shadow-2xl outline-none"
+        >
+          <BossCell
+            boss={boss}
+            entryIndex={entryIndex}
+            charId={charId}
+            record={record}
+            team={team}
+            guestList={guestList}
+            canManage={canManage}
+            onToggleStatus={onToggleStatus}
+            onOpenPartyModal={onOpenPartyModal}
+            onOpenShardModal={onOpenShardModal}
+            onShowScheduleInfo={onShowScheduleInfo}
+          />
+        </HoverCard.Content>
+      </HoverCard.Portal>
+    </HoverCard.Root>
   );
 }
 
