@@ -18,26 +18,26 @@ interface ResetConfigModalProps {
 const DIFFICULTY_CONFIG: Record<string, { label: string; activeStyle: string; inactiveStyle: string; glow: string }> = {
   easy: {
     label: '簡',
-    activeStyle: 'bg-gradient-to-b from-[#59626D] to-[#363C44] text-white border-2 border-white shadow-[0_0_12px_rgba(255,255,255,0.85)] scale-105 ring-2 ring-white/60 font-black z-10',
-    inactiveStyle: 'bg-[#272C32] text-[#E2E8F0] border-2 border-[#4A5460] hover:border-white hover:text-white',
+    activeStyle: 'bg-gradient-to-b from-[#64748B] to-[#334155] text-white border-2 border-white shadow-[0_0_14px_rgba(255,255,255,0.95),0_0_6px_rgba(255,255,255,0.8)] scale-105 ring-2 ring-white/80 font-black z-10',
+    inactiveStyle: 'bg-[#181C21] text-[#64748B] border-2 border-[#2E3744] hover:border-slate-400 hover:text-slate-200',
     glow: '',
   },
   normal: {
     label: '普',
     activeStyle: 'bg-gradient-to-b from-[#2563EB] to-[#1D4ED8] text-white border-2 border-white shadow-[0_0_14px_rgba(56,189,248,0.95)] scale-105 ring-2 ring-sky-300 font-black z-10',
-    inactiveStyle: 'bg-[#16263B] text-[#93C5FD] border-2 border-[#254A73] hover:border-sky-400 hover:text-white',
+    inactiveStyle: 'bg-[#121E2E] text-[#60A5FA]/60 border-2 border-[#1E3A5F] hover:border-sky-400 hover:text-white',
     glow: '',
   },
   hard: {
     label: '困',
     activeStyle: 'bg-gradient-to-b from-[#D97706] to-[#92400E] text-[#FFFBEB] border-2 border-[#FEF08A] shadow-[0_0_14px_rgba(245,158,11,0.95)] scale-105 ring-2 ring-amber-300 font-black z-10',
-    inactiveStyle: 'bg-[#2A1D13] text-[#FDE68A] border-2 border-[#7D5533] hover:border-amber-400 hover:text-[#FFFBEB]',
+    inactiveStyle: 'bg-[#22160C] text-[#FBBF24]/60 border-2 border-[#5C3D21] hover:border-amber-400 hover:text-[#FFFBEB]',
     glow: '',
   },
   extreme: {
     label: '極',
     activeStyle: 'bg-gradient-to-b from-[#E11D48] to-[#9F1239] text-[#FFF1F2] border-2 border-[#FFE4E6] shadow-[0_0_16px_rgba(244,63,94,1)] scale-105 ring-2 ring-rose-400 font-black z-10',
-    inactiveStyle: 'bg-[#2B0E14] text-[#FDA4AF] border-2 border-[#881337] hover:border-rose-400 hover:text-[#FFF1F2]',
+    inactiveStyle: 'bg-[#220B10] text-[#FB7185]/60 border-2 border-[#5E0D21] hover:border-rose-400 hover:text-[#FFF1F2]',
     glow: '',
   },
 };
