@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { AvatarPicker } from '@/components/ui/AvatarPicker';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { hashPassword } from '@/services/crypto';
-import { UserCheck, KeyRound, LogOut, ShieldAlert, Crown, Check, UserPlus, Lock, User } from 'lucide-react';
+import { UserCheck, Smile, KeyRound, LogOut, ShieldAlert, Crown, Check, UserPlus, Lock, User } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ interface AuthModalProps {
   preselectedPlayerName?: string;
 }
 
-type AuthMode = 'login' | 'register' | 'change_password' | 'admin_reset';
+type AuthMode = 'login' | 'register' | 'change_avatar' | 'change_password' | 'admin_reset';
 
 export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalProps) {
   const { currentPlayer, isAdmin, login, logout } = useAuth();
@@ -38,6 +38,10 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
 
   // 修改密碼相關
+  // 修改頭像相關
+  const [editAvatarEmoji, setEditAvatarEmoji] = useState('🍁');
+  const [editAvatarImage, setEditAvatarImage] = useState<string | undefined>();
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
@@ -71,6 +75,8 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       setRegAvatarImage(undefined);
       setRegPassword('');
       setRegConfirmPassword('');
+      setEditAvatarEmoji(currentPlayer?.avatarEmoji || '🍁');
+      setEditAvatarImage(currentPlayer?.avatarImage);
       setErrorMsg('');
       setSuccessMsg('');
       setIsLoginSuccess(false);
@@ -192,6 +198,31 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       }, 1000);
     } catch {
       setErrorMsg('建立玩家身分失敗，請檢查網路！');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 2.5 處理修改頭像
+  const handleSaveAvatar = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!currentPlayer) return;
+
+    setIsSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const updated = {
+        ...currentPlayer,
+        avatarEmoji: editAvatarEmoji || '🍁',
+        avatarImage: editAvatarImage || undefined,
+      };
+
+      await updatePlayer(updated);
+      setSuccessMsg('✨ 個人頭像已成功更新並同步至全小隊！');
+    } catch {
+      setErrorMsg('更新頭像失敗，請稍後重試！');
     } finally {
       setIsSubmitting(false);
     }
@@ -344,6 +375,12 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                   <span>新隊員</span>
                 </TabsTrigger>
                 {currentPlayer && (
+                  <TabsTrigger value="change_avatar">
+                    <Smile className="w-3.5 h-3.5" />
+                    <span>改頭像</span>
+                  </TabsTrigger>
+                )}
+                {currentPlayer && (
                   <TabsTrigger value="change_password">
                     <KeyRound className="w-3.5 h-3.5" />
                     <span>改密碼</span>
@@ -364,7 +401,12 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                   <div className="p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <PlayerAvatar player={currentPlayer} size="md" className="w-9 h-9 rounded-xl shadow-inner" />
+                        <div className="relative group cursor-pointer" onClick={() => { setMode('change_avatar'); setEditAvatarEmoji(currentPlayer?.avatarEmoji || '🍁'); setEditAvatarImage(currentPlayer?.avatarImage); }} title="點擊更換個人頭像">
+                          <PlayerAvatar player={currentPlayer} size="md" className="w-9 h-9 rounded-xl shadow-inner group-hover:brightness-110" />
+                          <div className="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-white transition-opacity">
+                            更換
+                          </div>
+                        </div>
                         <div>
                           <div className="text-[10px] font-bold text-stone-500 dark:text-slate-400">目前登入身分</div>
                           <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100 flex items-center gap-1">
@@ -563,6 +605,45 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                   </div>
                 </form>
               </TabsContent>
+
+                            {/* 頁籤：修改個人頭像 */}
+              {currentPlayer && (
+                <TabsContent value="change_avatar">
+                  <form onSubmit={handleSaveAvatar} className="space-y-3.5 pt-1">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-[#5C3E14] dark:text-amber-200">
+                      🎨 正在為隊員 <strong>{currentPlayer.name}</strong> 設定代表頭像（可選取 Emoji 或上傳照片自訂圓形裁切）：
+                    </div>
+
+                    <AvatarPicker
+                      avatarEmoji={editAvatarEmoji}
+                      avatarImage={editAvatarImage}
+                      onChangeEmoji={setEditAvatarEmoji}
+                      onChangeImage={setEditAvatarImage}
+                    />
+
+                    {errorMsg && (
+                      <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 shrink-0" />
+                        <span>{errorMsg}</span>
+                      </div>
+                    )}
+
+                    {successMsg && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                        <Check className="w-4 h-4 shrink-0" />
+                        <span>{successMsg}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} className="w-full">
+                        <Check className="w-4 h-4" />
+                        <span>確認儲存頭像</span>
+                      </Button>
+                    </div>
+                  </form>
+                </TabsContent>
+              )}
 
               {/* 頁籤 3：修改密碼 */}
               {currentPlayer && (
