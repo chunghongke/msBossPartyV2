@@ -13,12 +13,11 @@ import { PageLoadingScreen } from '@/components/ui/PageLoadingScreen';
 import { PlayerNavBar } from '@/components/player/PlayerNavBar';
 import { CharacterCard } from '@/components/character/CharacterCard';
 import { CompactCharacterRow } from '@/components/character/CompactCharacterRow';
-import { cn } from '@/utils/cn';
 import { GuestSection } from '@/components/guest/GuestSection';
 import { Button } from '@/components/ui/Button';
 import { Character, Player } from '@/types/player';
 import { Boss } from '@/types/boss';
-import { UserPlus, PlusCircle, ArrowUp, RefreshCw, LayoutList, LayoutGrid } from 'lucide-react';
+import { UserPlus, PlusCircle, ArrowUp } from 'lucide-react';
 
 interface MainLayoutProps {
   isGlobalLoading?: boolean;
@@ -54,7 +53,7 @@ export function MainLayout({
   onShowScheduleInfo,
 }: MainLayoutProps) {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
-  const { currentPlayer, canManagePlayerName } = useAuth();
+  const { currentPlayer } = useAuth();
   const { players, store, isLoading: isStoreLoading, toggleBossStatus, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud } = useStore();
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
   const { calculateCrystal, formatCrystal } = useCalculator(store);
@@ -271,19 +270,47 @@ export function MainLayout({
         countdownText={countdown.text}
       />
 
-      {/* 玩家導覽列 (Sticky top-16，取消全部玩家，登入者排第一，下方圓形頭像) */}
-      <PlayerNavBar
-        key={`navbar-${effectiveSelectedPlayerName}-${orderVersion}`}
-        players={players}
-        selectedPlayerName={effectiveSelectedPlayerName}
-        guestCount={(store.guests || []).length}
-        onSelectPlayer={handleSelectPlayer}
-        onOpenAddPlayerModal={onOpenAddPlayerModal}
-        onOpenAddCharacterModal={onOpenAddCharacterModal}
-        onScrollToCharacter={scrollToCharacter}
-        onReorderCharacters={handleReorderCharacters}
-        onReorderPlayers={handleReorderPlayers}
-      />
+      {/* 玩家導覽列 (Sticky top-16 整合版面切換與結晶總計) */}
+      {(() => {
+        const activePlayer = effectiveSelectedPlayerName
+          ? players.find((p) => p.name === effectiveSelectedPlayerName) || players[0]
+          : players[0];
+
+        const activeCharacters = activePlayer ? sortCharactersByLocalOrder(activePlayer.name, activePlayer.characters || []) : [];
+
+        const activePlayerCrystalStats = activeCharacters.reduce(
+          (acc, char) => {
+            const stats = calculateCrystal(char);
+            return {
+              earned: acc.earned + stats.earned,
+              expected: acc.expected + stats.expected,
+            };
+          },
+          { earned: 0, expected: 0 }
+        );
+
+        return (
+          <PlayerNavBar
+            key={`navbar-${effectiveSelectedPlayerName}-${orderVersion}`}
+            players={players}
+            selectedPlayerName={effectiveSelectedPlayerName}
+            guestCount={(store.guests || []).length}
+            viewMode={viewMode}
+            onSetViewMode={handleSetViewMode}
+            crystalEarned={activePlayerCrystalStats.earned}
+            crystalExpected={activePlayerCrystalStats.expected}
+            formatCrystal={formatCrystal}
+            onSyncAllCharImages={handleSyncAllCharImages}
+            isSyncingPlayer={isSyncingPlayer}
+            onSelectPlayer={handleSelectPlayer}
+            onOpenAddPlayerModal={onOpenAddPlayerModal}
+            onOpenAddCharacterModal={onOpenAddCharacterModal}
+            onScrollToCharacter={scrollToCharacter}
+            onReorderCharacters={handleReorderCharacters}
+            onReorderPlayers={handleReorderPlayers}
+          />
+        );
+      })()}
 
       {/* 主要內容區 */}
       <main className="flex-1 max-w-[1880px] w-full mx-auto p-2 sm:p-3.5">
@@ -333,110 +360,9 @@ export function MainLayout({
               // 依據本地自訂排序 (由上至下) 並響應 orderVersion 狀態更新
               const characters = sortCharactersByLocalOrder(player.name, player.characters || []);
 
-              // 計算該玩家名下所有角色的結晶楓幣總和
-              const playerCrystalStats = characters.reduce(
-                (acc, char) => {
-                  const stats = calculateCrystal(char);
-                  return {
-                    earned: acc.earned + stats.earned,
-                    expected: acc.expected + stats.expected,
-                  };
-                },
-                { earned: 0, expected: 0 }
-              );
-
               return (
-                <div key={player.name} className="space-y-3">
-                  {/* 玩家區塊標題欄 (包含頭像、名稱、總角色數、全部角色結晶總額) */}
-                  <div className="flex items-center justify-between gap-3 px-2 flex-wrap">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <div className="flex items-center gap-2 text-left select-none">
-                        <span className="w-8 h-8 rounded-xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-base shadow-sm">
-                          {player.avatarEmoji || '👤'}
-                        </span>
-                        <div>
-                          <div className="font-black text-lg text-[#3E2F20] dark:text-slate-100 flex items-center gap-1.5">
-                            <span>{player.name}</span>
-                            <span className="text-xs font-bold text-slate-400">
-                              ({characters.length} 角色)
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 全部角色的結晶楓幣總和膠囊 */}
-                      {characters.length > 0 && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-2 border-[#D4B982] dark:border-slate-700 shadow-sm text-xs select-none">
-                          <span className="text-sm">🪙</span>
-                          <span className="font-bold text-stone-500 dark:text-slate-400">結晶楓幣總計：</span>
-                          <span className="font-fredoka font-black text-amber-700 dark:text-amber-300 text-sm">
-                            {formatCrystal(playerCrystalStats.earned)} / {formatCrystal(playerCrystalStats.expected)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* 檢視版面切換器: 緊湊條列 / 詳細大圖 */}
-                      <div className="flex items-center p-0.5 bg-black/10 dark:bg-slate-800 rounded-xl border border-kerning-stroke/50 select-none">
-                        <button
-                          type="button"
-                          onClick={() => handleSetViewMode('compact')}
-                          className={cn(
-                            'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
-                            viewMode === 'compact'
-                              ? 'bg-amber-400 text-slate-950 shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                          )}
-                          title="V1 經典緊湊條列模式：一屏容納 6~8 隻多角色"
-                        >
-                          <LayoutList className="w-3.5 h-3.5" />
-                          <span>緊湊條列</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSetViewMode('detailed')}
-                          className={cn(
-                            'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
-                            viewMode === 'detailed'
-                              ? 'bg-amber-400 text-slate-950 shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                          )}
-                          title="詳細大圖模式：寬鬆大立繪卡片"
-                        >
-                          <LayoutGrid className="w-3.5 h-3.5" />
-                          <span>詳細大圖</span>
-                        </button>
-                      </div>
-
-                      {characters.length > 0 && (
-                        <Button
-                          size="sm"
-                          variant="parchment"
-                          onClick={() => handleSyncAllCharImages(player)}
-                          isLoading={isSyncingPlayer === player.name}
-                          className="h-7 px-2.5 text-xs font-bold"
-                          title="一鍵連線 Nexon 官方，同步該玩家名下所有角色的最新官方立繪"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>同步全角色立繪</span>
-                        </Button>
-                      )}
-                      {canManagePlayerName(player.name) && (
-                        <Button
-                          size="sm"
-                          variant="gold"
-                          onClick={() => onOpenAddCharacterModal(player.name)}
-                          className="h-7 px-2.5 text-xs font-bold"
-                        >
-                          <PlusCircle className="w-3.5 h-3.5" />
-                          <span>新增角色</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 角色卡片列表 (支援 緊湊條列 / 詳細大圖 切換) */}
+                <div key={player.name} className="space-y-2">
+                  {/* 角色卡片列表 (支援 緊湊條列 / 詳細大圖 切換，已精簡上方重複標題) */}
                   <div className={viewMode === 'compact' ? 'space-y-2.5' : 'space-y-4'}>
                     {characters.length > 0 ? (
                       characters.map((char) =>

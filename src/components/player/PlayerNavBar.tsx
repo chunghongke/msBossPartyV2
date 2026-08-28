@@ -5,12 +5,20 @@ import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
-import { UserPlus, Users, Crown, PlusCircle, GripVertical } from 'lucide-react';
+import { UserPlus, Users, Crown, PlusCircle, GripVertical, LayoutList, LayoutGrid, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 interface PlayerNavBarProps {
   players: Player[];
   selectedPlayerName: string | null;
   guestCount?: number;
+  viewMode?: 'compact' | 'detailed';
+  onSetViewMode?: (mode: 'compact' | 'detailed') => void;
+  crystalEarned?: number;
+  crystalExpected?: number;
+  formatCrystal?: (num: number) => string;
+  onSyncAllCharImages?: (player: Player) => void;
+  isSyncingPlayer?: string | null;
   onSelectPlayer: (playerName: string) => void;
   onOpenAddPlayerModal: () => void;
   onOpenAddCharacterModal?: (playerName: string) => void;
@@ -23,6 +31,13 @@ export function PlayerNavBar({
   players,
   selectedPlayerName,
   guestCount = 0,
+  viewMode = 'compact',
+  onSetViewMode,
+  crystalEarned = 0,
+  crystalExpected = 0,
+  formatCrystal,
+  onSyncAllCharImages,
+  isSyncingPlayer,
   onSelectPlayer,
   onOpenAddPlayerModal,
   onOpenAddCharacterModal,
@@ -30,7 +45,7 @@ export function PlayerNavBar({
   onReorderCharacters,
   onReorderPlayers,
 }: PlayerNavBarProps) {
-  const { currentPlayer, isAdmin } = useAuth();
+  const { currentPlayer, isAdmin, canManagePlayerName } = useAuth();
   const [draggingCharId, setDraggingCharId] = useState<string | null>(null);
   const [dragOverCharId, setDragOverCharId] = useState<string | null>(null);
   const [navOrderVersion, setNavOrderVersion] = useState(0);
@@ -102,19 +117,19 @@ export function PlayerNavBar({
     setDragOverPlayerName(null);
   };
 
-  // 當前選中的玩家物件
+  // 取得當前選取的玩家物件
   const selectedPlayer = useMemo(() => {
-    return players.find((p) => p.name === selectedPlayerName) || sortedPlayers[0] || null;
-  }, [players, selectedPlayerName, sortedPlayers]);
+    if (!selectedPlayerName || selectedPlayerName === '__guests__') return null;
+    return players.find((p) => p.name === selectedPlayerName) || null;
+  }, [players, selectedPlayerName]);
 
-  const rawSelectedChars = selectedPlayer?.characters || [];
-  // 即時依據本地排序計算（綁定 navOrderVersion 以確保拖曳後 0ms 即時重繪）
+  // 取得該玩家的角色並套用本地自訂排序 (由左至右)
   const selectedCharacters = useMemo(() => {
     if (!selectedPlayer) return [];
-    return sortCharactersByLocalOrder(selectedPlayer.name, rawSelectedChars);
-  }, [selectedPlayer, rawSelectedChars, navOrderVersion]);
+    return sortCharactersByLocalOrder(selectedPlayer.name, selectedPlayer.characters || []);
+  }, [selectedPlayer, navOrderVersion]);
 
-  // 角色拖曳排序處理函式 (DnD Event Handlers)
+  // 角色拖曳排序處理函式 (Character DnD Event Handlers)
   const handleDragStart = (e: DragEvent<HTMLDivElement>, charId: string) => {
     setDraggingCharId(charId);
     e.dataTransfer.setData('text/plain', charId);
@@ -139,6 +154,7 @@ export function PlayerNavBar({
   const handleDrop = (e: DragEvent<HTMLDivElement>, targetCharId: string) => {
     e.preventDefault();
     const sourceCharId = draggingCharId || e.dataTransfer.getData('text/plain');
+
     if (!sourceCharId || sourceCharId === targetCharId || !selectedPlayer) {
       setDraggingCharId(null);
       setDragOverCharId(null);
@@ -153,13 +169,9 @@ export function PlayerNavBar({
       const [movedChar] = currentChars.splice(fromIdx, 1);
       currentChars.splice(toIdx, 0, movedChar);
 
-      // 1. 立即儲存至本地 localStorage
       saveLocalCharacterOrder(selectedPlayer.name, currentChars.map((c) => c.id));
-
-      // 2. 觸發導覽列自身即時重繪
       setNavOrderVersion((v) => v + 1);
 
-      // 3. 通知主畫面重繪下方角色列表
       if (onReorderCharacters) {
         onReorderCharacters(selectedPlayer.name, currentChars);
       }
@@ -174,10 +186,12 @@ export function PlayerNavBar({
     setDragOverCharId(null);
   };
 
+  const canManage = selectedPlayer ? canManagePlayerName(selectedPlayer.name) : false;
+
   return (
     <div className="sticky top-16 z-30 w-full bg-[#EBD8B8]/95 dark:bg-slate-900/95 backdrop-blur-md border-b-2.5 border-kerning-stroke shadow-md transition-colors select-none">
       <div className="max-w-[1880px] w-full mx-auto px-2.5 sm:px-4">
-        {/* 第一列：玩家切換標籤列 */}
+        {/* 第一列：玩家切換標籤列 ＋ 臨時隊友 ＋ 緊湊/大圖模式切換 */}
         <div className="py-2 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
           <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
             {sortedPlayers.map((p) => {
@@ -281,8 +295,8 @@ export function PlayerNavBar({
             )}
           </div>
 
-          {/* 右側工具按鈕：獨立切換至臨時隊友名冊 */}
-          <div className="flex items-center gap-1.5 shrink-0 py-1 pr-1">
+          {/* 右側工具群：臨時隊友 ＋ 檢視版面切換器 (緊湊條列 / 詳細大圖) */}
+          <div className="flex items-center gap-2 shrink-0 py-1 pr-1">
             <button
               type="button"
               onClick={() => onSelectPlayer('__guests__')}
@@ -301,10 +315,44 @@ export function PlayerNavBar({
                 </span>
               )}
             </button>
+
+            {/* 檢視版面切換器: 緊湊條列 / 詳細大圖 */}
+            {onSetViewMode && (
+              <div className="flex items-center p-0.5 bg-black/10 dark:bg-slate-800 rounded-xl border border-kerning-stroke/50 select-none shrink-0 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => onSetViewMode('compact')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                    viewMode === 'compact'
+                      ? 'bg-amber-400 text-slate-950 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  )}
+                  title="緊湊條列模式：一屏容納多隻角色"
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">緊湊條列</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSetViewMode('detailed')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                    viewMode === 'detailed'
+                      ? 'bg-amber-400 text-slate-950 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  )}
+                  title="詳細大圖模式：寬鬆大立繪卡片"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">詳細大圖</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 第二列：若選中臨時隊友，顯示專屬提示；若選中玩家，顯示角色列表 */}
+        {/* 第二列：若選中臨時隊友，顯示專屬提示；若選中玩家，顯示角色快選、結晶總計與操作按鈕 */}
         {selectedPlayerName === '__guests__' ? (
           <div className="py-2 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
             <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
@@ -318,10 +366,11 @@ export function PlayerNavBar({
             </div>
           </div>
         ) : selectedPlayer && (
-          <div className="py-2 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
-            <div className="flex items-center gap-2.5 shrink-0 py-1 pl-1 pr-1">
+          <div className="py-1.5 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
+            {/* 左側：精簡角色快選 (移除重複玩家名稱) */}
+            <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
               <span className="text-xs font-black text-stone-600 dark:text-slate-300 flex items-center gap-1 shrink-0">
-                <span>{selectedPlayer.name} 的角色 ({selectedCharacters.length})：</span>
+                <span>角色快選 ({selectedCharacters.length})：</span>
               </span>
 
               {selectedCharacters.map((char) => {
@@ -348,44 +397,75 @@ export function PlayerNavBar({
                         ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
                         : isDragOver
                         ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
-                        : 'bg-[#FFFDF9]/90 dark:bg-slate-800/90 hover:bg-amber-100 dark:hover:bg-slate-700 border-kerning-stroke/70 hover:border-amber-500 active:scale-95'
+                        : 'border-kerning-stroke/60 bg-[#FFFDF9] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:border-amber-500 hover:bg-amber-100/50 dark:hover:bg-slate-700'
                     )}
-                    title="左右拖曳可調整角色顯示順序，點擊可直接定位至該角色"
+                    title="點擊滑動至該角色，左右拖曳可自訂排序"
                   >
-                    {/* 圓形立繪頭像 */}
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#FFF5DC] to-[#ECD2A8] dark:from-slate-700 dark:to-slate-900 border border-amber-600/50 overflow-hidden flex items-center justify-center shrink-0 shadow-inner pointer-events-none">
+                    <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center pointer-events-none">
                       {char.characterImage ? (
                         <img
                           src={char.characterImage}
                           alt={char.name}
-                          className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform pointer-events-none"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
+                          className="w-full h-full object-cover object-top pointer-events-none"
+                          onError={(e: any) => {
+                            e.target.style.display = 'none';
                           }}
                         />
                       ) : (
-                        <span className="text-xs">🗡️</span>
+                        <span className="text-[10px] pointer-events-none">🗡️</span>
                       )}
                     </div>
 
-                    <span className="text-xs font-black text-[#3E2F20] dark:text-slate-200 truncate max-w-[110px] pointer-events-none">
+                    <span className="text-xs font-bold truncate max-w-[90px] pointer-events-none">
                       {char.name}
                     </span>
 
-                    <GripVertical className="w-3 h-3 text-stone-400 group-hover:text-amber-600 opacity-40 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
+                    <GripVertical className="w-3 h-3 text-stone-400 group-hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
                   </div>
                 );
               })}
+            </div>
 
-              {onOpenAddCharacterModal && (isAdmin || selectedPlayer.name === currentPlayer?.name) && (
-                <button
-                  type="button"
-                  onClick={() => onOpenAddCharacterModal(selectedPlayer.name)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400/20 hover:bg-amber-400/35 text-amber-900 dark:text-amber-300 text-xs font-bold border border-dashed border-amber-500/60 transition-colors shrink-0 cursor-pointer"
+            {/* 右側：結晶楓幣統計 ＋ 同步立繪 ＋ 新增角色按鈕 */}
+            <div className="flex items-center gap-2 shrink-0 py-1 pr-1">
+              {/* 全部角色的結晶楓幣總和膠囊 */}
+              {formatCrystal && crystalExpected > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-2 border-[#D4B982] dark:border-slate-700 shadow-sm text-xs select-none shrink-0">
+                  <span className="text-sm">🪙</span>
+                  <span className="font-bold text-stone-500 dark:text-slate-400 hidden md:inline">結晶總計：</span>
+                  <span className="font-fredoka font-black text-amber-700 dark:text-amber-300 text-xs sm:text-sm">
+                    {formatCrystal(crystalEarned)} / {formatCrystal(crystalExpected)}
+                  </span>
+                </div>
+              )}
+
+              {/* 同步官方立繪按鈕 */}
+              {onSyncAllCharImages && selectedCharacters.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="parchment"
+                  onClick={() => onSyncAllCharImages(selectedPlayer)}
+                  isLoading={isSyncingPlayer === selectedPlayer.name}
+                  className="h-7 px-2.5 text-xs font-bold shrink-0"
+                  title="一鍵連線 Nexon 官方，同步該玩家名下所有角色的最新官方立繪"
                 >
-                  <PlusCircle className="w-3.5 h-3.5" />
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                  <span className="hidden sm:inline">同步全角色立繪</span>
+                  <span className="sm:hidden">同步</span>
+                </Button>
+              )}
+
+              {/* 新增角色按鈕 */}
+              {onOpenAddCharacterModal && canManage && (
+                <Button
+                  size="sm"
+                  variant="gold"
+                  onClick={() => onOpenAddCharacterModal(selectedPlayer.name)}
+                  className="h-7 px-2.5 text-xs font-bold shrink-0"
+                >
+                  <PlusCircle className="w-3.5 h-3.5 mr-1" />
                   <span>新增角色</span>
-                </button>
+                </Button>
               )}
             </div>
           </div>
