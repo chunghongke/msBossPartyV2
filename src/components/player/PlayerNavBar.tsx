@@ -5,7 +5,7 @@ import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
-import { UserPlus, Users, Crown, PlusCircle, GripVertical, LayoutList, LayoutGrid, RefreshCw } from 'lucide-react';
+import { UserPlus, Users, Crown, PlusCircle, LayoutList, LayoutGrid, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface PlayerNavBarProps {
@@ -216,13 +216,13 @@ export function PlayerNavBar({
                     }
                   }}
                   className={cn(
-                    'group/player pl-2 pr-3 py-1.5 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all duration-100 border-2 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0 relative',
+                    'group/player px-2.5 py-1 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0 relative',
                     isDragging
                       ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
                       : isDragOver
                       ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
                       : isSelected
-                      ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_2px_0_rgba(0,0,0,0.35)] dark:shadow-[0_2px_0_#000000]'
+                      ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_1.5px_0_rgba(0,0,0,0.35)] dark:shadow-[0_1.5px_0_#000000]'
                       : isSelf
                       ? 'border-amber-600/50 bg-amber-400/15 text-[#4A3B2C] dark:text-yellow-300 hover:bg-amber-400/25 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
                       : 'border-kerning-stroke/70 bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
@@ -236,7 +236,7 @@ export function PlayerNavBar({
                         <PlayerAvatar
                           player={p}
                           size="sm"
-                          className="w-7 h-7 rounded-xl text-sm shadow-xs border-1.5"
+                          className="w-6 h-6 rounded-lg text-xs shadow-xs border-1.5"
                         />
                       </div>
                     </HoverCard.Trigger>
@@ -269,15 +269,13 @@ export function PlayerNavBar({
                     </HoverCard.Portal>
                   </HoverCard.Root>
 
-                  <span className="truncate max-w-[110px] pointer-events-none">{p.name}</span>
+                  <span className="truncate max-w-[100px] pointer-events-none font-bold">{p.name}</span>
 
-                  {p.isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0 pointer-events-none" />}
+                  {p.isAdmin && <Crown className="w-3 h-3 text-yellow-400 shrink-0 pointer-events-none" />}
 
-                  <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px] opacity-90 pointer-events-none font-fredoka">
+                  <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[9.5px] opacity-90 pointer-events-none font-fredoka">
                     {charCount}
                   </span>
-
-                  <GripVertical className="w-3 h-3 text-stone-400 group-hover/player:text-amber-600 opacity-0 group-hover/player:opacity-100 transition-opacity shrink-0 pointer-events-none" />
                 </div>
               );
             })}
@@ -392,7 +390,7 @@ export function PlayerNavBar({
                       }
                     }}
                     className={cn(
-                      'group flex items-center gap-1.5 px-2.5 py-1 rounded-full border-2 shadow-xs transition-all shrink-0 select-none cursor-grab active:cursor-grabbing',
+                      'group flex items-center gap-1 px-2 py-0.5 rounded-full border-1.5 shadow-xs transition-all shrink-0 select-none cursor-grab active:cursor-grabbing',
                       isDragging
                         ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
                         : isDragOver
@@ -401,7 +399,7 @@ export function PlayerNavBar({
                     )}
                     title="點擊滑動至該角色，左右拖曳可自訂排序"
                   >
-                    <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-4.5 h-4.5 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center pointer-events-none">
                       {char.characterImage ? (
                         <img
                           src={char.characterImage}
@@ -416,11 +414,9 @@ export function PlayerNavBar({
                       )}
                     </div>
 
-                    <span className="text-xs font-bold truncate max-w-[90px] pointer-events-none">
+                    <span className="text-[11px] font-bold truncate max-w-[85px] pointer-events-none">
                       {char.name}
                     </span>
-
-                    <GripVertical className="w-3 h-3 text-stone-400 group-hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
                   </div>
                 );
               })}
