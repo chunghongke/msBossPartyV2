@@ -390,7 +390,7 @@ export function PlayerNavBar({
                       }
                     }}
                     className={cn(
-                      'group flex items-center gap-1 px-2 py-0.5 rounded-full border-1.5 shadow-xs transition-all shrink-0 select-none cursor-grab active:cursor-grabbing',
+                      'group flex items-center gap-1.5 px-2.5 py-1 rounded-full border-1.5 shadow-xs transition-all shrink-0 select-none cursor-grab active:cursor-grabbing',
                       isDragging
                         ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
                         : isDragOver
@@ -399,22 +399,55 @@ export function PlayerNavBar({
                     )}
                     title="點擊滑動至該角色，左右拖曳可自訂排序"
                   >
-                    <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center pointer-events-none">
-                      {char.characterImage ? (
-                        <img
-                          src={char.characterImage}
-                          alt={char.name}
-                          className="w-full h-full object-cover object-top pointer-events-none"
-                          onError={(e: any) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <span className="text-[10px] pointer-events-none">🗡️</span>
-                      )}
-                    </div>
+                    {/* 角色頭像 (Radix Portal 高清立繪懸停預覽小窗) */}
+                    <HoverCard.Root openDelay={150} closeDelay={150}>
+                      <HoverCard.Trigger asChild>
+                        <div className="shrink-0 cursor-pointer pointer-events-auto">
+                          <div className="w-6 h-6 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center">
+                            {char.characterImage ? (
+                              <img
+                                src={char.characterImage}
+                                alt={char.name}
+                                className="w-full h-full object-cover object-top pointer-events-none"
+                                onError={(e: any) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <span className="text-[10px] pointer-events-none">🗡️</span>
+                            )}
+                          </div>
+                        </div>
+                      </HoverCard.Trigger>
+                      <HoverCard.Portal>
+                        <HoverCard.Content
+                          side="bottom"
+                          align="center"
+                          sideOffset={10}
+                          className="z-[100] w-48 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none text-center drop-shadow-2xl"
+                        >
+                          <div className="w-28 h-28 mx-auto rounded-2xl overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2 p-1">
+                            {char.characterImage ? (
+                              <img
+                                src={char.characterImage}
+                                alt={char.name}
+                                className="w-full h-full object-contain filter drop-shadow-md"
+                              />
+                            ) : (
+                              <span className="text-5xl">🗡️</span>
+                            )}
+                          </div>
+                          <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100">
+                            {char.name}
+                          </div>
+                          <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5 font-sans">
+                            點擊可滑動定位至此角色
+                          </div>
+                        </HoverCard.Content>
+                      </HoverCard.Portal>
+                    </HoverCard.Root>
 
-                    <span className="text-[11px] font-bold truncate max-w-[85px] pointer-events-none">
+                    <span className="text-xs font-bold truncate max-w-[90px] pointer-events-none">
                       {char.name}
                     </span>
                   </div>
