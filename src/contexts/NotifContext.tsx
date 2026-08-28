@@ -1,5 +1,6 @@
+import { useAppStore } from '@/store';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { StoreData, Team, RaidSchedule } from '@/types/party';
+import { Team, RaidSchedule } from '@/types/party';
 import { playNotificationChime } from '@/services/audio';
 
 const NOTIF_SETTINGS_KEY = 'boss_party_notif_settings';
@@ -32,8 +33,8 @@ const NotifContext = createContext<NotifContextType | null>(null);
 
 export const NotifProvider: React.FC<{
   children: React.ReactNode;
-  store: StoreData;
-}> = ({ children, store }) => {
+}> = ({ children }) => {
+  const store = useAppStore((s) => s.store);
   const [settings, setSettings] = useState<NotificationSettings>(() => {
     try {
       const stored = localStorage.getItem(NOTIF_SETTINGS_KEY);

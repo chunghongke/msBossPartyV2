@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { Player } from '@/types/player';
 import { verifyPassword, canManagePlayer, canManageCharacter } from '@/services/crypto';
+import { useAppStore } from '@/store';
 
 const AUTH_PLAYER_KEY = 'boss_party_auth_player_name';
 
@@ -30,8 +31,8 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{
   children: React.ReactNode;
-  players: Player[];
-}> = ({ children, players }) => {
+}> = ({ children }) => {
+  const players = useAppStore((s) => s.players);
   const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(() => {
     return getStoredAuthPlayerName();
   });

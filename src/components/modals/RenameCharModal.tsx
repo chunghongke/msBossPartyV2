@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { Character } from '@/types/player';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';

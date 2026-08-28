@@ -1,8 +1,6 @@
-import React from 'react';
-import { GroupProvider } from './contexts/GroupContext';
+import { GroupProvider, useGroup } from './contexts/GroupContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { StoreProvider, useStore } from './contexts/StoreContext';
-import { useGroup } from './contexts/GroupContext';
+import { FirebaseSyncProvider, useAppStore } from './store';
 import { NotifProvider } from './contexts/NotifContext';
 import { AlertProvider } from './contexts/AlertContext';
 import { MainLayout } from './components/layout/MainLayout';
@@ -11,7 +9,7 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 function AppContent() {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
-  const { isLoading: isStoreLoading } = useStore();
+  const isStoreLoading = useAppStore((s) => s.isLoading);
   const { controller, modals } = useModalState();
 
   const isGlobalLoading = isGroupLoading || (Boolean(activeGroup) && isStoreLoading);
@@ -39,28 +37,19 @@ function AppContent() {
   );
 }
 
-function StoreDependentProviders({ children }: { children: React.ReactNode }) {
-  const { players, store } = useStore();
-  return (
-    <AuthProvider players={players}>
-      <NotifProvider store={store}>
-        {children}
-      </NotifProvider>
-    </AuthProvider>
-  );
-}
-
 export function App() {
   return (
     <ErrorBoundary>
       <GroupProvider>
-        <StoreProvider>
-          <StoreDependentProviders>
-            <AlertProvider>
-              <AppContent />
-            </AlertProvider>
-          </StoreDependentProviders>
-        </StoreProvider>
+        <FirebaseSyncProvider>
+          <AuthProvider>
+            <NotifProvider>
+              <AlertProvider>
+                <AppContent />
+              </AlertProvider>
+            </NotifProvider>
+          </AuthProvider>
+        </FirebaseSyncProvider>
       </GroupProvider>
     </ErrorBoundary>
   );

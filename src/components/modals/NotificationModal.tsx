@@ -1,6 +1,6 @@
 import { useState, ChangeEvent } from 'react';
 import { useNotif } from '@/contexts/NotifContext';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { useAlert } from '@/contexts/AlertContext';

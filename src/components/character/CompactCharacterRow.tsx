@@ -5,7 +5,7 @@ import { StoreData, Team, WeeklyRecord } from '@/types/party';
 import { getBoss, getBossGroupKey, getBossCleanName, BOSSES } from '@/data/bosses';
 import { useCalculator } from '@/hooks/useCalculator';
 import { useAuth } from '@/contexts/AuthContext';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { cn } from '@/utils/cn';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import { BossCell } from './BossCell';

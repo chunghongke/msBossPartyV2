@@ -1,5 +1,5 @@
 import { Team } from '@/types/party';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Clock, Check, Circle } from 'lucide-react';

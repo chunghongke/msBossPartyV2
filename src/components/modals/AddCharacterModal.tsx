@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { Character } from '@/types/player';
 import { BOSS_GROUPS } from '@/data/bosses';
 import { BossGroup } from '@/types/boss';

@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect, FormEvent } from 'react';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';

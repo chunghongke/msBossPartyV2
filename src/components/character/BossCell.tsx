@@ -2,7 +2,7 @@ import { useRef, MouseEvent } from 'react';
 import { Boss, Difficulty } from '@/types/boss';
 import { getBossCleanName } from '@/data/bosses';
 import { WeeklyRecord, Team } from '@/types/party';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { cn } from '@/utils/cn';
 import { Users, Clock, Sparkles, MoreVertical } from 'lucide-react';
 

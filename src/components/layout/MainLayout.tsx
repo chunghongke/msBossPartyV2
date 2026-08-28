@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useGroup } from '@/contexts/GroupContext';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';

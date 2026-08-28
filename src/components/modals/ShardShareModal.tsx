@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import React, { useState, useEffect } from 'react';
-import { useStore } from '@/contexts/StoreContext';
+import { useStore } from '@/store';
 import { Boss } from '@/types/boss';
 import { Team, ShardMode } from '@/types/party';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
