@@ -128,7 +128,7 @@ export async function testFirebaseConnection(config: FirebaseConfig): Promise<{ 
 
 export async function initializeGroupDatabase(
   config: FirebaseConfig,
-  adminPlayer: { name: string; passwordHash: string; avatarEmoji?: string }
+  adminPlayer: { name: string; passwordHash: string; avatarEmoji?: string; avatarImage?: string }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const db = getRtdb(config);
@@ -137,6 +137,7 @@ export async function initializeGroupDatabase(
       {
         name: adminPlayer.name.trim(),
         avatarEmoji: adminPlayer.avatarEmoji || '👑',
+        avatarImage: adminPlayer.avatarImage || undefined,
         passwordHash: adminPlayer.passwordHash,
         isAdmin: true,
         characters: [],

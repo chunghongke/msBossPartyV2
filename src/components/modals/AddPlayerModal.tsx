@@ -5,7 +5,8 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useStore } from '@/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { AvatarPicker } from '@/components/ui/AvatarPicker';
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { hashPassword } from '@/services/crypto';
 import { UserPlus, AlertCircle, Check, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Player } from '@/types/player';
@@ -23,6 +24,7 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
 
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🍁');
+  const [avatarImage, setAvatarImage] = useState<string | undefined>();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,6 +38,7 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
     if (isOpen) {
       setName('');
       setEmoji('🍁');
+      setAvatarImage(undefined);
       setPassword('');
       setConfirmPassword('');
       setErrorMsg('');
@@ -75,6 +78,7 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
       const newPlayer: Player = {
         name: cleanName,
         avatarEmoji: emoji || '👤',
+        avatarImage: avatarImage || undefined,
         passwordHash: passHash,
         isAdmin: players.length === 0, // 小隊第一位建立者自動為管理員
         characters: [],
@@ -123,9 +127,7 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
              ======================================================== */
           <div className="py-4 space-y-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-3 p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/30">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 border-2 border-amber-600 flex items-center justify-center text-3xl shadow-lg shadow-amber-500/20">
-                {createdPlayer.avatarEmoji || '🍁'}
-              </div>
+              <PlayerAvatar player={createdPlayer} size="xl" className="w-16 h-16 rounded-2xl shadow-lg shadow-amber-500/20" />
               <div className="space-y-1">
                 <div className="text-base font-black text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1.5">
                   <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
@@ -191,8 +193,13 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
               </div>
 
               <div>
-                <Label>代表 Emoji 頭像</Label>
-                <EmojiPicker value={emoji} onChange={setEmoji} />
+                <Label>代表頭像 (Emoji 或自訂照片)</Label>
+                <AvatarPicker
+                  avatarEmoji={emoji}
+                  avatarImage={avatarImage}
+                  onChangeEmoji={setEmoji}
+                  onChangeImage={setAvatarImage}
+                />
               </div>
 
               <div>

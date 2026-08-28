@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { AvatarPicker } from '@/components/ui/AvatarPicker';
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { hashPassword } from '@/services/crypto';
 import { UserCheck, KeyRound, LogOut, ShieldAlert, Crown, Check, UserPlus, Lock, User } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
   // 註冊 (新隊員) 狀態
   const [regName, setRegName] = useState('');
   const [regEmoji, setRegEmoji] = useState('🍁');
+  const [regAvatarImage, setRegAvatarImage] = useState<string | undefined>();
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
 
@@ -50,6 +52,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
   const [isLoginSuccess, setIsLoginSuccess] = useState(false);
   const [successUserName, setSuccessUserName] = useState('');
   const [successEmoji, setSuccessEmoji] = useState('🍁');
+  const [successAvatarImage, setSuccessAvatarImage] = useState<string | undefined>();
 
   const isMandatory = !currentPlayer;
   const prevIsOpen = useRef(false);
@@ -65,6 +68,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       setPasswordInput('');
       setRegName('');
       setRegEmoji('🍁');
+      setRegAvatarImage(undefined);
       setRegPassword('');
       setRegConfirmPassword('');
       setErrorMsg('');
@@ -113,6 +117,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       const playerObj = players.find((p) => p.name === selectedPlayerName);
       setSuccessUserName(selectedPlayerName);
       setSuccessEmoji(playerObj?.avatarEmoji || '🍁');
+      setSuccessAvatarImage(playerObj?.avatarImage);
       setIsLoginSuccess(true);
 
       setTimeout(() => {
@@ -167,6 +172,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       const newPlayer = {
         name: cleanName,
         avatarEmoji: regEmoji || '🍁',
+        avatarImage: regAvatarImage || undefined,
         passwordHash,
         isAdmin: isFirstPlayer,
         characters: [],
@@ -177,6 +183,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
 
       setSuccessUserName(cleanName);
       setSuccessEmoji(regEmoji || '🍁');
+      setSuccessAvatarImage(regAvatarImage);
       setIsLoginSuccess(true);
 
       setTimeout(() => {
@@ -305,8 +312,14 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
             <div className="py-8 px-4 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
               <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 animate-ping opacity-40" />
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 border-3.5 border-kerning-stroke flex items-center justify-center shadow-xl text-4xl">
-                  {successEmoji}
+                <div className="w-20 h-20 rounded-full overflow-hidden border-3.5 border-kerning-stroke flex items-center justify-center shadow-xl">
+                  {successAvatarImage ? (
+                    <img src={successAvatarImage} alt={successUserName} className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 flex items-center justify-center text-4xl">
+                      {successEmoji}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -351,9 +364,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                   <div className="p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-lg shadow-inner">
-                          {currentPlayer?.avatarEmoji || '👤'}
-                        </div>
+                        <PlayerAvatar player={currentPlayer} size="md" className="w-9 h-9 rounded-xl shadow-inner" />
                         <div>
                           <div className="text-[10px] font-bold text-stone-500 dark:text-slate-400">目前登入身分</div>
                           <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100 flex items-center gap-1">
@@ -492,8 +503,13 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label>代表頭像 (表情符號)</Label>
-                    <EmojiPicker value={regEmoji} onChange={setRegEmoji} />
+                    <Label>代表頭像 (Emoji 或自訂照片)</Label>
+                    <AvatarPicker
+                      avatarEmoji={regEmoji}
+                      avatarImage={regAvatarImage}
+                      onChangeEmoji={setRegEmoji}
+                      onChangeImage={setRegAvatarImage}
+                    />
                   </div>
 
                   <div className="space-y-1.5">

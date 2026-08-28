@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import { AvatarPicker } from '@/components/ui/AvatarPicker';
 import { FirebaseTutorialModal } from '@/components/modals/FirebaseTutorialModal';
 import {
   Users,
@@ -60,6 +60,7 @@ export function GroupModal({ isOpen, onClose }: GroupModalProps) {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState('');
   const [adminEmoji, setAdminEmoji] = useState('👑');
+  const [adminAvatarImage, setAdminAvatarImage] = useState<string | undefined>();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -83,6 +84,7 @@ export function GroupModal({ isOpen, onClose }: GroupModalProps) {
       setAdminPassword('');
       setAdminPasswordConfirm('');
       setAdminEmoji('👑');
+      setAdminAvatarImage(undefined);
       setCreateError('');
       setIsSubmitting(false);
     }
@@ -196,6 +198,7 @@ export function GroupModal({ isOpen, onClose }: GroupModalProps) {
       await initializeGroupDatabase(fbConfig, {
         name: adminName.trim(),
         avatarEmoji: adminEmoji || '👑',
+        avatarImage: adminAvatarImage || undefined,
         passwordHash: adminPasswordHash,
       });
 
@@ -462,9 +465,14 @@ export function GroupModal({ isOpen, onClose }: GroupModalProps) {
                           required
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label>代表 Emoji</Label>
-                        <EmojiPicker value={adminEmoji} onChange={setAdminEmoji} />
+                      <div className="col-span-2 space-y-1">
+                        <Label>隊長代表頭像 (Emoji 或自訂相片)</Label>
+                        <AvatarPicker
+                          avatarEmoji={adminEmoji}
+                          avatarImage={adminAvatarImage}
+                          onChangeEmoji={setAdminEmoji}
+                          onChangeImage={setAdminAvatarImage}
+                        />
                       </div>
                     </div>
 

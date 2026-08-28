@@ -1,3 +1,4 @@
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { useState } from 'react';
 import { useGroup } from '@/contexts/GroupContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -199,9 +200,7 @@ export function Header({
                 onClick={onOpenLoginModal}
                 className="flex items-center gap-1.5 sm:gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/10 border-2 border-amber-400/70 hover:border-amber-400 shadow-sm transition-all active:scale-95"
               >
-                <div className="w-7 h-7 rounded-lg bg-amber-400/30 border border-amber-400 flex items-center justify-center text-base shrink-0 shadow-inner">
-                  {currentPlayer.avatarEmoji || '👤'}
-                </div>
+                <PlayerAvatar player={currentPlayer} size="sm" className="w-7 h-7 rounded-lg shrink-0" />
                 <div className="flex items-center gap-1 min-w-0">
                   <span className="text-xs sm:text-sm font-black text-amber-300 truncate max-w-[80px] sm:max-w-[110px]">
                     {currentPlayer.name}

@@ -1,3 +1,4 @@
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { useMemo, useState, DragEvent } from 'react';
 import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
@@ -213,9 +214,7 @@ export function PlayerNavBar({
                   )}
                   title="左右拖曳可調整玩家排序，點擊可切換至該玩家"
                 >
-                  <span className="w-5 h-5 rounded-md bg-black/10 flex items-center justify-center text-xs shrink-0 pointer-events-none">
-                    {p.avatarEmoji || '👤'}
-                  </span>
+                  <PlayerAvatar player={p} size="xs" className="w-5 h-5 rounded-md text-xs pointer-events-none" />
 
                   <span className="truncate max-w-[110px] pointer-events-none">{p.name}</span>
 
