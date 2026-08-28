@@ -11,7 +11,7 @@ export const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'inline-flex items-center justify-center rounded-2xl bg-stone-200/70 dark:bg-slate-900/80 p-1 border border-stone-300/80 dark:border-slate-800 text-stone-600 dark:text-slate-400 shadow-inner gap-1 w-full select-none',
+      'inline-flex items-center justify-start sm:justify-center rounded-2xl bg-stone-200/70 dark:bg-slate-900/80 p-1 border border-stone-300/80 dark:border-slate-800 text-stone-600 dark:text-slate-400 shadow-inner gap-1 w-full select-none overflow-x-auto no-scrollbar',
       className
     )}
     {...props}
@@ -26,7 +26,7 @@ export const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3 py-1.5 text-xs sm:text-sm font-black ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 gap-1.5',
+      'inline-flex items-center justify-center whitespace-nowrap rounded-xl px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-black ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 shrink-0 gap-1.5',
       'hover:text-stone-900 dark:hover:text-slate-200',
       'data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-400 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-amber-600/40',
       className

@@ -119,6 +119,6 @@ export const DialogBody = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('py-2 font-sans overflow-y-auto max-h-[70vh] no-scrollbar', className)} {...props} />
+  <div className={cn('py-2 font-sans overflow-y-auto overflow-x-hidden max-h-[75vh] no-scrollbar', className)} {...props} />
 );
 DialogBody.displayName = 'DialogBody';

@@ -322,7 +322,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       }}
     >
       <DialogContent
-        maxWidthClass="max-w-md"
+        maxWidthClass="max-w-xl"
         hideCloseButton={isMandatory}
         onPointerDownOutside={(e) => {
           if (isMandatory) e.preventDefault();
