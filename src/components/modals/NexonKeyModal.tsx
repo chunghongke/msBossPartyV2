@@ -1,3 +1,5 @@
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/store';
@@ -192,11 +194,9 @@ export function NexonKeyModal({ isOpen, onClose, onSuccess }: NexonKeyModalProps
 
           {/* 輸入框 */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-              Nexon Open API Key
-            </label>
+            <Label>Nexon Open API Key</Label>
             <div className="relative flex items-center">
-              <input
+              <Input
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => {
@@ -204,7 +204,6 @@ export function NexonKeyModal({ isOpen, onClose, onSuccess }: NexonKeyModalProps
                   setTestResult(null);
                 }}
                 placeholder="貼上您的 Nexon API Key (test_... 或 live_...)"
-                className="w-full pl-3 pr-20 py-2 text-xs font-mono rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
               />
               <div className="absolute right-2 flex items-center gap-1">
                 <button

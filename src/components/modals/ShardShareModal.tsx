@@ -1,3 +1,4 @@
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/store';
@@ -291,36 +292,17 @@ export function ShardShareModal({
 
         <form onSubmit={handleConfirm} className="space-y-4">
           <DialogBody className="space-y-3.5 max-h-[72vh]">
-            {/* 模式切換按鈕 */}
-            <div className="flex items-center justify-center p-1 bg-black/5 dark:bg-black/40 rounded-2xl border-2 border-kerning-stroke/40 gap-1.5">
-              <button
-                type="button"
-                onClick={() => setMode('shares')}
-                className={cn(
-                  'flex-1 py-1.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer',
-                  mode === 'shares'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm border border-amber-600/40'
-                    : 'text-stone-600 dark:text-stone-300 hover:bg-black/5 dark:hover:bg-white/5'
-                )}
-              >
-                <span>🔹 份數模式</span>
-                <span className="text-[10px] opacity-90 font-mono">(0 ~ {maxPartySize} 份)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMode('quantity')}
-                className={cn(
-                  'flex-1 py-1.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer',
-                  mode === 'quantity'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm border border-amber-600/40'
-                    : 'text-stone-600 dark:text-stone-300 hover:bg-black/5 dark:hover:bg-white/5'
-                )}
-              >
-                <span>🔢 顆數模式</span>
-                <span className="text-[10px] opacity-90 font-mono">(0 ~ {totalShards} 顆)</span>
-              </button>
-            </div>
+            {/* 模式切換 Tabs */}
+            <Tabs value={mode} onValueChange={(val) => setMode(val as ShardMode)}>
+              <TabsList>
+                <TabsTrigger value="shares">
+                  <span>🔹 份數模式 (0 ~ {maxPartySize} 份)</span>
+                </TabsTrigger>
+                <TabsTrigger value="quantity">
+                  <span>🔢 顆數模式 (0 ~ {totalShards} 顆)</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
             {/* 提示 Banner (溫暖淺羊皮色調) */}
             <div className="p-2.5 rounded-xl bg-[#FFF8E7] dark:bg-slate-800 border-1.5 border-[#D4B982] dark:border-slate-700 text-xs text-[#5C3E14] dark:text-amber-200 flex items-start gap-2 shadow-2xs">

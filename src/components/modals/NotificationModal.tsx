@@ -3,6 +3,8 @@ import { useNotif } from '@/contexts/NotifContext';
 import { useStore } from '@/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { Switch } from '@/components/ui/Switch';
+import { Label } from '@/components/ui/Label';
 import { useAlert } from '@/contexts/AlertContext';
 import { playNotificationChime, stopNotificationChime, saveCustomAudioBlob } from '@/services/audio';
 import { Bell, Volume2, Play, Square, Clock } from 'lucide-react';
@@ -55,49 +57,47 @@ export function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
       <DialogContent maxWidthClass="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            <Bell className="w-5 h-5 text-amber-300" />
+            <Bell className="w-5 h-5 text-amber-500" />
             <span>出團排程與推播提醒設定</span>
           </DialogTitle>
         </DialogHeader>
 
         <DialogBody className="space-y-4 max-h-[72vh]">
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30">
-            <div>
-              <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100">
-                出團自動鈴聲推播提醒
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-500/30 gap-3">
+            <div className="space-y-0.5">
+              <div className="font-black text-sm text-[#3E2F20] dark:text-slate-100 flex items-center gap-1.5">
+                <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>出團自動鈴聲推播提醒</span>
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
+              <div className="text-xs text-stone-500 dark:text-slate-400">
                 當隊伍排定時間即將到來時，自動跳出系統通知並播放鈴聲。
               </div>
             </div>
 
-            <Button
-              size="sm"
-              variant={settings.enabled ? 'green' : 'parchment'}
-              onClick={async () => {
-                if (!settings.enabled) {
+            <Switch
+              checked={settings.enabled}
+              onCheckedChange={async (checked) => {
+                if (checked) {
                   const ok = await requestPermission();
                   if (!ok) {
                     showAlert({ title: '權限提示', message: '請在瀏覽器設定中允許通知權限，才能即時接收出團提醒！', type: 'warning' });
+                    return;
                   }
+                  updateSettings({ enabled: true });
                 } else {
                   updateSettings({ enabled: false });
                 }
               }}
-            >
-              {settings.enabled ? '已啟用' : '點擊啟用'}
-            </Button>
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                提前提醒時間
-              </label>
+            <div className="space-y-1.5">
+              <Label>提前提醒時間</Label>
               <select
                 value={settings.advanceMinutes}
                 onChange={(e) => updateSettings({ advanceMinutes: Number(e.target.value) })}
-                className="w-full px-3 py-2 text-xs rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-bold"
+                className="w-full px-3 py-2 text-xs rounded-xl border-2 border-[#D4B982] dark:border-slate-700 bg-[#FFFDF9] dark:bg-slate-900 font-bold text-[#3E2F20] dark:text-slate-100 shadow-inner"
               >
                 <option value={0}>準時 (0 分鐘前)</option>
                 <option value={5}>提前 5 分鐘</option>
@@ -107,14 +107,12 @@ export function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                提醒音效選擇
-              </label>
+            <div className="space-y-1.5">
+              <Label>提醒音效選擇</Label>
               <select
                 value={settings.chimeType}
                 onChange={(e) => updateSettings({ chimeType: e.target.value as any })}
-                className="w-full px-3 py-2 text-xs rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-bold"
+                className="w-full px-3 py-2 text-xs rounded-xl border-2 border-[#D4B982] dark:border-slate-700 bg-[#FFFDF9] dark:bg-slate-900 font-bold text-[#3E2F20] dark:text-slate-100 shadow-inner"
               >
                 <option value="short">短鈴聲 (chime_short)</option>
                 <option value="long">長鈴聲 (chime_long)</option>
@@ -125,7 +123,7 @@ export function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
           </div>
 
           {settings.chimeType === 'custom' && (
-            <div className="p-3 bg-black/5 dark:bg-black/25 rounded-xl border border-slate-300 dark:border-slate-700">
+            <div className="p-3 bg-black/5 dark:bg-black/25 rounded-2xl border border-slate-300 dark:border-slate-700">
               <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
                 <span>自訂 MP3 鈴聲檔案</span>
                 <span className="text-[10px] text-slate-400">永久儲存於瀏覽器 IndexedDB</span>
@@ -146,13 +144,14 @@ export function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
             </div>
           )}
 
-          <div>
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <div className="space-y-1.5">
+            <Label className="flex items-center justify-between">
               <span className="flex items-center gap-1">
                 <Volume2 className="w-3.5 h-3.5" />
-                <span>提醒音量 ({Math.round(settings.volume * 100)}%)</span>
+                <span>提醒音量</span>
               </span>
-            </div>
+              <span className="font-mono text-xs">{Math.round(settings.volume * 100)}%</span>
+            </Label>
             <input
               type="range"
               min="0"
@@ -160,7 +159,7 @@ export function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
               step="0.05"
               value={settings.volume}
               onChange={(e) => updateSettings({ volume: Number(e.target.value) })}
-              className="w-full h-2 bg-slate-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              className="w-full h-2 bg-stone-300 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
             />
           </div>
 
@@ -184,21 +183,21 @@ export function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
           </div>
 
           {allScheduledTeams.length > 0 && (
-            <div className="pt-2 border-t border-slate-300 dark:border-slate-700">
+            <div className="pt-2 border-t-2 border-[#D4B982]/30 dark:border-slate-700">
               <div className="text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-purple-500" />
                 <span>全小隊本週出團時間表：</span>
               </div>
-              <div className="space-y-1.5 max-h-36 overflow-y-auto">
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                 {allScheduledTeams.map(({ team, schedule }) => (
                   <div
                     key={team.id}
-                    className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 text-xs"
+                    className="p-2 rounded-xl bg-white/70 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 text-xs"
                   >
                     <div className="font-bold text-[#3E2F20] dark:text-slate-100 truncate">
                       {(team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex: 1 }))).map((m) => getCharName(m.charId)).join('、')}
                     </div>
-                    <span className="px-2 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 font-fredoka font-black text-[11px] shrink-0">
+                    <span className="px-2 py-0.5 rounded-lg bg-purple-500/15 text-purple-700 dark:text-purple-300 font-fredoka font-black text-[11px] shrink-0 border border-purple-500/20">
                       {daysOfWeek[schedule!.dayOfWeek]} {schedule!.timeStr}
                       {schedule!.isTemp && ' (本週)'}
                     </span>

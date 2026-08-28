@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/store';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import { hashPassword } from '@/services/crypto';
-import { UserCheck, KeyRound, LogOut, ShieldAlert, Crown, Check, UserPlus, ArrowLeft } from 'lucide-react';
+import { UserCheck, KeyRound, LogOut, ShieldAlert, Crown, Check, UserPlus, Lock, User } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -49,7 +52,6 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
   const [successEmoji, setSuccessEmoji] = useState('🍁');
 
   const isMandatory = !currentPlayer;
-
   const prevIsOpen = useRef(false);
 
   const selectablePlayers = currentPlayer
@@ -68,6 +70,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       setErrorMsg('');
       setSuccessMsg('');
       setIsLoginSuccess(false);
+      setMode(players.length === 0 ? 'register' : 'login');
     } else if (!isOpen) {
       prevIsOpen.current = false;
     }
@@ -100,66 +103,77 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
     }
 
     setIsSubmitting(true);
-
     try {
       const res = await login(selectedPlayerName, passwordInput, players);
       if (!res.success) {
-        setErrorMsg(res.error || '登入失敗！請確認密碼是否正確。');
+        setErrorMsg(res.error || '密碼錯誤，請重新輸入！');
         return;
       }
 
+      const playerObj = players.find((p) => p.name === selectedPlayerName);
       setSuccessUserName(selectedPlayerName);
-      setSuccessEmoji(targetPlayer?.avatarEmoji || '🍁');
+      setSuccessEmoji(playerObj?.avatarEmoji || '🍁');
       setIsLoginSuccess(true);
 
       setTimeout(() => {
         setIsLoginSuccess(false);
         onClose();
-      }, 600);
+      }, 1000);
+    } catch {
+      setErrorMsg('登入發生異常，請重試！');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 2. 處理新隊員註冊並直接登入
+  // 2. 處理我是新隊員 (註冊玩家)
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
     const cleanName = regName.trim();
     if (!cleanName) {
-      setErrorMsg('請輸入玩家暱稱！');
+      setErrorMsg('請輸入玩家名稱！');
       return;
     }
 
-    if (players.some((p) => p.name.trim().toLowerCase() === cleanName.toLowerCase())) {
-      setErrorMsg('此玩家名稱已存在，請使用其他暱稱！');
+    const isDuplicate = players.some((p) => p.name.trim().toLowerCase() === cleanName.toLowerCase());
+    if (isDuplicate) {
+      setErrorMsg(`玩家名稱【${cleanName}】已被使用，請更換其他名稱！`);
       return;
     }
 
-    if (!regPassword || regPassword.length < 4) {
-      setErrorMsg('請設定至少 4 碼登入密碼以保護帳號！');
+    if (!regPassword) {
+      setErrorMsg('請設定登入密碼！');
+      return;
+    }
+
+    if (regPassword.length < 4) {
+      setErrorMsg('密碼長度至少需 4 碼！');
       return;
     }
 
     if (regPassword !== regConfirmPassword) {
-      setErrorMsg('兩次輸入的密碼不一致！');
+      setErrorMsg('兩次輸入的密碼不相符，請重新確認！');
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg('');
-
     try {
-      const passHash = await hashPassword(regPassword.trim());
+      const passwordHash = await hashPassword(regPassword);
+      const isFirstPlayer = players.length === 0;
+
       const newPlayer = {
         name: cleanName,
-        avatarEmoji: regEmoji || '👤',
-        passwordHash: passHash,
-        isAdmin: players.length === 0, // 小隊第一位成員自動為管理員
+        avatarEmoji: regEmoji || '🍁',
+        passwordHash,
+        isAdmin: isFirstPlayer,
         characters: [],
       };
 
       await addPlayer(newPlayer);
-      await login(cleanName, regPassword.trim(), [...players, newPlayer]);
+      await login(cleanName, regPassword, [...players, newPlayer]);
 
       setSuccessUserName(cleanName);
       setSuccessEmoji(regEmoji || '🍁');
@@ -168,47 +182,49 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       setTimeout(() => {
         setIsLoginSuccess(false);
         onClose();
-      }, 900);
-    } catch (err: any) {
-      setErrorMsg(err?.message || '建立玩家失敗！');
+      }, 1000);
+    } catch {
+      setErrorMsg('建立玩家身分失敗，請檢查網路！');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 3. 處理修改自己的密碼
-  const handleSaveNewPassword = async (e: FormEvent) => {
+  // 3. 處理修改密碼
+  const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
     if (!currentPlayer) return;
 
     if (!newPassword || newPassword.length < 4) {
-      setErrorMsg('新密碼長度至少需要 4 碼！');
+      setErrorMsg('新密碼長度至少需 4 碼！');
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      setErrorMsg('兩次輸入的新密碼不一致！');
+      setErrorMsg('兩次輸入的新密碼不相符！');
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg('');
-
     try {
-      const hash = await hashPassword(newPassword.trim());
-      await updatePlayer({
+      const passwordHash = await hashPassword(newPassword);
+      const updated = {
         ...currentPlayer,
-        passwordHash: hash,
-      });
-      setSuccessMsg('密碼更新成功！');
+        passwordHash,
+      };
+
+      await updatePlayer(updated);
+      setSuccessMsg('✨ 密碼修改成功！下次登入時請使用新密碼。');
+      setNewPassword('');
+      setConfirmNewPassword('');
       setTimeout(() => {
         setMode('login');
-        setNewPassword('');
-        setConfirmNewPassword('');
-        setSuccessMsg('');
-      }, 1000);
-    } catch (err: any) {
-      setErrorMsg(err?.message || '更新密碼失敗！');
+      }, 1500);
+    } catch {
+      setErrorMsg('修改密碼失敗，請稍後重試！');
     } finally {
       setIsSubmitting(false);
     }
@@ -217,34 +233,42 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
   // 4. 管理員重設隊員密碼
   const handleAdminResetPassword = async (e: FormEvent) => {
     e.preventDefault();
-    const target = players.find((p) => p.name === resetTargetName);
-    if (!target) {
-      setErrorMsg('找不到目標玩家！');
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!isAdmin) {
+      setErrorMsg('只有管理員可以重設隊員密碼！');
       return;
     }
 
-    if (!adminNewPassword || adminNewPassword.length < 4) {
-      setErrorMsg('請輸入至少 4 碼的新密碼！');
+    const target = players.find((p) => p.name === resetTargetName);
+    if (!target) {
+      setErrorMsg('找不到該隊員！');
+      return;
+    }
+
+    if (adminNewPassword && adminNewPassword.length < 4) {
+      setErrorMsg('新密碼長度至少需 4 碼！');
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg('');
-
     try {
-      const hash = await hashPassword(adminNewPassword.trim());
-      await updatePlayer({
+      const passwordHash = adminNewPassword ? await hashPassword(adminNewPassword) : undefined;
+      const updated = {
         ...target,
-        passwordHash: hash,
-      });
-      setSuccessMsg('已為隊員「' + target.name + '」重設密碼成功！');
-      setTimeout(() => {
-        setMode('login');
-        setAdminNewPassword('');
-        setSuccessMsg('');
-      }, 1200);
-    } catch (err: any) {
-      setErrorMsg(err?.message || '重設密碼失敗！');
+        passwordHash,
+      };
+
+      await updatePlayer(updated);
+      setSuccessMsg(
+        adminNewPassword
+          ? `✨ 已成功將【${target.name}】的密碼重設為新密碼！`
+          : `✨ 已成功清除【${target.name}】的密碼保護（改為免密碼直接登入）！`
+      );
+      setAdminNewPassword('');
+    } catch {
+      setErrorMsg('重設隊員密碼失敗！');
     } finally {
       setIsSubmitting(false);
     }
@@ -271,37 +295,12 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
       >
         <DialogHeader>
           <DialogTitle>
-            {mode === 'register' ? (
-              <>
-                <UserPlus className="w-5 h-5 text-amber-500" />
-                <span>我是新隊員：建立玩家身分</span>
-              </>
-            ) : mode === 'change_password' ? (
-              <>
-                <KeyRound className="w-5 h-5 text-amber-500" />
-                <span>修改登入密碼</span>
-              </>
-            ) : mode === 'admin_reset' ? (
-              <>
-                <Crown className="w-5 h-5 text-yellow-500" />
-                <span>👑 管理員重設隊員密碼</span>
-              </>
-            ) : (
-              <>
-                <UserCheck className="w-5 h-5 text-amber-500" />
-                <span>{isMandatory ? '🍁 歡迎！請登入或建立玩家身分' : '切換玩家身分 / 登入'}</span>
-              </>
-            )}
+            <UserCheck className="w-5 h-5 text-amber-500" />
+            <span>{isMandatory ? '🍁 歡迎！請登入或建立玩家身分' : '玩家身分與認證中心'}</span>
           </DialogTitle>
-          {isMandatory && mode === 'login' && (
-            <p className="text-xs text-stone-600 dark:text-slate-300 font-bold mt-1 text-left">
-              👋 進入小隊前請先選擇您的玩家帳號登入，或點擊「我是新隊員」加入小隊。
-            </p>
-          )}
         </DialogHeader>
 
         <DialogBody className="space-y-4">
-          {/* 登入 / 註冊成功專屬動畫彈窗 */}
           {isLoginSuccess ? (
             <div className="py-8 px-4 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
               <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
@@ -321,12 +320,33 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
               </div>
             </div>
           ) : (
-            <>
-              {/* ========================================================
-                  模式 A：既有玩家登入選單
-                  ======================================================== */}
-              {mode === 'login' && (
-                <form onSubmit={handleLogin} className="space-y-3.5">
+            <Tabs value={mode} onValueChange={(val) => { setMode(val as AuthMode); setErrorMsg(''); setSuccessMsg(''); }}>
+              <TabsList>
+                <TabsTrigger value="login">
+                  <User className="w-3.5 h-3.5" />
+                  <span>登入</span>
+                </TabsTrigger>
+                <TabsTrigger value="register">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>新隊員</span>
+                </TabsTrigger>
+                {currentPlayer && (
+                  <TabsTrigger value="change_password">
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>改密碼</span>
+                  </TabsTrigger>
+                )}
+                {isAdmin && (
+                  <TabsTrigger value="admin_reset">
+                    <Crown className="w-3.5 h-3.5 text-yellow-400" />
+                    <span>管理</span>
+                  </TabsTrigger>
+                )}
+              </TabsList>
+
+              {/* 頁籤 1：既有隊員登入 */}
+              <TabsContent value="login">
+                <form onSubmit={handleLogin} className="space-y-3.5 pt-1">
                   {/* 目前登入狀態膠囊 */}
                   <div className="p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -361,19 +381,14 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                         </Button>
                       )}
                     </div>
-                    {currentPlayer && (
-                      <div className="text-[10.5px] text-[#5C3E14] dark:text-amber-300/90 font-bold bg-amber-500/10 px-2 py-1 rounded-lg">
-                        💡 若要切換成其他隊員，請直接在下方選單選取該隊員並登入，無須先按登出。
-                      </div>
-                    )}
                   </div>
 
                   {selectablePlayers.length > 0 ? (
                     <>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      <div className="space-y-1.5">
+                        <Label>
                           {currentPlayer ? '選擇要切換登入的隊員' : '選擇要登入的玩家'} <span className="text-red-500">*</span>
-                        </label>
+                        </Label>
                         <select
                           value={selectedPlayerName}
                           onChange={(e) => {
@@ -382,7 +397,7 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                             setErrorMsg('');
                             setSuccessMsg('');
                           }}
-                          className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500 shadow-xs"
+                          className="w-full px-3 py-2 text-sm rounded-xl border-2 border-[#D4B982] dark:border-slate-700 bg-[#FFFDF9] dark:bg-slate-900 text-[#3E2F20] dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500 shadow-inner"
                         >
                           {selectablePlayers.map((p) => (
                             <option key={p.name} value={p.name}>
@@ -393,36 +408,36 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                       </div>
 
                       {hasPassword ? (
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        <div className="space-y-1.5">
+                          <Label>
                             輸入登入密碼 <span className="text-red-500">*</span>
-                          </label>
-                          <input
+                          </Label>
+                          <Input
                             type="password"
+                            leftIcon={<Lock className="w-4 h-4" />}
                             value={passwordInput}
                             onChange={(e) => {
                               setPasswordInput(e.target.value);
                               setErrorMsg('');
                             }}
                             placeholder="請輸入密碼"
-                            className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                             required
                             autoFocus
                           />
                         </div>
                       ) : (
                         <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30 text-xs text-[#5C3E14] dark:text-amber-300 font-bold">
-                          💡 此玩家尚未設定密碼，可直接點擊下方按鈕登入。登入後可隨時補設密碼保護。
+                          💡 此玩家尚未設定密碼，可直接點擊下方按鈕登入。登入後可切換至「改密碼」頁籤補設密碼保護。
                         </div>
                       )}
                     </>
                   ) : currentPlayer ? (
                     <div className="py-4 px-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 text-xs text-[#5C3E14] dark:text-amber-300 font-bold text-center">
-                      🍁 小隊目前只有您一位隊員。若要邀請新隊友加入，可透過右上角「分享小隊」複製邀請連結發給隊友！
+                      🍁 小隊目前只有您一位隊員。若要邀請新隊友加入，可點選上方「新隊員」頁籤或發送邀請連結！
                     </div>
                   ) : (
                     <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
-                      小隊目前尚無任何玩家，請先建立新玩家身分！
+                      小隊目前尚無任何玩家，請點選上方「新隊員」頁籤建立身分！
                     </div>
                   )}
 
@@ -440,132 +455,78 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                     </div>
                   )}
 
-                  <div className="pt-2 flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      {!currentPlayer && (
-                        <Button
-                          type="button"
-                          variant="gold"
-                          size="sm"
-                          onClick={() => {
-                            setMode('register');
-                            setErrorMsg('');
-                            setSuccessMsg('');
-                          }}
-                          className="text-xs h-8 font-bold"
-                        >
-                          <UserPlus className="w-3.5 h-3.5" />
-                          <span>我是新隊員</span>
-                        </Button>
-                      )}
-
-                      {currentPlayer && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMode('change_password');
-                            setErrorMsg('');
-                            setSuccessMsg('');
-                          }}
-                          className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
-                        >
-                          <KeyRound className="w-3.5 h-3.5" />
-                          <span>修改密碼</span>
-                        </button>
-                      )}
-
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMode('admin_reset');
-                            setResetTargetName(players.find((p) => p.name !== currentPlayer?.name)?.name || '');
-                            setErrorMsg('');
-                            setSuccessMsg('');
-                          }}
-                          className="text-xs font-bold text-yellow-600 dark:text-yellow-400 hover:underline flex items-center gap-1"
-                        >
-                          <Crown className="w-3.5 h-3.5" />
-                          <span>重設隊員密碼</span>
-                        </button>
-                      )}
-                    </div>
-
+                  <div className="pt-2 flex items-center justify-end gap-2">
                     {selectablePlayers.length > 0 && (
-                      <Button type="submit" variant="primary" size="md" isLoading={isSubmitting}>
+                      <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} className="w-full">
                         <span>{currentPlayer ? `切換為「${selectedPlayerName}」登入` : '確認登入'}</span>
                       </Button>
                     )}
                   </div>
                 </form>
-              )}
+              </TabsContent>
 
-              {/* ========================================================
-                  模式 B：我是新隊員 (註冊新玩家身分)
-                  ======================================================== */}
-              {mode === 'register' && (
-                <form onSubmit={handleRegister} className="space-y-3.5">
+              {/* 頁籤 2：我是新隊員 (註冊) */}
+              <TabsContent value="register">
+                <form onSubmit={handleRegister} className="space-y-3.5 pt-1">
                   <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-[#5C3E14] dark:text-amber-200">
-                    ✨ 輸入您的遊戲暱稱與頭像表情符號，並設定專屬密碼以加入小隊！
+                    ✨ 輸入您的遊戲暱稱與代表頭像，並設定專屬密碼以加入小隊！
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <div className="space-y-1.5">
+                    <Label>
                       玩家名稱 (暱稱) <span className="text-red-500">*</span>
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       type="text"
+                      leftIcon={<User className="w-4 h-4" />}
                       value={regName}
                       onChange={(e) => {
                         setRegName(e.target.value);
                         setErrorMsg('');
                       }}
                       placeholder="例如：小楓、阿豪"
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500"
                       required
                       maxLength={20}
                       autoFocus
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      代表頭像 (表情符號)
-                    </label>
+                  <div className="space-y-1.5">
+                    <Label>代表頭像 (表情符號)</Label>
                     <EmojiPicker value={regEmoji} onChange={setRegEmoji} />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <div className="space-y-1.5">
+                    <Label>
                       設定登入密碼 (至少 4 碼) <span className="text-red-500">*</span>
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       type="password"
+                      leftIcon={<Lock className="w-4 h-4" />}
                       value={regPassword}
                       onChange={(e) => {
                         setRegPassword(e.target.value);
                         setErrorMsg('');
                       }}
                       placeholder="請輸入至少 4 碼密碼"
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                       required
                       minLength={4}
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <div className="space-y-1.5">
+                    <Label>
                       再次確認密碼 <span className="text-red-500">*</span>
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       type="password"
+                      leftIcon={<Lock className="w-4 h-4" />}
                       value={regConfirmPassword}
                       onChange={(e) => {
                         setRegConfirmPassword(e.target.value);
                         setErrorMsg('');
                       }}
                       placeholder="請再次輸入密碼"
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                       required
                       minLength={4}
                     />
@@ -578,208 +539,147 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
                     </div>
                   )}
 
-                  <div className="pt-2 flex items-center justify-between gap-2">
-                    {players.length > 0 ? (
-                      <Button
-                        type="button"
-                        variant="parchment"
-                        size="sm"
-                        onClick={() => {
-                          setMode('login');
-                          setErrorMsg('');
-                        }}
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5" />
-                        <span>返回登入選單</span>
-                      </Button>
-                    ) : <div />}
-
-                    <Button type="submit" variant="primary" size="md" isLoading={isSubmitting}>
+                  <div className="pt-2">
+                    <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} className="w-full">
                       <Check className="w-4 h-4" />
                       <span>建立身分並進入小隊</span>
                     </Button>
                   </div>
                 </form>
+              </TabsContent>
+
+              {/* 頁籤 3：修改密碼 */}
+              {currentPlayer && (
+                <TabsContent value="change_password">
+                  <form onSubmit={handleChangePassword} className="space-y-3.5 pt-1">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-[#5C3E14] dark:text-amber-200">
+                      🔒 正在為隊員 <strong>{currentPlayer.name}</strong> 修改登入密碼。
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>
+                        輸入新密碼 (至少 4 碼) <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="password"
+                        leftIcon={<Lock className="w-4 h-4" />}
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setErrorMsg('');
+                        }}
+                        placeholder="請輸入新密碼"
+                        required
+                        minLength={4}
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>
+                        再次確認新密碼 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="password"
+                        leftIcon={<Lock className="w-4 h-4" />}
+                        value={confirmNewPassword}
+                        onChange={(e) => {
+                          setConfirmNewPassword(e.target.value);
+                          setErrorMsg('');
+                        }}
+                        placeholder="請再次輸入新密碼"
+                        required
+                        minLength={4}
+                      />
+                    </div>
+
+                    {errorMsg && (
+                      <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 shrink-0" />
+                        <span>{errorMsg}</span>
+                      </div>
+                    )}
+
+                    {successMsg && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                        <Check className="w-4 h-4 shrink-0" />
+                        <span>{successMsg}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} className="w-full">
+                        <Check className="w-4 h-4" />
+                        <span>確認修改密碼</span>
+                      </Button>
+                    </div>
+                  </form>
+                </TabsContent>
               )}
 
-              {/* ========================================================
-                  模式 C：修改自己的密碼
-                  ======================================================== */}
-              {mode === 'change_password' && (
-                <form onSubmit={handleSaveNewPassword} className="space-y-3.5">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-[#5C3E14] dark:text-amber-200">
-                    🔒 設定 {currentPlayer?.name} 的新登入密碼（至少 4 碼）
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      輸入新密碼 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => {
-                        setNewPassword(e.target.value);
-                        setErrorMsg('');
-                      }}
-                      placeholder="請輸入至少 4 碼新密碼"
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
-                      required
-                      minLength={4}
-                      autoFocus
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      確認新密碼 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      value={confirmNewPassword}
-                      onChange={(e) => {
-                        setConfirmNewPassword(e.target.value);
-                        setErrorMsg('');
-                      }}
-                      placeholder="請再次輸入新密碼"
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
-                      required
-                      minLength={4}
-                    />
-                  </div>
-
-                  {errorMsg && (
-                    <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
-                      <ShieldAlert className="w-4 h-4 shrink-0" />
-                      <span>{errorMsg}</span>
+              {/* 頁籤 4：管理員重設隊員密碼 */}
+              {isAdmin && (
+                <TabsContent value="admin_reset">
+                  <form onSubmit={handleAdminResetPassword} className="space-y-3.5 pt-1">
+                    <div className="p-2.5 rounded-xl bg-yellow-500/15 border border-yellow-500/30 text-xs text-yellow-950 dark:text-yellow-200">
+                      👑 <strong>小隊長管理特權</strong>：當隊員忘記密碼時，您可以為其指派新密碼，或留空直接清除密碼保護。
                     </div>
-                  )}
 
-                  {successMsg && (
-                    <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-                      <Check className="w-4 h-4 shrink-0" />
-                      <span>{successMsg}</span>
-                    </div>
-                  )}
-
-                  <div className="pt-2 flex items-center justify-between gap-2">
-                    <Button
-                      type="button"
-                      variant="parchment"
-                      size="sm"
-                      onClick={() => {
-                        setMode('login');
-                        setErrorMsg('');
-                      }}
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>返回</span>
-                    </Button>
-
-                    <Button type="submit" variant="primary" size="md" isLoading={isSubmitting}>
-                      <Check className="w-4 h-4" />
-                      <span>儲存新密碼</span>
-                    </Button>
-                  </div>
-                </form>
-              )}
-
-              {/* ========================================================
-                  模式 D：管理員重設隊員密碼
-                  ======================================================== */}
-              {mode === 'admin_reset' && (
-                <form onSubmit={handleAdminResetPassword} className="space-y-3.5">
-                  <div className="p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-xs text-[#5C3E14] dark:text-yellow-200">
-                    👑 您正在使用管理員權限，直接為指定隊員重設登入密碼。
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      選擇要重設密碼的隊員 <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={resetTargetName}
-                      onChange={(e) => {
-                        setResetTargetName(e.target.value);
-                        setErrorMsg('');
-                      }}
-                      className="w-full px-3 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500 shadow-xs"
-                    >
-                      {players
-                        .filter((p) => p.name !== currentPlayer?.name)
-                        .map((p) => (
+                    <div className="space-y-1.5">
+                      <Label>選擇要重設密碼的隊員</Label>
+                      <select
+                        value={resetTargetName}
+                        onChange={(e) => setResetTargetName(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-xl border-2 border-[#D4B982] dark:border-slate-700 bg-[#FFFDF9] dark:bg-slate-900 text-[#3E2F20] dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500 shadow-inner"
+                      >
+                        {players.map((p) => (
                           <option key={p.name} value={p.name}>
-                            {p.avatarEmoji || '👤'} {p.name}
+                            {p.avatarEmoji || '👤'} {p.name} {p.name === currentPlayer?.name ? '(自己)' : ''}
                           </option>
                         ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      為該隊員設定的新密碼 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      value={adminNewPassword}
-                      onChange={(e) => {
-                        setAdminNewPassword(e.target.value);
-                        setErrorMsg('');
-                      }}
-                      placeholder="請輸入至少 4 碼新密碼"
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
-                      required
-                      minLength={4}
-                      autoFocus
-                    />
-                  </div>
-
-                  {errorMsg && (
-                    <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
-                      <ShieldAlert className="w-4 h-4 shrink-0" />
-                      <span>{errorMsg}</span>
+                      </select>
                     </div>
-                  )}
 
-                  {successMsg && (
-                    <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-                      <Check className="w-4 h-4 shrink-0" />
-                      <span>{successMsg}</span>
+                    <div className="space-y-1.5">
+                      <Label>指派新密碼 (留空代表直接清除密碼保護)</Label>
+                      <Input
+                        type="password"
+                        leftIcon={<Lock className="w-4 h-4" />}
+                        value={adminNewPassword}
+                        onChange={(e) => {
+                          setAdminNewPassword(e.target.value);
+                          setErrorMsg('');
+                        }}
+                        placeholder="請輸入新密碼 (留空即清除保護)"
+                      />
                     </div>
-                  )}
 
-                  <div className="pt-2 flex items-center justify-between gap-2">
-                    <Button
-                      type="button"
-                      variant="parchment"
-                      size="sm"
-                      onClick={() => {
-                        setMode('login');
-                        setErrorMsg('');
-                      }}
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>返回</span>
-                    </Button>
+                    {errorMsg && (
+                      <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500 text-xs text-red-500 font-bold flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 shrink-0" />
+                        <span>{errorMsg}</span>
+                      </div>
+                    )}
 
-                    <Button type="submit" variant="danger" size="md" isLoading={isSubmitting}>
-                      <Crown className="w-4 h-4" />
-                      <span>強制重設密碼</span>
-                    </Button>
-                  </div>
-                </form>
+                    {successMsg && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                        <Check className="w-4 h-4 shrink-0" />
+                        <span>{successMsg}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <Button type="submit" variant="gold" size="md" isLoading={isSubmitting} className="w-full">
+                        <Crown className="w-4 h-4" />
+                        <span>{adminNewPassword ? '重設為此密碼' : '清除該隊員密碼保護'}</span>
+                      </Button>
+                    </div>
+                  </form>
+                </TabsContent>
               )}
-            </>
+            </Tabs>
           )}
         </DialogBody>
-
-        {!isMandatory && !isLoginSuccess && (
-          <DialogFooter>
-            <Button type="button" variant="parchment" size="sm" onClick={onClose}>
-              關閉
-            </Button>
-          </DialogFooter>
-        )}
       </DialogContent>
     </Dialog>
   );

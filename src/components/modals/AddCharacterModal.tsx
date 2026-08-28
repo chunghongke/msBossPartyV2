@@ -1,3 +1,5 @@
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
@@ -282,7 +284,7 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
                 </div>
 
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     type="text"
                     value={charName}
                     onChange={(e) => {
@@ -291,7 +293,6 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
                       setNexonNotice('');
                     }}
                     placeholder="輸入楓之谷角色名稱"
-                    className="flex-1 px-3 py-1.5 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500"
                     required
                   />
                   <Button

@@ -1,3 +1,5 @@
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useStore } from '@/store';
@@ -645,7 +647,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
 
                 {/* 快速新增 Guest */}
                 <div className="flex gap-1.5">
-                  <input
+                  <Input
                     type="text"
                     value={quickGuestName}
                     onChange={(e) => setQuickGuestName(e.target.value)}
@@ -656,7 +658,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                       }
                     }}
                     placeholder="輸入 Guest 名字"
-                    className="flex-1 px-2.5 py-1 text-xs rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-bold"
+                    className="h-8 text-xs"
                   />
                   <Button
                     type="button"

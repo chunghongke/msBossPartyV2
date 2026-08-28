@@ -1,3 +1,5 @@
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect, FormEvent } from 'react';
 import { useStore } from '@/store';
@@ -171,10 +173,10 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
           <form onSubmit={handleSubmit}>
             <DialogBody className="space-y-3.5 max-h-[72vh]">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <Label>
                   玩家名稱 (暱稱) <span className="text-red-500">*</span>
-                </label>
-                <input
+                </Label>
+                <Input
                   type="text"
                   value={name}
                   onChange={(e) => {
@@ -182,7 +184,6 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
                     setErrorMsg('');
                   }}
                   placeholder="例如：小楓、阿豪"
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-amber-500"
                   required
                   maxLength={20}
                   autoFocus
@@ -190,17 +191,15 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  代表 Emoji 頭像
-                </label>
+                <Label>代表 Emoji 頭像</Label>
                 <EmojiPicker value={emoji} onChange={setEmoji} />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <Label>
                   設定登入密碼 (至少 4 碼) <span className="text-red-500">*</span>
-                </label>
-                <input
+                </Label>
+                <Input
                   type="password"
                   value={password}
                   onChange={(e) => {
@@ -208,17 +207,16 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
                     setErrorMsg('');
                   }}
                   placeholder="請輸入至少 4 碼密碼"
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   required
                   minLength={4}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <Label>
                   再次確認密碼 <span className="text-red-500">*</span>
-                </label>
-                <input
+                </Label>
+                <Input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => {
@@ -226,7 +224,6 @@ export function AddPlayerModal({ isOpen, onClose, onSwitchToLogin }: AddPlayerMo
                     setErrorMsg('');
                   }}
                   placeholder="請再次輸入相同密碼"
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   required
                   minLength={4}
                 />
