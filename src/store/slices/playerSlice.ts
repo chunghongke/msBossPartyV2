@@ -2,6 +2,7 @@ import { ref, set } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { Player, Character } from '@/types/player';
 import { AppSlice, PlayerSlice } from '../types';
+import { sanitizeStoreAndTeams } from '../sanitize';
 
 export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
   players: [],
@@ -102,6 +103,7 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
             nextTeams[soloDefaultTeamId] = {
               id: soloDefaultTeamId,
               memberTargets: [solo],
+              schedule: null,
             };
             if (nextWeeklyRecords[soloRecKey]) {
               nextWeeklyRecords[soloRecKey] = {
@@ -132,6 +134,7 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
           nextTeams[defaultSingleId] = {
             id: defaultSingleId,
             memberTargets: [{ charId: updatedChar.id, entryIndex }],
+            schedule: null,
           };
         } else {
           // 未完成：重置為預設 single 未完成
@@ -139,6 +142,11 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
             ...existingRec,
             teamId: defaultSingleId,
             isCompleted: false,
+          };
+          nextTeams[defaultSingleId] = {
+            id: defaultSingleId,
+            memberTargets: [{ charId: updatedChar.id, entryIndex }],
+            schedule: null,
           };
         }
         storeDirty = true;
@@ -157,9 +165,58 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
       return p;
     });
 
+    // 5. 確保新加入的 BOSS 有預設的 single 隊伍與紀錄
+    const ensureEntries = [
+      ...(updatedChar.bossIds || []).map((bId) => ({ bossId: bId, entryIndex: 1 })),
+      ...(updatedChar.resetBossIds || []).map((bId) => ({ bossId: bId, entryIndex: 2 })),
+    ];
+
+    ensureEntries.forEach(({ bossId, entryIndex }) => {
+      const recKey = `rec_${updatedChar.id}_${bossId}_${entryIndex}`;
+      const defaultSingleId = `single_${updatedChar.id}_${bossId}_${entryIndex}`;
+
+      if (!nextWeeklyRecords[recKey]) {
+        nextWeeklyRecords[recKey] = {
+          charId: updatedChar.id,
+          bossId,
+          entryIndex,
+          teamId: defaultSingleId,
+          isCompleted: false,
+        };
+        storeDirty = true;
+      }
+
+      const currentTeamId = nextWeeklyRecords[recKey].teamId || defaultSingleId;
+      const currentTeam = nextTeams[currentTeamId];
+      const isReallyInTeam = currentTeam && (
+        currentTeamId.startsWith('single_') ||
+        (currentTeam.memberTargets || []).some((m: any) => m.charId === updatedChar.id && m.entryIndex === entryIndex)
+      );
+
+      if (!currentTeam || !isReallyInTeam) {
+        nextWeeklyRecords[recKey] = {
+          ...nextWeeklyRecords[recKey],
+          teamId: defaultSingleId,
+        };
+        nextTeams[defaultSingleId] = {
+          id: defaultSingleId,
+          memberTargets: [{ charId: updatedChar.id, entryIndex }],
+          schedule: null,
+        };
+        storeDirty = true;
+      }
+    });
+
+    // 6. 執行全域自我修復與防禦校驗
+    const sanitizedChanged = sanitizeStoreAndTeams(updated, {
+      teams: nextTeams,
+      weeklyRecords: nextWeeklyRecords,
+      guests: store.guests || [],
+    });
+
     await savePlayersToCloud(updated);
 
-    if (storeDirty) {
+    if (storeDirty || sanitizedChanged) {
       await saveStoreToCloud({
         ...store,
         teams: nextTeams,

@@ -128,5 +128,48 @@ export function sanitizeStoreAndTeams(
     }
   });
 
+  // 4. 檢查所有 weeklyRecords 的隊伍指標有效性 (Orphaned Record & Missing Member Repair)
+  Object.entries(rawStore.weeklyRecords).forEach(([recKey, rec]) => {
+    if (!rec || !rec.teamId) return;
+
+    const team = rawStore.teams[rec.teamId];
+
+    // 情況 A：指向的隊伍完全不存在
+    if (!team) {
+      const defaultSingleId = `single_${rec.charId}_${rec.bossId}_${rec.entryIndex}`;
+      rec.teamId = defaultSingleId;
+      if (!rawStore.teams[defaultSingleId]) {
+        rawStore.teams[defaultSingleId] = {
+          id: defaultSingleId,
+          memberTargets: [{ charId: rec.charId, entryIndex: rec.entryIndex }],
+          schedule: null,
+        };
+      }
+      hasChanged = true;
+      return;
+    }
+
+    // 情況 B：指向多人隊伍，但該多人隊伍的 memberTargets 中根本沒有這個成員
+    if (!rec.teamId.startsWith('single_')) {
+      const isMemberInTeam = (team.memberTargets || []).some(
+        (m: any) => m.charId === rec.charId && m.entryIndex === rec.entryIndex
+      );
+
+      if (!isMemberInTeam) {
+        // 此紀錄被孤立在該多人隊伍外，自動重置回預設單人隊伍！
+        const defaultSingleId = `single_${rec.charId}_${rec.bossId}_${rec.entryIndex}`;
+        rec.teamId = defaultSingleId;
+        if (!rawStore.teams[defaultSingleId]) {
+          rawStore.teams[defaultSingleId] = {
+            id: defaultSingleId,
+            memberTargets: [{ charId: rec.charId, entryIndex: rec.entryIndex }],
+            schedule: null,
+          };
+        }
+        hasChanged = true;
+      }
+    }
+  });
+
   return hasChanged;
 }

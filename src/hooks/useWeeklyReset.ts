@@ -143,9 +143,19 @@ export function useWeeklyReset(
           }
 
           const existingTeamId = nextRecords[recKey].teamId || singleTeamId;
-          if (!nextTeams[existingTeamId]) {
-            nextTeams[existingTeamId] = {
-              id: existingTeamId,
+          const existingTeam = nextTeams[existingTeamId];
+          const isReallyInTeam = existingTeam && (
+            existingTeamId.startsWith('single_') ||
+            (existingTeam.memberTargets || []).some((m: any) => m.charId === c.id && m.entryIndex === 1)
+          );
+
+          if (!existingTeam || !isReallyInTeam) {
+            nextRecords[recKey] = {
+              ...nextRecords[recKey],
+              teamId: singleTeamId,
+            };
+            nextTeams[singleTeamId] = {
+              id: singleTeamId,
               memberTargets: [{ charId: c.id, entryIndex: 1 }],
               schedule: null,
             };
@@ -169,9 +179,19 @@ export function useWeeklyReset(
           }
 
           const existingTeamId = nextRecords[recKey].teamId || singleTeamId;
-          if (!nextTeams[existingTeamId]) {
-            nextTeams[existingTeamId] = {
-              id: existingTeamId,
+          const existingTeam = nextTeams[existingTeamId];
+          const isReallyInTeam = existingTeam && (
+            existingTeamId.startsWith('single_') ||
+            (existingTeam.memberTargets || []).some((m: any) => m.charId === c.id && m.entryIndex === 2)
+          );
+
+          if (!existingTeam || !isReallyInTeam) {
+            nextRecords[recKey] = {
+              ...nextRecords[recKey],
+              teamId: singleTeamId,
+            };
+            nextTeams[singleTeamId] = {
+              id: singleTeamId,
               memberTargets: [{ charId: c.id, entryIndex: 2 }],
               schedule: null,
             };

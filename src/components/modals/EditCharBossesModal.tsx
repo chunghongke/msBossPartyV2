@@ -2,7 +2,7 @@ import { cn } from '@/utils/cn';
 import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/store';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS } from '@/data/bosses';
+import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
 import { BossGroup } from '@/types/boss';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -143,7 +143,7 @@ export function EditCharBossesModal({
 
   // 取得有效重置券數量
   const currentResetIds = (character?.resetBossIds || []).filter((rId) => {
-    return typeof rId === 'string' && selectedBossIds.some((bId) => typeof bId === 'string' && bId.startsWith(rId.split('_')[0]));
+    return typeof rId === 'string' && selectedBossIds.some((bId) => typeof bId === 'string' && getBossGroupKey(bId) === getBossGroupKey(rId));
   });
   const normalCount = selectedBossIds.length;
   const resetCount = currentResetIds.length;
@@ -211,7 +211,7 @@ export function EditCharBossesModal({
 
     try {
       const activeResetIds = (character.resetBossIds || []).filter((rId) =>
-        typeof rId === 'string' && selectedBossIds.some((bId) => typeof bId === 'string' && bId.startsWith(rId.split('_')[0]))
+        typeof rId === 'string' && selectedBossIds.some((bId) => typeof bId === 'string' && getBossGroupKey(bId) === getBossGroupKey(rId))
       );
 
       const updated: Character = {
