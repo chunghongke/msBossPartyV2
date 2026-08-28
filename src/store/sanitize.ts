@@ -129,7 +129,7 @@ export function sanitizeStoreAndTeams(
   });
 
   // 4. 檢查所有 weeklyRecords 的隊伍指標有效性 (Orphaned Record & Missing Member Repair)
-  Object.entries(rawStore.weeklyRecords).forEach(([recKey, rec]) => {
+  Object.values(rawStore.weeklyRecords).forEach((rec) => {
     if (!rec || !rec.teamId) return;
 
     const team = rawStore.teams[rec.teamId];
