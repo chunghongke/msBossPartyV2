@@ -399,7 +399,7 @@ export function PlayerNavBar({
                     )}
                     title="點擊滑動至該角色，左右拖曳可自訂排序"
                   >
-                    <div className="w-4.5 h-4.5 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center pointer-events-none">
                       {char.characterImage ? (
                         <img
                           src={char.characterImage}
