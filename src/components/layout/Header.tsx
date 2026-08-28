@@ -1,3 +1,4 @@
+import * as HoverCard from '@radix-ui/react-hover-card';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { useState } from 'react';
 import { useGroup } from '@/contexts/GroupContext';
@@ -195,43 +196,50 @@ export function Header({
             </Tooltip>
 
             {currentPlayer ? (
-              <div className="relative group/header-avatar">
-                <button
-                  type="button"
-                  onClick={onOpenLoginModal}
-                  className="flex items-center gap-1.5 sm:gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/10 border-2 border-amber-400/70 hover:border-amber-400 shadow-sm transition-all active:scale-95 cursor-pointer"
-                >
-                  <PlayerAvatar player={currentPlayer} size="sm" className="w-8 h-8 rounded-xl shrink-0 border-1.5 shadow-xs" />
-                  <div className="flex items-center gap-1 min-w-0">
-                    <span className="text-xs sm:text-sm font-black text-amber-300 truncate max-w-[80px] sm:max-w-[110px]">
-                      {currentPlayer.name}
-                    </span>
-                    {isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0" />}
-                  </div>
-                </button>
-
-                {/* Hover 浮出大圖卡片 */}
-                <div className="hidden group-hover/header-avatar:block absolute right-0 top-11 z-50 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl pointer-events-none w-44 text-center animate-in fade-in zoom-in-75 duration-150">
-                  <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2">
-                    {currentPlayer.avatarImage ? (
-                      <img
-                        src={currentPlayer.avatarImage}
-                        alt={currentPlayer.name}
-                        className="w-full h-full object-cover rounded-full"
-                      />
-                    ) : (
-                      <span className="text-5xl">{currentPlayer.avatarEmoji || '👤'}</span>
-                    )}
-                  </div>
-                  <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1">
-                    <span>{currentPlayer.name}</span>
-                    {isAdmin && <Crown className="w-3 h-3 text-yellow-500 shrink-0" />}
-                  </div>
-                  <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5">
-                    點擊可開啟玩家中心與改頭像
-                  </div>
-                </div>
-              </div>
+              <HoverCard.Root openDelay={150} closeDelay={150}>
+                <HoverCard.Trigger asChild>
+                  <button
+                    type="button"
+                    onClick={onOpenLoginModal}
+                    className="flex items-center gap-1.5 sm:gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/10 border-2 border-amber-400/70 hover:border-amber-400 shadow-sm transition-all active:scale-95 cursor-pointer"
+                  >
+                    <PlayerAvatar player={currentPlayer} size="sm" className="w-8 h-8 rounded-xl shrink-0 border-1.5 shadow-xs" />
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-xs sm:text-sm font-black text-amber-300 truncate max-w-[80px] sm:max-w-[110px]">
+                        {currentPlayer.name}
+                      </span>
+                      {isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0" />}
+                    </div>
+                  </button>
+                </HoverCard.Trigger>
+                <HoverCard.Portal>
+                  <HoverCard.Content
+                    side="bottom"
+                    align="end"
+                    sideOffset={10}
+                    className="z-[100] w-48 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none text-center drop-shadow-2xl"
+                  >
+                    <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2">
+                      {currentPlayer.avatarImage ? (
+                        <img
+                          src={currentPlayer.avatarImage}
+                          alt={currentPlayer.name}
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                      ) : (
+                        <span className="text-5xl">{currentPlayer.avatarEmoji || '👤'}</span>
+                      )}
+                    </div>
+                    <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1">
+                      <span>{currentPlayer.name}</span>
+                      {isAdmin && <Crown className="w-3 h-3 text-yellow-500 shrink-0" />}
+                    </div>
+                    <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5 font-sans">
+                      點擊可開啟玩家中心與改頭像
+                    </div>
+                  </HoverCard.Content>
+                </HoverCard.Portal>
+              </HoverCard.Root>
             ) : (
               <Button size="sm" variant="gold" onClick={onOpenLoginModal} className="h-9 text-xs">
                 登入玩家

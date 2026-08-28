@@ -1,3 +1,4 @@
+import * as HoverCard from '@radix-ui/react-hover-card';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { useMemo, useState, DragEvent } from 'react';
 import { Player, Character } from '@/types/player';
@@ -214,36 +215,45 @@ export function PlayerNavBar({
                   )}
                   title="左右拖曳可調整玩家排序，點擊可切換至該玩家"
                 >
-                  {/* 頭像與 Hover 浮現大圖卡片 */}
-                  <div className="relative group/avatar shrink-0">
-                    <PlayerAvatar
-                      player={p}
-                      size="sm"
-                      className="w-7 h-7 rounded-xl text-sm pointer-events-none shadow-xs border-1.5"
-                    />
-
-                    {/* Hover 大圖懸浮卡片 */}
-                    <div className="hidden group-hover/avatar:block absolute left-1/2 -translate-x-1/2 top-9 z-50 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl pointer-events-none w-44 text-center animate-in fade-in zoom-in-75 duration-150">
-                      <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2">
-                        {p.avatarImage ? (
-                          <img
-                            src={p.avatarImage}
-                            alt={p.name}
-                            className="w-full h-full object-cover rounded-full"
-                          />
-                        ) : (
-                          <span className="text-5xl">{p.avatarEmoji || '👤'}</span>
-                        )}
+                  {/* 玩家頭像 (Radix Portal 高清大圖懸停預覽) */}
+                  <HoverCard.Root openDelay={150} closeDelay={150}>
+                    <HoverCard.Trigger asChild>
+                      <div className="shrink-0 cursor-pointer pointer-events-auto">
+                        <PlayerAvatar
+                          player={p}
+                          size="sm"
+                          className="w-7 h-7 rounded-xl text-sm shadow-xs border-1.5"
+                        />
                       </div>
-                      <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1">
-                        <span>{p.name}</span>
-                        {p.isAdmin && <Crown className="w-3 h-3 text-yellow-500 shrink-0" />}
-                      </div>
-                      <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5">
-                        名下共有 {charCount} 隻角色
-                      </div>
-                    </div>
-                  </div>
+                    </HoverCard.Trigger>
+                    <HoverCard.Portal>
+                      <HoverCard.Content
+                        side="bottom"
+                        align="center"
+                        sideOffset={10}
+                        className="z-[100] w-48 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none text-center drop-shadow-2xl"
+                      >
+                        <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2">
+                          {p.avatarImage ? (
+                            <img
+                              src={p.avatarImage}
+                              alt={p.name}
+                              className="w-full h-full object-cover rounded-full"
+                            />
+                          ) : (
+                            <span className="text-5xl">{p.avatarEmoji || '👤'}</span>
+                          )}
+                        </div>
+                        <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1">
+                          <span>{p.name}</span>
+                          {p.isAdmin && <Crown className="w-3 h-3 text-yellow-500 shrink-0" />}
+                        </div>
+                        <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5 font-sans">
+                          名下共有 {charCount} 隻角色
+                        </div>
+                      </HoverCard.Content>
+                    </HoverCard.Portal>
+                  </HoverCard.Root>
 
                   <span className="truncate max-w-[110px] pointer-events-none">{p.name}</span>
 
