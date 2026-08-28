@@ -185,15 +185,19 @@ export function GroupModal({ isOpen, onClose }: GroupModalProps) {
         appId: appId.trim() || undefined,
       };
 
-      const isConnected = await testFirebaseConnection(fbConfig);
-      if (!isConnected) {
-        setCreateError('Firebase 連線失敗！請檢查 databaseURL 與 Firebase 權限規則設定。');
+      const testRes = await testFirebaseConnection(fbConfig);
+      if (!testRes.success) {
+        setCreateError(testRes.error || 'Firebase 連線失敗！請檢查 databaseURL 與 Firebase 權限規則設定。');
         setIsSubmitting(false);
         return;
       }
 
       const adminPasswordHash = await hashPassword(adminPassword);
-      await initializeGroupDatabase(fbConfig, adminName.trim(), adminEmoji || '👑', adminPasswordHash);
+      await initializeGroupDatabase(fbConfig, {
+        name: adminName.trim(),
+        avatarEmoji: adminEmoji || '👑',
+        passwordHash: adminPasswordHash,
+      });
 
       const newGroup: GroupConfig = {
         id: `group_${Date.now()}`,

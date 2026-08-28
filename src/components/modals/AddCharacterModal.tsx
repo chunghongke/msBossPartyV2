@@ -240,9 +240,9 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
             {/* 玩家身分選擇 (管理員可自由指派，一般玩家鎖定自己) */}
             {isAdmin ? (
               <div className="p-2.5 rounded-2xl bg-[#FFF8E7] dark:bg-slate-800 border-2 border-[#D4B982] dark:border-slate-700 space-y-1">
-                <label className="block text-xs font-black text-[#5C3E14] dark:text-amber-300">
+                <Label className="text-[#5C3E14] dark:text-amber-300">
                   👑 管理員專屬：指派角色給小隊玩家
-                </label>
+                </Label>
                 <select
                   value={selectedPlayerName}
                   onChange={(e) => setSelectedPlayerName(e.target.value)}
@@ -268,9 +268,9 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
 
               <div className="flex-1 w-full space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <Label>
                     角色名稱 (遊戲 ID) <span className="text-red-500">*</span>
-                  </label>
+                  </Label>
                   {onOpenNexonKeyModal && (
                     <button
                       type="button"

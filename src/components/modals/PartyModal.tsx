@@ -1,5 +1,4 @@
 import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useStore } from '@/store';
