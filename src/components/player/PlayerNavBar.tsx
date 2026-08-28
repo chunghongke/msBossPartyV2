@@ -201,20 +201,49 @@ export function PlayerNavBar({
                     }
                   }}
                   className={cn(
-                    'group px-3.5 py-1.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0',
+                    'group/player pl-2 pr-3 py-1.5 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all duration-100 border-2 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0 relative',
                     isDragging
                       ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
                       : isDragOver
                       ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
                       : isSelected
-                      ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_1.5px_0_rgba(0,0,0,0.35)] dark:shadow-[0_1.5px_0_#000000]'
+                      ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_2px_0_rgba(0,0,0,0.35)] dark:shadow-[0_2px_0_#000000]'
                       : isSelf
                       ? 'border-amber-600/50 bg-amber-400/15 text-[#4A3B2C] dark:text-yellow-300 hover:bg-amber-400/25 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
                       : 'border-kerning-stroke/70 bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
                   )}
                   title="左右拖曳可調整玩家排序，點擊可切換至該玩家"
                 >
-                  <PlayerAvatar player={p} size="xs" className="w-5 h-5 rounded-md text-xs pointer-events-none" />
+                  {/* 頭像與 Hover 浮現大圖卡片 */}
+                  <div className="relative group/avatar shrink-0">
+                    <PlayerAvatar
+                      player={p}
+                      size="sm"
+                      className="w-7 h-7 rounded-xl text-sm pointer-events-none shadow-xs border-1.5"
+                    />
+
+                    {/* Hover 大圖懸浮卡片 */}
+                    <div className="hidden group-hover/avatar:block absolute left-1/2 -translate-x-1/2 top-9 z-50 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl pointer-events-none w-44 text-center animate-in fade-in zoom-in-75 duration-150">
+                      <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2">
+                        {p.avatarImage ? (
+                          <img
+                            src={p.avatarImage}
+                            alt={p.name}
+                            className="w-full h-full object-cover rounded-full"
+                          />
+                        ) : (
+                          <span className="text-5xl">{p.avatarEmoji || '👤'}</span>
+                        )}
+                      </div>
+                      <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1">
+                        <span>{p.name}</span>
+                        {p.isAdmin && <Crown className="w-3 h-3 text-yellow-500 shrink-0" />}
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5">
+                        名下共有 {charCount} 隻角色
+                      </div>
+                    </div>
+                  </div>
 
                   <span className="truncate max-w-[110px] pointer-events-none">{p.name}</span>
 
@@ -224,7 +253,7 @@ export function PlayerNavBar({
                     {charCount}
                   </span>
 
-                  <GripVertical className="w-3 h-3 text-stone-400 group-hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
+                  <GripVertical className="w-3 h-3 text-stone-400 group-hover/player:text-amber-600 opacity-0 group-hover/player:opacity-100 transition-opacity shrink-0 pointer-events-none" />
                 </div>
               );
             })}
