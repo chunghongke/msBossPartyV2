@@ -217,18 +217,37 @@ export function BossCell({
         {/* 漸層陰影遮罩：調亮遮罩，保持頂部文字清晰同時突顯立繪明亮度 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/35 pointer-events-none" />
 
-        {/* 頂部左側：BOSS 名稱 (英文/中文) */}
+        {/* 頂部左側：BOSS 名稱 (英文/中文) - 已完成時呈現灰階已通關風格 */}
         <div className="absolute top-2 left-2.5 z-10 flex items-baseline gap-1 pointer-events-none">
-          <span className="font-fredoka font-black text-sm sm:text-base text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+          <span
+            className={cn(
+              'font-fredoka font-black text-sm sm:text-base tracking-wide transition-colors',
+              isCompleted
+                ? 'text-stone-300/85 dark:text-slate-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]'
+                : 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]'
+            )}
+          >
             {enName}
           </span>
-          <span className="text-[11px] font-bold text-amber-300 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+          <span
+            className={cn(
+              'text-[11px] font-bold transition-colors',
+              isCompleted
+                ? 'text-stone-400 dark:text-slate-500 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]'
+                : 'text-amber-300 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]'
+            )}
+          >
             {cleanZhName}
           </span>
         </div>
 
         {/* 頂部右側：難度標籤與 2 刷印章 */}
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 pointer-events-none">
+        <div
+          className={cn(
+            'absolute top-2 right-2 z-10 flex items-center gap-1 pointer-events-none transition-all',
+            isCompleted && 'opacity-65 grayscale'
+          )}
+        >
           {entryIndex === 2 && (
             <span className="px-1.5 py-0.5 rounded-md bg-purple-700 text-white font-black text-[10px] border border-purple-400 shadow-sm">
               🎟️ 2刷
@@ -237,18 +256,25 @@ export function BossCell({
           {getDifficultyBadge(boss.difficulty)}
         </div>
 
-        {/* 圖片底部左側：方案 A - 多人團隊友名稱半透明懸浮帶 (Teammates Floating Overlay) */}
+        {/* 圖片底部左側：多人團隊友名稱半透明懸浮帶 (Teammates Floating Overlay) */}
         {isMultiParty && teammatesDisplayText && (
           <div
             onClick={(e) => {
               e.stopPropagation();
               if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
             }}
-            className="absolute bottom-1.5 left-2 z-10 max-w-[85%] px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-xs border border-amber-400/50 text-white text-[11px] font-bold shadow-md flex items-center gap-1.5 truncate hover:bg-black/95 hover:border-amber-300 transition-all cursor-pointer"
+            className={cn(
+              'absolute bottom-1.5 left-2 z-10 max-w-[85%] px-2 py-0.5 rounded-lg backdrop-blur-xs text-[11px] font-bold shadow-md flex items-center gap-1.5 truncate transition-all cursor-pointer',
+              isCompleted
+                ? 'bg-black/65 border border-slate-600/70 text-slate-300 hover:bg-black/80 hover:border-slate-500'
+                : 'bg-black/80 border border-amber-400/50 text-white hover:bg-black/95 hover:border-amber-300'
+            )}
             title={`隊伍成員：${validMembers.map((m: any) => getCharName(m.charId) + (m.entryIndex === 2 ? '(2刷)' : '')).join('、')} (點擊開啟組隊設定)`}
           >
-            <Users className="w-3 h-3 text-amber-400 shrink-0" />
-            <span className="truncate font-black text-amber-200">{teammatesDisplayText}</span>
+            <Users className={cn('w-3 h-3 shrink-0', isCompleted ? 'text-slate-400' : 'text-amber-400')} />
+            <span className={cn('truncate font-black', isCompleted ? 'text-slate-300' : 'text-amber-200')}>
+              {teammatesDisplayText}
+            </span>
           </div>
         )}
 
@@ -268,7 +294,11 @@ export function BossCell({
             className={cn(
               'px-2 py-0.5 rounded-lg text-xs font-bold border shadow-2xs flex items-center gap-1 transition-all shrink-0 whitespace-nowrap',
               canManage ? 'cursor-pointer' : 'cursor-default',
-              isMultiParty
+              isCompleted
+                ? isMultiParty
+                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-slate-400'
+                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                : isMultiParty
                 ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 border-amber-600 hover:brightness-105'
                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-slate-400'
             )}

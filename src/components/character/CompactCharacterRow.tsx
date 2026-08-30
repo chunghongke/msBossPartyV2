@@ -193,10 +193,21 @@ function SingleRowBossPill({
       {/* 中間：BOSS 名稱、難度標籤與隊伍簡稱 */}
       <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.2">
         <div className="flex items-center gap-0.5 leading-tight truncate">
-          <span className={cn('px-0.5 rounded text-[8px] font-black uppercase tracking-tight shrink-0', diffConf.tagClass)}>
+          <span
+            className={cn(
+              'px-0.5 rounded text-[8px] font-black uppercase tracking-tight shrink-0',
+              diffConf.tagClass,
+              isCompleted && 'opacity-60 grayscale'
+            )}
+          >
             {diffConf.label}
           </span>
-          <span className="font-black text-[11px] text-[#3E2F20] dark:text-slate-100 truncate">
+          <span
+            className={cn(
+              'font-black text-[11px] truncate transition-colors',
+              isCompleted ? 'text-stone-400 dark:text-slate-500 line-through/70' : 'text-[#3E2F20] dark:text-slate-100'
+            )}
+          >
             {cleanZhName}
           </span>
         </div>
