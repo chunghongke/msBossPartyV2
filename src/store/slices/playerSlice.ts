@@ -11,10 +11,12 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
 
   savePlayersToCloud: async (newPlayers: Player[]) => {
     const { activeGroup } = get();
-    setSlice({ players: newPlayers });
+    // 💡 關鍵修復：深層序列化過濾所有 undefined 欄位，徹底防止 Firebase RTDB 拋出 Error: set failed: value contains undefined
+    const cleanPlayers = JSON.parse(JSON.stringify(newPlayers));
+    setSlice({ players: cleanPlayers });
     if (!activeGroup?.firebaseConfig) return;
     const db = getRtdb(activeGroup.firebaseConfig);
-    await set(ref(db, 'players'), newPlayers);
+    await set(ref(db, 'players'), cleanPlayers);
   },
 
   addPlayer: async (newPlayer: Player) => {

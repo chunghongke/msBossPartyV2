@@ -195,7 +195,10 @@ export function AvatarPicker({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => onChangeImage(undefined)}
+                  onClick={() => {
+                    onChangeImage(undefined);
+                    setActiveTab('emoji');
+                  }}
                   className="text-red-500 hover:bg-red-500/10 h-8 text-xs shrink-0"
                   title="清除自訂照片，改回使用 Emoji"
                 >

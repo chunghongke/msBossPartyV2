@@ -24,10 +24,12 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
   saveStoreToCloud: async (newStore: StoreData) => {
     const { activeGroup } = get();
-    setSlice({ store: newStore });
+    // 💡 關鍵修復：深層序列化過濾所有 undefined 欄位，確保 Firebase RTDB 寫入純淨合法 JSON
+    const cleanStore = JSON.parse(JSON.stringify(newStore));
+    setSlice({ store: cleanStore });
     if (!activeGroup?.firebaseConfig) return;
     const db = getRtdb(activeGroup.firebaseConfig);
-    await set(ref(db, 'store'), newStore);
+    await set(ref(db, 'store'), cleanStore);
   },
 
   toggleBossStatus: async (

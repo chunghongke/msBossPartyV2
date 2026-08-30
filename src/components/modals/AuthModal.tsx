@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
+import { Player } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody } from '@/components/ui/Dialog';
@@ -213,15 +214,20 @@ export function AuthModal({ isOpen, onClose, preselectedPlayerName }: AuthModalP
     setSuccessMsg('');
 
     try {
-      const updated = {
+      const updated: Player = {
         ...currentPlayer,
         avatarEmoji: editAvatarEmoji || '🍁',
-        avatarImage: editAvatarImage || undefined,
       };
+      if (editAvatarImage) {
+        updated.avatarImage = editAvatarImage;
+      } else {
+        delete (updated as any).avatarImage;
+      }
 
       await updatePlayer(updated);
       setSuccessMsg('✨ 個人頭像已成功更新並同步至全小隊！');
-    } catch {
+    } catch (err) {
+      console.error('更新頭像失敗:', err);
       setErrorMsg('更新頭像失敗，請稍後重試！');
     } finally {
       setIsSubmitting(false);
