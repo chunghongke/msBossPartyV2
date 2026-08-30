@@ -1,11 +1,11 @@
 import * as HoverCard from '@radix-ui/react-hover-card';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
-import { useMemo, useState, DragEvent } from 'react';
+import { useMemo, useState, useRef, useEffect, DragEvent, WheelEvent } from 'react';
 import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
-import { UserPlus, Users, Crown, PlusCircle, LayoutList, LayoutGrid, RefreshCw } from 'lucide-react';
+import { UserPlus, Users, Crown, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface PlayerNavBarProps {
@@ -54,10 +54,85 @@ export function PlayerNavBar({
   const [dragOverPlayerName, setDragOverPlayerName] = useState<string | null>(null);
   const [playerOrderVersion, setPlayerOrderVersion] = useState(0);
 
+  // 橫向滾動容器參照與狀態 (Player / Character Scroll Refs & State)
+  const playerScrollRef = useRef<HTMLDivElement>(null);
+  const charScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollPlayerLeft, setCanScrollPlayerLeft] = useState(false);
+  const [canScrollPlayerRight, setCanScrollPlayerRight] = useState(false);
+  const [canScrollCharLeft, setCanScrollCharLeft] = useState(false);
+  const [canScrollCharRight, setCanScrollCharRight] = useState(false);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // 1. 依據本地自訂排序 (支援 DnD 拖曳重排)
   const sortedPlayers = useMemo(() => {
     return sortPlayersByLocalOrder(players, currentPlayer?.name);
   }, [players, currentPlayer?.name, playerOrderVersion]);
+
+  // 監聽玩家標籤列表滾動狀態
+  const updatePlayerScrollStatus = () => {
+    const el = playerScrollRef.current;
+    if (!el) return;
+    setCanScrollPlayerLeft(el.scrollLeft > 4);
+    setCanScrollPlayerRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+
+  // 監聽角色快選列表滾動狀態
+  const updateCharScrollStatus = () => {
+    const el = charScrollRef.current;
+    if (!el) return;
+    setCanScrollCharLeft(el.scrollLeft > 4);
+    setCanScrollCharRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+
+  useEffect(() => {
+    updatePlayerScrollStatus();
+    updateCharScrollStatus();
+    const pEl = playerScrollRef.current;
+    const cEl = charScrollRef.current;
+
+    pEl?.addEventListener('scroll', updatePlayerScrollStatus, { passive: true });
+    cEl?.addEventListener('scroll', updateCharScrollStatus, { passive: true });
+    window.addEventListener('resize', updatePlayerScrollStatus);
+    window.addEventListener('resize', updateCharScrollStatus);
+
+    return () => {
+      pEl?.removeEventListener('scroll', updatePlayerScrollStatus);
+      cEl?.removeEventListener('scroll', updateCharScrollStatus);
+      window.removeEventListener('resize', updatePlayerScrollStatus);
+      window.removeEventListener('resize', updateCharScrollStatus);
+    };
+  }, [sortedPlayers, selectedPlayerName]);
+
+  // 滾動輔助函式 (支援點擊與長按滑動)
+  const scrollElement = (el: HTMLDivElement | null, offset: number) => {
+    if (el) {
+      el.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+  };
+
+  const startHoldScroll = (el: HTMLDivElement | null, offset: number) => {
+    scrollElement(el, offset);
+    if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+    holdTimerRef.current = setInterval(() => {
+      if (el) {
+        el.scrollLeft += offset * 0.25;
+      }
+    }, 40);
+  };
+
+  const stopHoldScroll = () => {
+    if (holdTimerRef.current) {
+      clearInterval(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  };
+
+  // 滑鼠滾輪橫向滾動支援
+  const handleWheelScroll = (e: WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY !== 0) {
+      e.currentTarget.scrollLeft += e.deltaY;
+    }
+  };
 
   // 玩家拖曳排序處理函式 (Player DnD Event Handlers)
   const handlePlayerDragStart = (e: DragEvent<HTMLDivElement>, pName: string) => {
@@ -191,115 +266,156 @@ export function PlayerNavBar({
   return (
     <div className="sticky top-16 z-30 w-full bg-[#EBD8B8]/95 dark:bg-slate-900/95 backdrop-blur-md border-b-2.5 border-kerning-stroke shadow-md transition-colors select-none">
       <div className="max-w-[1880px] w-full mx-auto px-2.5 sm:px-4">
-        {/* 第一列：玩家切換標籤列 ＋ 臨時隊友 ＋ 緊湊/大圖模式切換 */}
-        <div className="py-2 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
-          <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
-            {sortedPlayers.map((p) => {
-              const isSelected = selectedPlayer?.name === p.name;
-              const isSelf = currentPlayer?.name === p.name;
-              const charCount = p.characters?.length || 0;
-              const isDragging = draggingPlayerName === p.name;
-              const isDragOver = dragOverPlayerName === p.name;
-
-              return (
-                <div
-                  key={p.name}
-                  draggable={true}
-                  onDragStart={(e) => handlePlayerDragStart(e, p.name)}
-                  onDragOver={(e) => handlePlayerDragOver(e, p.name)}
-                  onDragLeave={(e) => handlePlayerDragLeave(e, p.name)}
-                  onDrop={(e) => handlePlayerDrop(e, p.name)}
-                  onDragEnd={handlePlayerDragEnd}
-                  onClick={() => {
-                    if (!isDragging) {
-                      onSelectPlayer(p.name);
-                    }
-                  }}
-                  className={cn(
-                    'group/player px-2.5 py-1 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0 relative',
-                    isDragging
-                      ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
-                      : isDragOver
-                      ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
-                      : isSelected
-                      ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_1.5px_0_rgba(0,0,0,0.35)] dark:shadow-[0_1.5px_0_#000000]'
-                      : isSelf
-                      ? 'border-amber-600/50 bg-amber-400/15 text-[#4A3B2C] dark:text-yellow-300 hover:bg-amber-400/25 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
-                      : 'border-kerning-stroke/70 bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
-                  )}
-                  title="左右拖曳可調整玩家排序，點擊可切換至該玩家"
-                >
-                  {/* 玩家頭像 (Radix Portal 高清大圖懸停預覽) */}
-                  <HoverCard.Root openDelay={150} closeDelay={150}>
-                    <HoverCard.Trigger asChild>
-                      <div className="shrink-0 cursor-pointer pointer-events-auto">
-                        <PlayerAvatar
-                          player={p}
-                          size="sm"
-                          className="w-6 h-6 rounded-lg text-xs shadow-xs border-1.5"
-                        />
-                      </div>
-                    </HoverCard.Trigger>
-                    <HoverCard.Portal>
-                      <HoverCard.Content
-                        side="bottom"
-                        align="center"
-                        sideOffset={10}
-                        className="z-[100] w-48 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none text-center drop-shadow-2xl"
-                      >
-                        <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2">
-                          {p.avatarImage ? (
-                            <img
-                              src={p.avatarImage}
-                              alt={p.name}
-                              className="w-full h-full object-cover rounded-full"
-                            />
-                          ) : (
-                            <span className="text-5xl">{p.avatarEmoji || '👤'}</span>
-                          )}
-                        </div>
-                        <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1">
-                          <span>{p.name}</span>
-                          {p.isAdmin && <Crown className="w-3 h-3 text-yellow-500 shrink-0" />}
-                        </div>
-                        <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5 font-sans">
-                          名下共有 {charCount} 隻角色
-                        </div>
-                      </HoverCard.Content>
-                    </HoverCard.Portal>
-                  </HoverCard.Root>
-
-                  <span className="truncate max-w-[100px] pointer-events-none font-bold">{p.name}</span>
-
-                  {p.isAdmin && <Crown className="w-3 h-3 text-yellow-400 shrink-0 pointer-events-none" />}
-
-                  <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[9.5px] opacity-90 pointer-events-none font-fredoka">
-                    {charCount}
-                  </span>
-                </div>
-              );
-            })}
-
-            {/* 新增玩家虛線橢圓標籤 (僅管理員顯示) */}
-            {isAdmin && (
+        {/* 第一列：玩家切換標籤列 (左側獨立橫向滑動帶方向鍵) ＋ 固定工具群 (右側常駐不被擠出) */}
+        <div className="py-1.5 flex items-center justify-between gap-2 w-full">
+          {/* 左側可滾動玩家標籤區域 (含左右滑動方向鍵) */}
+          <div className="flex-1 min-w-0 relative flex items-center gap-1">
+            {/* 左滾動箭頭按鈕 */}
+            {canScrollPlayerLeft && (
               <button
                 type="button"
-                onClick={onOpenAddPlayerModal}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/35 text-amber-900 dark:text-amber-300 text-xs font-bold border-2 border-dashed border-amber-500/60 transition-colors shrink-0 cursor-pointer select-none"
+                onClick={() => scrollElement(playerScrollRef.current, -200)}
+                onMouseDown={() => startHoldScroll(playerScrollRef.current, -120)}
+                onMouseUp={stopHoldScroll}
+                onMouseLeave={stopHoldScroll}
+                aria-label="向左滑動玩家清單"
+                className="w-6 h-6 rounded-lg bg-amber-400 hover:bg-amber-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-950 dark:text-slate-100 border border-amber-600/60 dark:border-slate-600 shadow-xs flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-90 z-10"
+                title="向左滑動 (可按住連續滑動)"
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>新增玩家</span>
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+
+            <div
+              ref={playerScrollRef}
+              onWheel={handleWheelScroll}
+              className="flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5"
+            >
+              <div className="flex items-center gap-1.5 shrink-0">
+                {sortedPlayers.map((p) => {
+                  const isSelected = selectedPlayer?.name === p.name;
+                  const isSelf = currentPlayer?.name === p.name;
+                  const charCount = p.characters?.length || 0;
+                  const isDragging = draggingPlayerName === p.name;
+                  const isDragOver = dragOverPlayerName === p.name;
+
+                  return (
+                    <div
+                      key={p.name}
+                      draggable={true}
+                      onDragStart={(e) => handlePlayerDragStart(e, p.name)}
+                      onDragOver={(e) => handlePlayerDragOver(e, p.name)}
+                      onDragLeave={(e) => handlePlayerDragLeave(e, p.name)}
+                      onDrop={(e) => handlePlayerDrop(e, p.name)}
+                      onDragEnd={handlePlayerDragEnd}
+                      onClick={() => {
+                        if (!isDragging) {
+                          onSelectPlayer(p.name);
+                        }
+                      }}
+                      className={cn(
+                        'group/player px-2.5 py-1 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0 relative',
+                        isDragging
+                          ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
+                          : isDragOver
+                          ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
+                          : isSelected
+                          ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_1.5px_0_rgba(0,0,0,0.35)] dark:shadow-[0_1.5px_0_#000000]'
+                          : isSelf
+                          ? 'border-amber-600/50 bg-amber-400/15 text-[#4A3B2C] dark:text-yellow-300 hover:bg-amber-400/25 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
+                          : 'border-kerning-stroke/70 bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
+                      )}
+                      title="左右拖曳可調整玩家排序，點擊可切換至該玩家"
+                    >
+                      {/* 玩家頭像 (Radix Portal 高清大圖懸停預覽) */}
+                      <HoverCard.Root openDelay={150} closeDelay={150}>
+                        <HoverCard.Trigger asChild>
+                          <div className="shrink-0 cursor-pointer pointer-events-auto">
+                            <PlayerAvatar
+                              player={p}
+                              size="sm"
+                              className="w-6 h-6 rounded-lg text-xs shadow-xs border-1.5"
+                            />
+                          </div>
+                        </HoverCard.Trigger>
+                        <HoverCard.Portal>
+                          <HoverCard.Content
+                            side="bottom"
+                            align="center"
+                            sideOffset={10}
+                            className="z-[100] w-48 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none text-center drop-shadow-2xl"
+                          >
+                            <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2">
+                              {p.avatarImage ? (
+                                <img
+                                  src={p.avatarImage}
+                                  alt={p.name}
+                                  className="w-full h-full object-cover rounded-full"
+                                />
+                              ) : (
+                                <span className="text-5xl">{p.avatarEmoji || '👤'}</span>
+                              )}
+                            </div>
+                            <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100 flex items-center justify-center gap-1">
+                              <span>{p.name}</span>
+                              {p.isAdmin && <Crown className="w-3 h-3 text-yellow-500 shrink-0" />}
+                            </div>
+                            <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5 font-sans">
+                              名下共有 {charCount} 隻角色
+                            </div>
+                          </HoverCard.Content>
+                        </HoverCard.Portal>
+                      </HoverCard.Root>
+
+                      <span className="truncate max-w-[100px] pointer-events-none font-bold">{p.name}</span>
+
+                      {p.isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0 pointer-events-none" />}
+
+                      <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[9.5px] opacity-90 pointer-events-none font-fredoka">
+                        {charCount}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {/* 新增玩家虛線橢圓標籤 (僅管理員顯示) */}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={onOpenAddPlayerModal}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400/20 hover:bg-amber-400/35 text-amber-900 dark:text-amber-300 text-xs font-bold border-1.5 border-dashed border-amber-500/60 transition-colors shrink-0 cursor-pointer select-none"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>新增玩家</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 右滾動箭頭按鈕 */}
+            {canScrollPlayerRight && (
+              <button
+                type="button"
+                onClick={() => scrollElement(playerScrollRef.current, 200)}
+                onMouseDown={() => startHoldScroll(playerScrollRef.current, 120)}
+                onMouseUp={stopHoldScroll}
+                onMouseLeave={stopHoldScroll}
+                aria-label="向右滑動玩家清單"
+                className="w-6 h-6 rounded-lg bg-amber-400 hover:bg-amber-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-950 dark:text-slate-100 border border-amber-600/60 dark:border-slate-600 shadow-xs flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-90 z-10"
+                title="向右滑動 (可按住連續滑動)"
+              >
+                <ChevronRight className="w-4 h-4" />
               </button>
             )}
           </div>
 
-          {/* 右側工具群：臨時隊友 ＋ 檢視版面切換器 (緊湊條列 / 詳細大圖) */}
-          <div className="flex items-center gap-2 shrink-0 py-1 pr-1">
+          {/* 右側常駐工具群：臨時隊友 ＋ 檢視版面切換器 (固定在右邊，永不被推擠出畫面) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pl-1">
             <button
               type="button"
               onClick={() => onSelectPlayer('__guests__')}
               className={cn(
-                'h-8 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all select-none border-1.5 active:translate-y-[1px]',
+                'h-7 sm:h-8 px-2.5 sm:px-3 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all select-none border-1.5 active:translate-y-[1px] shrink-0',
                 selectedPlayerName === '__guests__'
                   ? 'bg-gradient-to-b from-indigo-500 to-purple-600 text-white border-indigo-400 shadow-md scale-105 font-black ring-2 ring-indigo-400/50'
                   : 'bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 border-kerning-stroke/70 dark:border-slate-700 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
@@ -321,7 +437,7 @@ export function PlayerNavBar({
                   type="button"
                   onClick={() => onSetViewMode('compact')}
                   className={cn(
-                    'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                    'px-2 sm:px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
                     viewMode === 'compact'
                       ? 'bg-amber-400 text-slate-950 shadow-xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -335,7 +451,7 @@ export function PlayerNavBar({
                   type="button"
                   onClick={() => onSetViewMode('detailed')}
                   className={cn(
-                    'px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                    'px-2 sm:px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
                     viewMode === 'detailed'
                       ? 'bg-amber-400 text-slate-950 shadow-xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -350,10 +466,10 @@ export function PlayerNavBar({
           </div>
         </div>
 
-        {/* 第二列：若選中臨時隊友，顯示專屬提示；若選中玩家，顯示角色快選、結晶總計與操作按鈕 */}
+        {/* 第二列：若選中臨時隊友，顯示專屬提示；若選中玩家，顯示角色快選 (左側滑動帶方向鍵) ＋ 結晶總計與按鈕 (右側常駐) */}
         {selectedPlayerName === '__guests__' ? (
-          <div className="py-2 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
-            <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
+          <div className="py-1.5 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 w-full">
+            <div className="flex items-center gap-2 shrink-0 py-0.5">
               <span className="text-xs font-black text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5 shrink-0">
                 <Users className="w-4 h-4" />
                 <span>👥 臨時隊友名冊 (Guest) 管理面板</span>
@@ -364,104 +480,144 @@ export function PlayerNavBar({
             </div>
           </div>
         ) : selectedPlayer && (
-          <div className="py-1.5 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar p-1">
-            {/* 左側：精簡角色快選 (移除重複玩家名稱) */}
-            <div className="flex items-center gap-2 shrink-0 py-1 pl-1 pr-1">
-              <span className="text-xs font-black text-stone-600 dark:text-slate-300 flex items-center gap-1 shrink-0">
-                <span>角色快選 ({selectedCharacters.length})：</span>
-              </span>
+          <div className="py-1.5 border-t border-kerning-stroke/30 dark:border-slate-700/50 flex items-center justify-between gap-2 w-full">
+            {/* 左側可滾動角色快選清單 (含左右方向鍵) */}
+            <div className="flex-1 min-w-0 relative flex items-center gap-1">
+              {/* 左滾動箭頭按鈕 */}
+              {canScrollCharLeft && (
+                <button
+                  type="button"
+                  onClick={() => scrollElement(charScrollRef.current, -200)}
+                  onMouseDown={() => startHoldScroll(charScrollRef.current, -120)}
+                  onMouseUp={stopHoldScroll}
+                  onMouseLeave={stopHoldScroll}
+                  aria-label="向左滑動角色清單"
+                  className="w-5 h-5 rounded-lg bg-amber-400 hover:bg-amber-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-950 dark:text-slate-100 border border-amber-600/60 dark:border-slate-600 shadow-xs flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-90 z-10"
+                  title="向左滑動 (可按住連續滑動)"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+              )}
 
-              {selectedCharacters.map((char) => {
-                const isDragging = draggingCharId === char.id;
-                const isDragOver = dragOverCharId === char.id;
+              <div
+                ref={charScrollRef}
+                onWheel={handleWheelScroll}
+                className="flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5"
+              >
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-xs font-black text-stone-600 dark:text-slate-300 shrink-0">
+                    角色快選 ({selectedCharacters.length})：
+                  </span>
 
-                return (
-                  <div
-                    key={char.id}
-                    draggable={true}
-                    onDragStart={(e) => handleDragStart(e, char.id)}
-                    onDragOver={(e) => handleDragOver(e, char.id)}
-                    onDragLeave={(e) => handleDragLeave(e, char.id)}
-                    onDrop={(e) => handleDrop(e, char.id)}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => {
-                      if (!isDragging && onScrollToCharacter) {
-                        onScrollToCharacter(char.id);
-                      }
-                    }}
-                    className={cn(
-                      'group flex items-center gap-1.5 px-2.5 py-1 rounded-full border-1.5 shadow-xs transition-all shrink-0 select-none cursor-grab active:cursor-grabbing',
-                      isDragging
-                        ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
-                        : isDragOver
-                        ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
-                        : 'border-kerning-stroke/60 bg-[#FFFDF9] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:border-amber-500 hover:bg-amber-100/50 dark:hover:bg-slate-700'
-                    )}
-                    title="點擊滑動至該角色，左右拖曳可自訂排序"
-                  >
-                    {/* 角色頭像 (Radix Portal 高清立繪懸停預覽小窗) */}
-                    <HoverCard.Root openDelay={150} closeDelay={150}>
-                      <HoverCard.Trigger asChild>
-                        <div className="shrink-0 cursor-pointer pointer-events-auto">
-                          <div className="w-6 h-6 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center">
-                            {char.characterImage ? (
-                              <img
-                                src={char.characterImage}
-                                alt={char.name}
-                                className="w-full h-full object-cover object-top pointer-events-none"
-                                onError={(e: any) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <span className="text-[10px] pointer-events-none">🗡️</span>
-                            )}
-                          </div>
-                        </div>
-                      </HoverCard.Trigger>
-                      <HoverCard.Portal>
-                        <HoverCard.Content
-                          side="bottom"
-                          align="center"
-                          sideOffset={10}
-                          className="z-[100] w-48 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none text-center drop-shadow-2xl"
-                        >
-                          <div className="w-28 h-28 mx-auto rounded-2xl overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2 p-1">
-                            {char.characterImage ? (
-                              <img
-                                src={char.characterImage}
-                                alt={char.name}
-                                className="w-full h-full object-contain filter drop-shadow-md"
-                              />
-                            ) : (
-                              <span className="text-5xl">🗡️</span>
-                            )}
-                          </div>
-                          <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100">
-                            {char.name}
-                          </div>
-                          <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5 font-sans">
-                            點擊可滑動定位至此角色
-                          </div>
-                        </HoverCard.Content>
-                      </HoverCard.Portal>
-                    </HoverCard.Root>
+                  {selectedCharacters.map((char) => {
+                    const isDragging = draggingCharId === char.id;
+                    const isDragOver = dragOverCharId === char.id;
 
-                    <span className="text-xs font-bold truncate max-w-[90px] pointer-events-none">
-                      {char.name}
-                    </span>
-                  </div>
-                );
-              })}
+                    return (
+                      <div
+                        key={char.id}
+                        draggable={true}
+                        onDragStart={(e) => handleDragStart(e, char.id)}
+                        onDragOver={(e) => handleDragOver(e, char.id)}
+                        onDragLeave={(e) => handleDragLeave(e, char.id)}
+                        onDrop={(e) => handleDrop(e, char.id)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => {
+                          if (!isDragging && onScrollToCharacter) {
+                            onScrollToCharacter(char.id);
+                          }
+                        }}
+                        className={cn(
+                          'group flex items-center gap-1.5 px-2.5 py-1 rounded-full border-1.5 shadow-xs transition-all shrink-0 select-none cursor-grab active:cursor-grabbing',
+                          isDragging
+                            ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
+                            : isDragOver
+                            ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-105 ring-2 ring-amber-400 shadow-md'
+                            : 'border-kerning-stroke/60 bg-[#FFFDF9] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:border-amber-500 hover:bg-amber-100/50 dark:hover:bg-slate-700'
+                        )}
+                        title="點擊滑動至該角色，左右拖曳可自訂排序"
+                      >
+                        {/* 角色頭像 (Radix Portal 高清立繪懸停預覽小窗) */}
+                        <HoverCard.Root openDelay={150} closeDelay={150}>
+                          <HoverCard.Trigger asChild>
+                            <div className="shrink-0 cursor-pointer pointer-events-auto">
+                              <div className="w-6 h-6 rounded-full overflow-hidden bg-amber-400/20 border border-amber-500/50 shrink-0 flex items-center justify-center">
+                                {char.characterImage ? (
+                                  <img
+                                    src={char.characterImage}
+                                    alt={char.name}
+                                    className="w-full h-full object-cover object-top pointer-events-none"
+                                    onError={(e: any) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-[10px] pointer-events-none">🗡️</span>
+                                )}
+                              </div>
+                            </div>
+                          </HoverCard.Trigger>
+                          <HoverCard.Portal>
+                            <HoverCard.Content
+                              side="bottom"
+                              align="center"
+                              sideOffset={10}
+                              className="z-[100] w-48 p-3 bg-[#FFFDF9] dark:bg-slate-900 border-2 border-amber-400/90 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none text-center drop-shadow-2xl"
+                            >
+                              <div className="w-28 h-28 mx-auto rounded-2xl overflow-hidden border-2 border-amber-500 bg-amber-400/20 shadow-md flex items-center justify-center mb-2 p-1">
+                                {char.characterImage ? (
+                                  <img
+                                    src={char.characterImage}
+                                    alt={char.name}
+                                    className="w-full h-full object-contain filter drop-shadow-md"
+                                  />
+                                ) : (
+                                  <span className="text-5xl">🗡️</span>
+                                )}
+                              </div>
+                              <div className="font-black text-xs text-[#3E2F20] dark:text-slate-100">
+                                {char.name}
+                              </div>
+                              <div className="text-[10px] text-stone-500 dark:text-slate-400 mt-0.5 font-sans">
+                                點擊可滑動定位至此角色
+                              </div>
+                            </HoverCard.Content>
+                          </HoverCard.Portal>
+                        </HoverCard.Root>
+
+                        <span className="text-xs font-bold truncate max-w-[90px] pointer-events-none">
+                          {char.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 右滾動箭頭按鈕 */}
+              {canScrollCharRight && (
+                <button
+                  type="button"
+                  onClick={() => scrollElement(charScrollRef.current, 200)}
+                  onMouseDown={() => startHoldScroll(charScrollRef.current, 120)}
+                  onMouseUp={stopHoldScroll}
+                  onMouseLeave={stopHoldScroll}
+                  aria-label="向右滑動角色清單"
+                  className="w-5 h-5 rounded-lg bg-amber-400 hover:bg-amber-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-950 dark:text-slate-100 border border-amber-600/60 dark:border-slate-600 shadow-xs flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-90 z-10"
+                  title="向右滑動 (可按住連續滑動)"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* 右側：結晶楓幣統計 ＋ 同步立繪 ＋ 新增角色按鈕 */}
-            <div className="flex items-center gap-2 shrink-0 py-1 pr-1">
+            {/* 右側常駐控制群：結晶楓幣統計 ＋ 同步立繪 ＋ 新增角色按鈕 (永不被推擠出畫面) */}
+            <div className="flex items-center gap-1.5 shrink-0 pl-1">
               {/* 全部角色的結晶楓幣總和膠囊 */}
               {formatCrystal && crystalExpected > 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-2 border-[#D4B982] dark:border-slate-700 shadow-sm text-xs select-none shrink-0">
+                <div className="flex items-center gap-1 px-2.5 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-1.5 border-[#D4B982] dark:border-slate-700 shadow-2xs text-xs select-none shrink-0">
                   <span className="text-sm">🪙</span>
-                  <span className="font-bold text-stone-500 dark:text-slate-400 hidden md:inline">結晶總計：</span>
+                  <span className="font-bold text-stone-500 dark:text-slate-400 hidden lg:inline">結晶總計：</span>
                   <span className="font-fredoka font-black text-amber-700 dark:text-amber-300 text-xs sm:text-sm">
                     {formatCrystal(crystalEarned)} / {formatCrystal(crystalExpected)}
                   </span>
@@ -475,12 +631,12 @@ export function PlayerNavBar({
                   variant="parchment"
                   onClick={() => onSyncAllCharImages(selectedPlayer)}
                   isLoading={isSyncingPlayer === selectedPlayer.name}
-                  className="h-7 px-2.5 text-xs font-bold shrink-0"
+                  className="h-7 px-2 text-xs font-bold shrink-0"
                   title="一鍵連線 Nexon 官方，同步該玩家名下所有角色的最新官方立繪"
                 >
                   <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                  <span className="hidden sm:inline">同步全角色立繪</span>
-                  <span className="sm:hidden">同步</span>
+                  <span className="hidden md:inline">同步全角色立繪</span>
+                  <span className="md:hidden">同步</span>
                 </Button>
               )}
 
