@@ -165,9 +165,10 @@ export const NotifProvider: React.FC<{
 
           if ('Notification' in window && Notification.permission === 'granted') {
             const timeDesc = diffMins <= 0 ? '現在' : `${diffMins} 分鐘後`;
+            const iconUrl = typeof window !== 'undefined' ? new URL('./notification.png', window.location.href).href : './notification.png';
             new Notification('🍁 BossParty 出團提醒！', {
               body: `隊伍預定於 ${timeDesc} 出團討伐 BOSS，請準備集合！`,
-              icon: './icon.png',
+              icon: iconUrl,
             });
           }
         }
@@ -186,9 +187,10 @@ export const NotifProvider: React.FC<{
     await playNotificationChime(settings.chimeType, settings.volume);
 
     if ('Notification' in window && Notification.permission === 'granted') {
+      const iconUrl = typeof window !== 'undefined' ? new URL('./notification.png', window.location.href).href : './notification.png';
       new Notification('🍁 BossParty 測試推播通知', {
         body: '這是一則測試通知，出團時間即將到來時會收到類似提醒！',
-        icon: './icon.png',
+        icon: iconUrl,
       });
     } else {
       console.warn('請先允許通知權限，才能在桌面或手機收到推播提醒！');
