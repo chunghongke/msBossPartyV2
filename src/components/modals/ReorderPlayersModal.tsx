@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFoo
 import { Button } from '@/components/ui/Button';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { cn } from '@/utils/cn';
-import { GripVertical, ArrowUp, ArrowDown, ArrowUpToLine, RotateCcw, Check, Crown, SlidersHorizontal } from 'lucide-react';
+import { GripVertical, ArrowUp, ArrowDown, ArrowUpToLine, RotateCcw, Check, Crown, SlidersHorizontal, Lock } from 'lucide-react';
 
 interface ReorderPlayersModalProps {
   isOpen: boolean;
@@ -30,19 +30,28 @@ export function ReorderPlayersModal({
   // 當前正在操作的玩家名稱
   const [activePlayerName, setActivePlayerName] = useState<string | null>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // 💡 游標絕對錨定補償 (Cursor Anchor Compensation)：記錄點擊前按鈕在螢幕上的精準 Y 座標
   const pendingAnchorRef = useRef<{ pName: string; action: 'up' | 'down'; beforeY: number } | null>(null);
 
+  // 初始化列表：登入者固定在第 1 位
   useEffect(() => {
     if (isOpen) {
-      setList([...players]);
+      const raw = [...players];
+      if (currentPlayer) {
+        const myIdx = raw.findIndex((p) => p.name === currentPlayer.name);
+        if (myIdx > 0) {
+          const [me] = raw.splice(myIdx, 1);
+          raw.unshift(me);
+        }
+      }
+      setList(raw);
       setDraggingIdx(null);
       setDragOverIdx(null);
       setActivePlayerName(null);
       pendingAnchorRef.current = null;
     }
-  }, [isOpen, players]);
+  }, [isOpen, players, currentPlayer]);
 
   // 💡 在 DOM 繪製前同步補償滾動偏移量，使按鈕在螢幕上的座標完全不動，滑鼠不需位移即可連續點擊
   useLayoutEffect(() => {
@@ -61,7 +70,7 @@ export function ReorderPlayersModal({
     }
   }, [list]);
 
-  // 移動項目 (上移 / 下移) 並啟動游標錨定補償
+  // 移動項目 (上移 / 下移) - 登入者固定在 0，其餘從 index 1 開始
   const moveItem = (
     fromIndex: number,
     toIndex: number,
@@ -69,7 +78,8 @@ export function ReorderPlayersModal({
     action: 'up' | 'down',
     e: MouseEvent<HTMLButtonElement>
   ) => {
-    if (toIndex < 0 || toIndex >= list.length || fromIndex === toIndex) return;
+    const minIndex = currentPlayer ? 1 : 0;
+    if (fromIndex < minIndex || toIndex < minIndex || toIndex >= list.length || fromIndex === toIndex) return;
 
     const targetBtn = e.currentTarget;
     const beforeRect = targetBtn.getBoundingClientRect();
@@ -86,12 +96,14 @@ export function ReorderPlayersModal({
     setList(nextList);
   };
 
-  // 一鍵置頂
+  // 一鍵置頂 (移動至非登入者的第一位，即 index 1)
   const moveToTop = (index: number, pName: string) => {
-    if (index <= 0) return;
+    const targetIndex = currentPlayer ? 1 : 0;
+    if (index <= targetIndex) return;
+
     const nextList = [...list];
     const [moved] = nextList.splice(index, 1);
-    nextList.unshift(moved);
+    nextList.splice(targetIndex, 0, moved);
     setActivePlayerName(pName);
     setList(nextList);
     if (listContainerRef.current) {
@@ -99,7 +111,7 @@ export function ReorderPlayersModal({
     }
   };
 
-  // 重設為原始預設排序 (登入者優先，其餘按順序)
+  // 重設為原始預設排序 (登入者鎖定第 1 位)
   const handleReset = () => {
     const raw = [...players];
     if (currentPlayer) {
@@ -113,14 +125,26 @@ export function ReorderPlayersModal({
     setList(raw);
   };
 
-  // 儲存並套用
+  // 儲存並套用 (確保登入者永遠置頂)
   const handleSave = () => {
-    onSaveOrder(list);
+    const finalList = [...list];
+    if (currentPlayer) {
+      const myIdx = finalList.findIndex((p) => p.name === currentPlayer.name);
+      if (myIdx > 0) {
+        const [me] = finalList.splice(myIdx, 1);
+        finalList.unshift(me);
+      }
+    }
+    onSaveOrder(finalList);
     onClose();
   };
 
-  // Drag and Drop 處理
+  // Drag and Drop 處理 (登入者不可被拖曳，也不可被 drop 取代 index 0)
   const handleDragStart = (e: DragEvent<HTMLDivElement>, index: number, pName: string) => {
+    if (currentPlayer && pName === currentPlayer.name) {
+      e.preventDefault();
+      return;
+    }
     setDraggingIdx(index);
     setActivePlayerName(pName);
     e.dataTransfer.setData('text/plain', String(index));
@@ -128,7 +152,8 @@ export function ReorderPlayersModal({
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>, index: number) => {
-    if (draggingIdx === null || draggingIdx === index) return;
+    const minIndex = currentPlayer ? 1 : 0;
+    if (draggingIdx === null || draggingIdx === index || index < minIndex) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (dragOverIdx !== index) {
@@ -144,7 +169,8 @@ export function ReorderPlayersModal({
 
   const handleDrop = (e: DragEvent<HTMLDivElement>, targetIndex: number) => {
     e.preventDefault();
-    if (draggingIdx !== null && draggingIdx !== targetIndex) {
+    const minIndex = currentPlayer ? 1 : 0;
+    if (draggingIdx !== null && draggingIdx !== targetIndex && targetIndex >= minIndex && draggingIdx >= minIndex) {
       const pName = list[draggingIdx].name;
       const nextList = [...list];
       const [moved] = nextList.splice(draggingIdx, 1);
@@ -161,6 +187,8 @@ export function ReorderPlayersModal({
     setDragOverIdx(null);
   };
 
+  const minIndex = currentPlayer ? 1 : 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent maxWidthClass="max-w-lg">
@@ -174,7 +202,7 @@ export function ReorderPlayersModal({
         <DialogBody>
           <div className="space-y-3">
             <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs text-amber-900 dark:text-amber-200 font-bold flex items-center justify-between">
-              <span>💡 點選箭頭或拖曳調整順序，游標自動錨定支援連續點擊。</span>
+              <span>💡 當前登入者固定置頂於首位，其他隊友可自由排序。</span>
               <span className="text-[11px] text-amber-700 dark:text-amber-300 font-fredoka">
                 前 {Math.min(visibleCount, list.length)} 位在外顯區
               </span>
@@ -192,12 +220,13 @@ export function ReorderPlayersModal({
                 const isSelf = currentPlayer?.name === p.name;
                 const isActive = activePlayerName === p.name;
                 const charCount = p.characters?.length || 0;
+                const isLockedFirst = isSelf && idx === 0;
 
                 return (
                   <div
                     key={p.name}
                     data-player-row={p.name}
-                    draggable={true}
+                    draggable={!isLockedFirst}
                     onDragStart={(e) => handleDragStart(e, idx, p.name)}
                     onDragOver={(e) => handleDragOver(e, idx)}
                     onDragLeave={(e) => handleDragLeave(e, idx)}
@@ -205,7 +234,9 @@ export function ReorderPlayersModal({
                     onDragEnd={handleDragEnd}
                     className={cn(
                       'flex items-center justify-between p-2 rounded-xl border-1.5 transition-all select-none',
-                      isDragging
+                      isLockedFirst
+                        ? 'border-amber-500/80 bg-gradient-to-r from-amber-50 to-orange-50/80 dark:from-amber-950/50 dark:to-slate-850 shadow-xs ring-1 ring-amber-400/50'
+                        : isDragging
                         ? 'opacity-30 scale-95 border-dashed border-sky-500 bg-sky-50 dark:bg-slate-900'
                         : isDragOver
                         ? 'border-amber-500 bg-amber-200/90 dark:bg-amber-950/80 scale-[1.02] ring-2 ring-amber-400 shadow-md'
@@ -216,16 +247,30 @@ export function ReorderPlayersModal({
                         : 'border-slate-300 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-850/50 opacity-85 hover:border-slate-400'
                     )}
                   >
-                    {/* 左側：拖曳握把 + 順序編號 + 頭像 + 名稱 */}
+                    {/* 左側：拖曳握把 / 鎖定圖示 + 順序編號 + 頭像 + 名稱 */}
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-700 dark:hover:text-slate-200 px-1 py-1">
-                        <GripVertical className="w-4 h-4" />
-                      </div>
+                      {isLockedFirst ? (
+                        <div
+                          className="text-amber-600 dark:text-amber-400 px-1 py-1"
+                          title="當前登入者固定於首位"
+                        >
+                          <Lock className="w-4 h-4" />
+                        </div>
+                      ) : (
+                        <div
+                          className="cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-700 dark:hover:text-slate-200 px-1 py-1"
+                          title="拖曳調整順序"
+                        >
+                          <GripVertical className="w-4 h-4" />
+                        </div>
+                      )}
 
                       <span
                         className={cn(
                           'w-6 h-6 rounded-lg text-xs font-fredoka font-black flex items-center justify-center shrink-0 border',
-                          isVisible
+                          isLockedFirst
+                            ? 'bg-amber-400 text-slate-950 border-amber-500 font-black'
+                            : isVisible
                             ? 'bg-amber-400/20 border-amber-500/50 text-amber-900 dark:text-amber-300'
                             : 'bg-black/5 dark:bg-white/5 border-stone-300 dark:border-slate-700 text-stone-500 dark:text-slate-400'
                         )}
@@ -244,7 +289,7 @@ export function ReorderPlayersModal({
                           <span className="truncate">{p.name}</span>
                           {isSelf && (
                             <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold">
-                              (我)
+                              (我 • 已鎖定首位)
                             </span>
                           )}
                           {p.isAdmin && (
@@ -257,40 +302,48 @@ export function ReorderPlayersModal({
                       </div>
                     </div>
 
-                    {/* 右側：快速移動按鈕 (帶有 data-player-btn 屬性以支援游標精準錨定) */}
+                    {/* 右側：快速移動按鈕 (登入者鎖定首位，禁用所有移動按鈕) */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        data-player-btn={`${p.name}-top`}
-                        disabled={idx === 0}
-                        onClick={() => moveToTop(idx, p.name)}
-                        className="w-6 h-6 rounded-lg text-stone-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-400/25 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer"
-                        title="一鍵置頂"
-                      >
-                        <ArrowUpToLine className="w-3.5 h-3.5" />
-                      </button>
+                      {isLockedFirst ? (
+                        <span className="px-2 py-0.5 rounded-lg bg-amber-400/25 text-amber-800 dark:text-amber-300 text-[10px] font-black border border-amber-500/40">
+                          固定首位
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            data-player-btn={`${p.name}-top`}
+                            disabled={idx <= minIndex}
+                            onClick={() => moveToTop(idx, p.name)}
+                            className="w-6 h-6 rounded-lg text-stone-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-400/25 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer"
+                            title="一鍵置頂 (移動至隊員第 1 位)"
+                          >
+                            <ArrowUpToLine className="w-3.5 h-3.5" />
+                          </button>
 
-                      <button
-                        type="button"
-                        data-player-btn={`${p.name}-up`}
-                        disabled={idx === 0}
-                        onClick={(e) => moveItem(idx, idx - 1, p.name, 'up', e)}
-                        className="w-6 h-6 rounded-lg text-stone-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-400/25 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer"
-                        title="往上移一位"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
+                          <button
+                            type="button"
+                            data-player-btn={`${p.name}-up`}
+                            disabled={idx <= minIndex}
+                            onClick={(e) => moveItem(idx, idx - 1, p.name, 'up', e)}
+                            className="w-6 h-6 rounded-lg text-stone-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-400/25 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer"
+                            title="往上移一位"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
 
-                      <button
-                        type="button"
-                        data-player-btn={`${p.name}-down`}
-                        disabled={idx === list.length - 1}
-                        onClick={(e) => moveItem(idx, idx + 1, p.name, 'down', e)}
-                        className="w-6 h-6 rounded-lg text-stone-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-400/25 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer"
-                        title="往下移一位"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
+                          <button
+                            type="button"
+                            data-player-btn={`${p.name}-down`}
+                            disabled={idx === list.length - 1}
+                            onClick={(e) => moveItem(idx, idx + 1, p.name, 'down', e)}
+                            className="w-6 h-6 rounded-lg text-stone-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-400/25 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all cursor-pointer"
+                            title="往下移一位"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );

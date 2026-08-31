@@ -189,6 +189,10 @@ export function PlayerNavBar({
 
   // 玩家拖曳排序處理函式 (Player DnD Event Handlers)
   const handlePlayerDragStart = (e: DragEvent<HTMLDivElement>, pName: string) => {
+    if (currentPlayer && pName === currentPlayer.name) {
+      e.preventDefault();
+      return;
+    }
     setDraggingPlayerName(pName);
     e.dataTransfer.setData('text/plain', `player:${pName}`);
     e.dataTransfer.effectAllowed = 'move';
@@ -223,8 +227,9 @@ export function PlayerNavBar({
     const currentList = [...sortedPlayers];
     const fromIdx = currentList.findIndex((p) => p.name === sourcePlayerName);
     const toIdx = currentList.findIndex((p) => p.name === targetPlayerName);
+    const minIndex = currentPlayer ? 1 : 0;
 
-    if (fromIdx !== -1 && toIdx !== -1) {
+    if (fromIdx >= minIndex && toIdx >= minIndex) {
       const [movedPlayer] = currentList.splice(fromIdx, 1);
       currentList.splice(toIdx, 0, movedPlayer);
 

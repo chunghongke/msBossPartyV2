@@ -54,34 +54,36 @@ export function saveLocalPlayerOrder(playerNames: string[]) {
   } catch {}
 }
 
+/**
+ * 排序玩家清單：
+ * 💡 規則：若有當前登入者 (currentLoggedInName)，登入者永遠強制固定置頂在第 1 位；
+ * 其餘隊員則嚴格依據自訂排序 (Local Order) 排列。
+ */
 export function sortPlayersByLocalOrder(players: Player[], currentLoggedInName?: string): Player[] {
+  const current = currentLoggedInName ? players.find((p) => p.name === currentLoggedInName) : undefined;
+  const remainingPlayers = currentLoggedInName
+    ? players.filter((p) => p.name !== currentLoggedInName)
+    : players;
+
   const order = getLocalPlayerOrder();
-  
-  // 若尚未有自訂排序且有登入者，預設將登入者排在第一位
-  if (!order || order.length === 0) {
-    if (!currentLoggedInName) return players;
-    const current = players.find((p) => p.name === currentLoggedInName);
-    if (!current) return players;
-    const others = players.filter((p) => p.name !== currentLoggedInName);
-    return [current, ...others];
-  }
+  const playerMap = new Map(remainingPlayers.map((p) => [p.name, p]));
+  const sortedOthers: Player[] = [];
 
-  const playerMap = new Map(players.map((p) => [p.name, p]));
-  const sorted: Player[] = [];
-
-  // 依照自訂順序加入
+  // 依照自訂順序加入其餘玩家
   order.forEach((name) => {
+    if (name === currentLoggedInName) return; // 登入者由置頂邏輯處理，跳過
     const p = playerMap.get(name);
     if (p) {
-      sorted.push(p);
+      sortedOthers.push(p);
       playerMap.delete(name);
     }
   });
 
   // 其餘新加入的玩家排在最後
   playerMap.forEach((p) => {
-    sorted.push(p);
+    sortedOthers.push(p);
   });
 
-  return sorted;
+  // 當前登入者永遠固定在第 1 位
+  return current ? [current, ...sortedOthers] : sortedOthers;
 }
