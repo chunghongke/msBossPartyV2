@@ -15,6 +15,14 @@ export interface PlayerSlice {
   renameCharacter: (charId: string, newName: string) => Promise<void>;
 }
 
+export interface SaveTeamOptions {
+  oldBossId?: string;
+  charId?: string;
+  entryIndex?: number;
+  newPlayers?: Player[];
+  deletedRecordKeys?: string[];
+}
+
 export interface StoreSlice {
   store: StoreData;
   isLoading: boolean;
@@ -29,7 +37,12 @@ export interface StoreSlice {
     onRequireShardModal?: (recordKey: string, boss: any, team: any, pendingComplete?: boolean) => void
   ) => Promise<void>;
   updateWeeklyRecord: (recordKey: string, partialRecord: Partial<WeeklyRecord>) => Promise<void>;
-  saveTeamAndRecords: (team: Team, updatedRecords: Record<string, WeeklyRecord>, bossId?: string) => Promise<void>;
+  saveTeamAndRecords: (
+    team: Team,
+    updatedRecords: Record<string, WeeklyRecord>,
+    bossId?: string,
+    options?: SaveTeamOptions
+  ) => Promise<void>;
   addGuest: (guestName: string) => Promise<Guest>;
   deleteGuest: (guestId: string) => Promise<void>;
 }

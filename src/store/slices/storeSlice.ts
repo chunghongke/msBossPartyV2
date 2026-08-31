@@ -3,7 +3,7 @@ import { ref, set } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
 import { getBoss, BOSSES } from '@/data/bosses';
-import { AppSlice, StoreSlice } from '../types';
+import { AppSlice, StoreSlice, SaveTeamOptions } from '../types';
 import { sanitizeStoreAndTeams } from '../sanitize';
 
 export const DEFAULT_STORE: StoreData = {
@@ -282,15 +282,96 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     });
   },
 
-  saveTeamAndRecords: async (team: Team, updatedRecords: Record<string, WeeklyRecord>, bossId?: string) => {
-    const { store, players, saveStoreToCloud } = get();
+    saveTeamAndRecords: async (
+    team: Team,
+    updatedRecords: Record<string, WeeklyRecord>,
+    bossId?: string,
+    options?: SaveTeamOptions
+  ) => {
+    const { store, players, savePlayersToCloud, saveStoreToCloud } = get();
+
+    // 1. 若有傳入新玩家角色資料 (難度切換)，優先持久化至雲端與本機狀態
+    let effectivePlayers = players;
+    if (options?.newPlayers) {
+      await savePlayersToCloud(options.newPlayers);
+      effectivePlayers = options.newPlayers;
+    }
+
     const nextTeams = { ...store.teams };
     const nextWeeklyRecords = { ...store.weeklyRecords };
 
-    // 1. 取得本次組隊涵蓋的所有成員 targets
+    // 2. 清理指定的已刪除記錄鍵
+    if (options?.deletedRecordKeys) {
+      options.deletedRecordKeys.forEach((key) => {
+        delete nextWeeklyRecords[key];
+      });
+    }
+
+    // 3. 💡 關鍵修復：若發生難度切換 (oldBossId)，安全退出該角色在【舊難度】的所有隊伍
+    if (options?.oldBossId && options?.charId) {
+      const oldBId = options.oldBossId;
+      const cId = options.charId;
+      const eIdx = options.entryIndex || 1;
+
+      Object.entries(nextTeams).forEach(([tId, existingTeam]) => {
+        if (tId === team.id) return;
+
+        // 判斷是否為該角色的舊難度隊伍
+        const hasMember = (existingTeam.memberTargets || []).some(
+          (m) => m.charId === cId && m.entryIndex === eIdx
+        );
+
+        if (!hasMember) return;
+
+        // 檢查是否屬於 oldBossId
+        let existingBossId = '';
+        for (const r of Object.values(nextWeeklyRecords)) {
+          if (r && r.teamId === tId && r.bossId) {
+            existingBossId = r.bossId;
+            break;
+          }
+        }
+        if (!existingBossId && tId.includes(`_${oldBId}_`)) {
+          existingBossId = oldBId;
+        }
+
+        if (existingBossId === oldBId || tId.includes(`_${oldBId}_`)) {
+          const remainingMembers = (existingTeam.memberTargets || []).filter(
+            (m) => !(m.charId === cId && m.entryIndex === eIdx)
+          );
+
+          if (remainingMembers.length <= 1) {
+            delete nextTeams[tId];
+            if (remainingMembers.length === 1) {
+              const solo = remainingMembers[0];
+              const defaultSingleId = `single_${solo.charId}_${oldBId}_${solo.entryIndex}`;
+              nextTeams[defaultSingleId] = {
+                id: defaultSingleId,
+                memberTargets: [solo],
+                schedule: existingTeam.schedule || null,
+              };
+              const soloKey = `rec_${solo.charId}_${oldBId}_${solo.entryIndex}`;
+              if (nextWeeklyRecords[soloKey]) {
+                nextWeeklyRecords[soloKey] = {
+                  ...nextWeeklyRecords[soloKey],
+                  teamId: defaultSingleId,
+                };
+              }
+            }
+          } else {
+            nextTeams[tId] = {
+              ...existingTeam,
+              memberTargets: remainingMembers,
+            };
+          }
+        }
+      });
+    }
+
+    // 4. 取得本次組隊涵蓋的所有成員 targets
     const currentTargets = team.memberTargets || [];
 
-    // 2. 針對加入本隊伍的所有成員，檢查並退出他們原本參與的【同 BOSS】其他隊伍 (避免同一個 BOSS 雙重組隊)
+    // 5. 針對加入本隊伍的所有成員，檢查並退出他們原本參與的【同 BOSS】其他隊伍 (避免同一個 BOSS 雙重組隊)
     currentTargets.forEach((t) => {
       Object.entries(nextTeams).forEach(([tId, existingTeam]) => {
         if (tId === team.id) return;
@@ -309,8 +390,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           if (match) existingBossId = match.id;
         }
 
-        // ⚠️ 關鍵隔離：只有在【同一個 BOSS】內，同個角色才不能同時存在兩個隊伍！
-        // 若為不同 BOSS（如極限賽蓮與燦爛凶星），絕對不能互相退出！
+        // 只有在【同一個 BOSS】內，同個角色才不能同時存在兩個隊伍
         if (bossId && existingBossId && existingBossId !== bossId) {
           return;
         }
@@ -329,10 +409,8 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           );
 
           if (remainingMembers.length <= 1) {
-            // 原隊伍剩餘人數 <= 1 人，自動解散該隊伍
             delete nextTeams[tId];
 
-            // 若剩餘 1 人，且該隊友「沒有加入新隊伍」，將其恢復為單人隊伍 (single team)
             if (remainingMembers.length === 1) {
               const solo = remainingMembers[0];
               const isSoloInNewTeam = currentTargets.some(
@@ -361,7 +439,6 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
               }
             }
           } else {
-            // 隊伍仍有多人，更新剩餘成員
             nextTeams[tId] = {
               ...existingTeam,
               memberTargets: remainingMembers,
@@ -371,14 +448,14 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
       });
     });
 
-    // 3. 寫入新隊伍與清理空隊伍
+    // 6. 寫入新隊伍與清理空隊伍
     if (team.memberTargets.length > 0) {
       nextTeams[team.id] = team;
     } else {
       delete nextTeams[team.id];
     }
 
-    // 4. 強制覆蓋寫入所有新隊伍成員的 updatedRecords，確保每個成員的 weeklyRecord 100% 正確指向新隊伍
+    // 7. 強制覆蓋寫入所有新隊伍成員的 updatedRecords，確保每個成員的 weeklyRecord 100% 正確指向新隊伍
     Object.entries(updatedRecords).forEach(([recKey, recVal]) => {
       nextWeeklyRecords[recKey] = {
         ...(nextWeeklyRecords[recKey] || {}),
@@ -387,8 +464,8 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
       };
     });
 
-    // 5. 再次呼叫 sanitizeStoreAndTeams 進行最終雙向校驗與防禦修復
-    sanitizeStoreAndTeams(players, {
+    // 8. 呼叫 sanitizeStoreAndTeams 進行最終雙向校驗與防禦修復 (使用最新的 effectivePlayers)
+    sanitizeStoreAndTeams(effectivePlayers, {
       teams: nextTeams,
       weeklyRecords: nextWeeklyRecords,
       guests: store.guests || [],
