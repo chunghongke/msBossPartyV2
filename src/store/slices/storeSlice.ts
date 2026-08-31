@@ -1,3 +1,4 @@
+import { Character } from '@/types/player';
 import { ref, set } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
@@ -30,6 +31,128 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     if (!activeGroup?.firebaseConfig) return;
     const db = getRtdb(activeGroup.firebaseConfig);
     await set(ref(db, 'store'), cleanStore);
+  },
+
+    toggleAllCharacterBosses: async (character: Character) => {
+    const { store, saveStoreToCloud } = get();
+
+    // 收集該角色的所有 boss entries
+    const entries: { bossId: string; entryIndex: 1 | 2 }[] = [];
+    (character.bossIds || []).forEach((bId: string) => entries.push({ bossId: bId, entryIndex: 1 }));
+    (character.resetBossIds || []).forEach((bId: string) => entries.push({ bossId: bId, entryIndex: 2 }));
+
+    if (entries.length === 0) return;
+
+    // 檢查目前是否全部皆已完成
+    const allCompleted = entries.every(({ bossId, entryIndex }) => {
+      const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
+      return Boolean(store.weeklyRecords[recKey]?.isCompleted);
+    });
+
+    // 若全部已完成 -> 目標為「全部取消完成 (false)」；若未全滿 -> 目標為「全部完成 (true)」
+    const targetCompleted = !allCompleted;
+    const nextRecords = { ...store.weeklyRecords };
+
+    if (!targetCompleted) {
+      // 全部取消完成
+      entries.forEach(({ bossId, entryIndex }) => {
+        const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
+        const targetRecord = store.weeklyRecords[recKey];
+        const targetTeamId = targetRecord?.teamId;
+
+        if (targetTeamId && store.teams[targetTeamId]) {
+          const team = store.teams[targetTeamId];
+          const rawMembers = team.memberTargets || (team.memberCharIds || []).map((id: any) => ({ charId: id, entryIndex }));
+          rawMembers.forEach((m: any) => {
+            const mKey = `rec_${m.charId}_${bossId}_${m.entryIndex || 1}`;
+            const existing = nextRecords[mKey] || store.weeklyRecords[mKey] || {
+              charId: m.charId,
+              bossId,
+              entryIndex: m.entryIndex || 1,
+              teamId: targetTeamId,
+            };
+            nextRecords[mKey] = {
+              ...existing,
+              isCompleted: false,
+            };
+          });
+        } else {
+          nextRecords[recKey] = {
+            ...(targetRecord || {
+              charId: character.id,
+              bossId,
+              entryIndex,
+            }),
+            isCompleted: false,
+          };
+        }
+      });
+    } else {
+      // 全部標記完成 (尊重 12 隻上限，最多勾選至 12 隻)
+      let currentCompletedCount = Object.entries(nextRecords).filter(
+        ([k, r]) => k.startsWith(`rec_${character.id}_`) && r && r.isCompleted
+      ).length;
+
+      for (const { bossId, entryIndex } of entries) {
+        const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
+        const targetRecord = nextRecords[recKey] || store.weeklyRecords[recKey];
+
+        // 若已經是完成狀態，跳過
+        if (targetRecord?.isCompleted) continue;
+
+        // 若已達 12 隻上限，不再新增
+        if (currentCompletedCount >= 12) break;
+
+        const boss = getBoss(bossId);
+        const targetTeamId = targetRecord?.teamId;
+
+        if (targetTeamId && store.teams[targetTeamId]) {
+          const team = store.teams[targetTeamId];
+          const rawMembers = team.memberTargets || (team.memberCharIds || []).map((id: any) => ({ charId: id, entryIndex }));
+          const validMembers = rawMembers.filter((m: any) => {
+            if (!m.charId.startsWith('guest_')) return true;
+            return (store.guests || []).some((g) => g.id === m.charId);
+          });
+
+          const isMulti = validMembers.length > 1;
+          const actualTeamSize = validMembers.length;
+          const maxPartySize = boss?.maxPartySize || 1;
+          const dividesEvenly = Boolean(boss && boss.erionVestiges > 0 && isMulti && maxPartySize % actualTeamSize === 0);
+          const fairShare = dividesEvenly ? maxPartySize / actualTeamSize : null;
+
+          rawMembers.forEach((m: any) => {
+            const mKey = `rec_${m.charId}_${bossId}_${m.entryIndex || 1}`;
+            const existing = nextRecords[mKey] || store.weeklyRecords[mKey] || {
+              charId: m.charId,
+              bossId,
+              entryIndex: m.entryIndex || 1,
+              teamId: targetTeamId,
+            };
+            nextRecords[mKey] = {
+              ...existing,
+              isCompleted: true,
+              ...(dividesEvenly && fairShare !== null ? { shardShares: fairShare } : {}),
+            };
+          });
+        } else {
+          nextRecords[recKey] = {
+            ...(targetRecord || {
+              charId: character.id,
+              bossId,
+              entryIndex,
+            }),
+            isCompleted: true,
+          };
+        }
+
+        currentCompletedCount += 1;
+      }
+    }
+
+    await saveStoreToCloud({
+      ...store,
+      weeklyRecords: nextRecords,
+    });
   },
 
   toggleBossStatus: async (

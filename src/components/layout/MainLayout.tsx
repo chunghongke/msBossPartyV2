@@ -54,7 +54,8 @@ export function MainLayout({
 }: MainLayoutProps) {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
   const { currentPlayer } = useAuth();
-  const { players, store, isLoading: isStoreLoading, toggleBossStatus, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud } = useStore();
+  const { players, store, isLoading: isStoreLoading, toggleBossStatus,
+    toggleAllCharacterBosses, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud } = useStore();
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
   const { calculateCrystal, formatCrystal } = useCalculator(store);
 
@@ -367,12 +368,13 @@ export function MainLayout({
                     {characters.length > 0 ? (
                       characters.map((char) =>
                         viewMode === 'compact' ? (
-                          <CompactCharacterRow
+                                                    <CompactCharacterRow
                             key={char.id}
                             character={char}
                             playerName={player.name}
                             store={store}
                             onToggleStatus={toggleBossStatus}
+                            onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}
                             onOpenShardModal={onOpenShardModal}
                             onOpenEditBosses={onOpenEditBosses}
@@ -382,12 +384,13 @@ export function MainLayout({
                             onShowScheduleInfo={onShowScheduleInfo}
                           />
                         ) : (
-                          <CharacterCard
+                                                    <CharacterCard
                             key={char.id}
                             character={char}
                             playerName={player.name}
                             store={store}
                             onToggleStatus={toggleBossStatus}
+                            onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}
                             onOpenShardModal={onOpenShardModal}
                             onOpenEditBosses={onOpenEditBosses}

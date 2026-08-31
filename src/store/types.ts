@@ -23,6 +23,7 @@ export interface StoreSlice {
   setStore: (store: StoreData) => void;
   setIsLoading: (isLoading: boolean) => void;
   saveStoreToCloud: (store: StoreData) => Promise<void>;
+  toggleAllCharacterBosses: (character: Character) => Promise<void>;
   toggleBossStatus: (
     recordKey: string,
     onRequireShardModal?: (recordKey: string, boss: any, team: any, pendingComplete?: boolean) => void

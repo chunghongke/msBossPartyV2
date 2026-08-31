@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { BossCell } from './BossCell';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
-import { Edit2, Ticket, Sparkles, UserX } from 'lucide-react';
+import { Edit2, Ticket, Sparkles, UserX, CheckCheck, RotateCcw } from 'lucide-react';
 
 interface CharacterCardProps {
   character: Character;
@@ -25,6 +25,7 @@ interface CharacterCardProps {
   onOpenRenameModal: (character: Character, playerName: string) => void;
   onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
+  onToggleAllBosses?: (character: Character) => void;
 }
 
 export function CharacterCard({
@@ -39,6 +40,7 @@ export function CharacterCard({
   onOpenRenameModal,
   onDeleteCharacter,
   onShowScheduleInfo,
+  onToggleAllBosses,
 }: CharacterCardProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
@@ -237,6 +239,33 @@ export function CharacterCard({
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
+
+                {/* 💡 一鍵全部完成 / 全部取消完成按鈕 */}
+                {isOwnerOrAdmin && hasBosses && onToggleAllBosses && (
+                  <Button
+                    size="sm"
+                    variant={progressStats.completed === progressStats.total && progressStats.total > 0 ? "parchment" : "green"}
+                    onClick={() => onToggleAllBosses(character)}
+                    className="w-full text-xs font-black h-7 mt-2 shadow-xs"
+                    title={
+                      progressStats.completed === progressStats.total && progressStats.total > 0
+                        ? "一鍵全部取消完成"
+                        : "一鍵將此角色清單上的所有 BOSS 標記為已完成 (上限 12 隻)"
+                    }
+                  >
+                    {progressStats.completed === progressStats.total && progressStats.total > 0 ? (
+                      <>
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        <span>全部取消完成</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCheck className="w-3.5 h-3.5 mr-1" />
+                        <span>一鍵全部完成</span>
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

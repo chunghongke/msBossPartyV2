@@ -9,7 +9,7 @@ import { useStore } from '@/store';
 import { cn } from '@/utils/cn';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import { BossCell } from './BossCell';
-import { Edit2, Ticket, Sparkles, UserX, Users, Clock } from 'lucide-react';
+import { Edit2, Ticket, Sparkles, UserX, Users, Clock, CheckCheck, RotateCcw } from 'lucide-react';
 
 interface CompactCharacterRowProps {
   character: Character;
@@ -26,6 +26,7 @@ interface CompactCharacterRowProps {
   onOpenRenameModal: (character: Character, playerName: string) => void;
   onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
+  onToggleAllBosses?: (character: Character) => void;
 }
 
 const DIFFICULTY_BADGES: Record<Difficulty, { label: string; tagClass: string; ringClass: string }> = {
@@ -325,6 +326,7 @@ export function CompactCharacterRow({
   playerName,
   store,
   onToggleStatus,
+  onToggleAllBosses,
   onOpenPartyModal,
   onOpenShardModal,
   onOpenEditBosses,
@@ -490,16 +492,49 @@ export function CompactCharacterRow({
           )}
         </div>
 
-        {/* 右側：綠色擊破進度徽章 */}
-        <div className="flex items-center gap-1 px-2 py-0.2 bg-[#EEF8EE] dark:bg-emerald-950/40 rounded border border-emerald-400/60 dark:border-emerald-800 font-black text-emerald-800 dark:text-emerald-300 text-[10.5px]">
-          <span>🍃</span>
-          <span className="font-fredoka text-[11px]">{progressStats.completed} / {progressStats.total}</span>
-          <div className="w-10 h-1.5 bg-black/10 dark:bg-black/40 rounded-full overflow-hidden ml-0.5">
-            <div
-              className="h-full bg-emerald-500 rounded-full transition-all"
-              style={{ width: `${progressPercent}%` }}
-            />
+        {/* 右側：綠色擊破進度徽章 ＋ 一鍵全部完成快捷按鈕 */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 px-2 py-0.2 bg-[#EEF8EE] dark:bg-emerald-950/40 rounded border border-emerald-400/60 dark:border-emerald-800 font-black text-emerald-800 dark:text-emerald-300 text-[10.5px]">
+            <span>🍃</span>
+            <span className="font-fredoka text-[11px]">{progressStats.completed} / {progressStats.total}</span>
+            <div className="w-10 h-1.5 bg-black/10 dark:bg-black/40 rounded-full overflow-hidden ml-0.5">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
           </div>
+
+          {/* 💡 一鍵全部完成 / 全部取消完成快捷按鈕 */}
+          {isOwnerOrAdmin && hasBosses && onToggleAllBosses && (
+            <button
+              type="button"
+              onClick={() => onToggleAllBosses(character)}
+              className={cn(
+                "px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center gap-1 border transition-all cursor-pointer select-none active:scale-95 shadow-2xs",
+                progressStats.completed === progressStats.total && progressStats.total > 0
+                  ? "bg-stone-200/90 hover:bg-stone-300 text-stone-700 dark:bg-slate-700 dark:hover:bg-slate-650 dark:text-slate-200 border-stone-300 dark:border-slate-600"
+                  : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-emerald-600 shadow-xs"
+              )}
+              title={
+                progressStats.completed === progressStats.total && progressStats.total > 0
+                  ? "一鍵全部取消完成"
+                  : "一鍵將此角色清單上的所有 BOSS 標記為完成 (上限 12 隻)"
+              }
+            >
+              {progressStats.completed === progressStats.total && progressStats.total > 0 ? (
+                <>
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  <span>全部重設</span>
+                </>
+              ) : (
+                <>
+                  <CheckCheck className="w-3 h-3" />
+                  <span>一鍵全過</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
