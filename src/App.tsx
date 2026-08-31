@@ -29,7 +29,7 @@ function AppContent() {
         onOpenEditBosses={(char, pName) => controller.openEditBosses(char, pName || char.playerName || '')}
         onOpenResetConfig={(char, pName) => controller.openResetConfig(char, pName || char.playerName || '')}
         onOpenRenameModal={(char) => controller.openRenameModal(char)}
-        onDeleteCharacter={() => {}}
+        onDeleteCharacter={(charId, pName) => controller.openDeleteCharModal(charId, pName)}
         onShowScheduleInfo={controller.openScheduleInfo}
       />
       {!isGlobalLoading && modals}

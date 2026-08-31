@@ -340,9 +340,11 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
             (m) => !(m.charId === cId && m.entryIndex === eIdx)
           );
 
-          if (remainingMembers.length <= 1) {
+          const hasRealChar = remainingMembers.some((m: any) => !m.charId.startsWith('guest_'));
+
+          if (!hasRealChar || remainingMembers.length <= 1) {
             delete nextTeams[tId];
-            if (remainingMembers.length === 1) {
+            if (remainingMembers.length === 1 && !remainingMembers[0].charId.startsWith('guest_')) {
               const solo = remainingMembers[0];
               const defaultSingleId = `single_${solo.charId}_${oldBId}_${solo.entryIndex}`;
               nextTeams[defaultSingleId] = {
@@ -357,6 +359,13 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
                   teamId: defaultSingleId,
                 };
               }
+            } else {
+              remainingMembers.forEach((m: any) => {
+                if (m.charId.startsWith('guest_')) {
+                  const guestKey = `rec_${m.charId}_${oldBId}_${m.entryIndex || 1}`;
+                  delete nextWeeklyRecords[guestKey];
+                }
+              });
             }
           } else {
             nextTeams[tId] = {

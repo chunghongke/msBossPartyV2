@@ -13,6 +13,7 @@ export interface PlayerSlice {
   addCharacter: (playerName: string, newChar: Character) => Promise<void>;
   updateCharacter: (playerName: string, updatedChar: Character) => Promise<void>;
   renameCharacter: (charId: string, newName: string) => Promise<void>;
+  deleteCharacter: (playerName: string, charId: string) => Promise<void>;
 }
 
 export interface SaveTeamOptions {

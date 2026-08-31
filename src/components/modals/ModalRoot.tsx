@@ -14,6 +14,7 @@ import { ShardShareModal } from './ShardShareModal';
 import { ScheduleInfoModal } from './ScheduleInfoModal';
 import { NotificationModal } from './NotificationModal';
 import { NexonKeyModal } from './NexonKeyModal';
+import { DeleteCharacterModal } from './DeleteCharacterModal';
 
 export interface ModalController {
   openGroupModal: () => void;
@@ -28,6 +29,7 @@ export interface ModalController {
   openPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void;
   openScheduleInfo: (team: Team) => void;
+  openDeleteCharModal: (charId: string, playerName: string) => void;
 }
 
 export function useModalState() {
@@ -45,6 +47,7 @@ export function useModalState() {
   const [partyTarget, setPartyTarget] = useState<{ charId: string; bossId: string; entryIndex: number } | null>(null);
   const [shardTarget, setShardTarget] = useState<{ recordKey: string; boss: Boss; team: Team | null; pendingComplete?: boolean } | null>(null);
   const [scheduleInfoTeam, setScheduleInfoTeam] = useState<Team | null>(null);
+  const [deleteCharTarget, setDeleteCharTarget] = useState<{ charId: string; playerName: string } | null>(null);
 
   const controller: ModalController = useMemo(
     () => ({
@@ -64,6 +67,7 @@ export function useModalState() {
       openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) =>
         setShardTarget({ recordKey, boss, team, pendingComplete }),
       openScheduleInfo: (team: Team) => setScheduleInfoTeam(team),
+      openDeleteCharModal: (charId: string, playerName: string) => setDeleteCharTarget({ charId, playerName }),
     }),
     []
   );
@@ -159,6 +163,12 @@ export function useModalState() {
           team={scheduleInfoTeam}
         />
       )}
+          <DeleteCharacterModal
+        isOpen={Boolean(deleteCharTarget)}
+        onClose={() => setDeleteCharTarget(null)}
+        charId={deleteCharTarget?.charId || null}
+        playerName={deleteCharTarget?.playerName || null}
+      />
     </>
   );
 

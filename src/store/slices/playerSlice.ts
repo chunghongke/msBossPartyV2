@@ -1,3 +1,4 @@
+import { getBoss, BOSSES } from '@/data/bosses';
 import { ref, set } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { Player, Character } from '@/types/player';
@@ -225,6 +226,155 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
         weeklyRecords: nextWeeklyRecords,
       });
     }
+  },
+
+    deleteCharacter: async (playerName: string, charId: string) => {
+    const { players, store, savePlayersToCloud, saveStoreToCloud } = get();
+
+    // 1. 從玩家陣列中移除該角色
+    const updatedPlayers = players.map((p) => {
+      if (p.name === playerName) {
+        return {
+          ...p,
+          characters: (p.characters || []).filter((c) => c.id !== charId),
+        };
+      }
+      return p;
+    });
+
+    const nextTeams = { ...(store.teams || {}) };
+    const nextWeeklyRecords = { ...(store.weeklyRecords || {}) };
+
+    // 2. 刪除該角色的所有專屬單人隊伍
+    Object.keys(nextTeams).forEach((teamId) => {
+      if (teamId.startsWith(`single_${charId}_`)) {
+        delete nextTeams[teamId];
+      }
+    });
+
+    // 3. 處理該角色參與的所有多人隊伍 (退出、解散或降級)
+    Object.entries(nextTeams).forEach(([teamId, team]) => {
+      if (teamId.startsWith('single_')) return;
+      const hasChar = (team.memberTargets || []).some((m: any) => m.charId === charId);
+      if (!hasChar) return;
+
+      const remaining = (team.memberTargets || []).filter((m: any) => m.charId !== charId);
+
+      const hasRealChar = remaining.some((m: any) => !m.charId.startsWith('guest_'));
+
+      if (!hasRealChar || remaining.length <= 1) {
+        // 多人小隊無正式角色或人數 <= 1，解散該隊伍！
+        delete nextTeams[teamId];
+
+        // 找出此隊伍所屬的 BOSS ID
+        let teamBossId = '';
+        for (const r of Object.values(nextWeeklyRecords)) {
+          if (r && r.teamId === teamId && r.bossId) {
+            teamBossId = r.bossId;
+            break;
+          }
+        }
+        if (!teamBossId) {
+          const match = BOSSES.find((b) => teamId.includes(`_${b.id}_`));
+          if (match) teamBossId = match.id;
+        }
+
+        if (remaining.length === 1 && !remaining[0].charId.startsWith('guest_')) {
+          const solo = remaining[0];
+          if (teamBossId) {
+            const defaultSingleId = `single_${solo.charId}_${teamBossId}_${solo.entryIndex}`;
+            nextTeams[defaultSingleId] = {
+              id: defaultSingleId,
+              memberTargets: [solo],
+              schedule: team.schedule || null,
+            };
+            const soloRecKey = `rec_${solo.charId}_${teamBossId}_${solo.entryIndex}`;
+            if (nextWeeklyRecords[soloRecKey]) {
+              nextWeeklyRecords[soloRecKey] = {
+                ...nextWeeklyRecords[soloRecKey],
+                teamId: defaultSingleId,
+              };
+            }
+          }
+        } else {
+          // 若剩餘成員為 Guest，徹底刪除該 Guest 的每週紀錄
+          remaining.forEach((m: any) => {
+            if (m.charId.startsWith('guest_') && teamBossId) {
+              const guestRecKey = `rec_${m.charId}_${teamBossId}_${m.entryIndex || 1}`;
+              delete nextWeeklyRecords[guestRecKey];
+            }
+          });
+        }
+      } else {
+        // 多人小隊仍有 2 人以上，更新成員名單
+        nextTeams[teamId] = {
+          ...team,
+          memberTargets: remaining,
+        };
+
+        // 若為掉落艾里溫碎片的 BOSS 且可整除，重新均分份數
+        let teamBossId = '';
+        for (const r of Object.values(nextWeeklyRecords)) {
+          if (r && r.teamId === teamId && r.bossId) {
+            teamBossId = r.bossId;
+            break;
+          }
+        }
+        const boss = teamBossId ? getBoss(teamBossId) : null;
+        if (boss && boss.erionVestiges > 0) {
+          const validMembers = remaining.filter((m: any) => {
+            if (!m.charId.startsWith('guest_')) return true;
+            return (store.guests || []).some((g) => g.id === m.charId);
+          });
+          const actualSize = validMembers.length;
+          const maxPartySize = boss.maxPartySize || 1;
+          const dividesEvenly = maxPartySize % actualSize === 0;
+          const fairShare = dividesEvenly ? maxPartySize / actualSize : null;
+
+          if (dividesEvenly && fairShare !== null) {
+            remaining.forEach((m: any) => {
+              const mKey = `rec_${m.charId}_${teamBossId}_${m.entryIndex}`;
+              if (nextWeeklyRecords[mKey] && nextWeeklyRecords[mKey].isCompleted) {
+                nextWeeklyRecords[mKey] = {
+                  ...nextWeeklyRecords[mKey],
+                  shardShares: fairShare,
+                };
+              }
+            });
+          }
+        }
+      }
+    });
+
+    // 4. 清空該角色的所有每週討伐紀錄
+    Object.keys(nextWeeklyRecords).forEach((key) => {
+      if (key.startsWith(`rec_${charId}_`)) {
+        delete nextWeeklyRecords[key];
+      }
+    });
+
+    // 5. 清理 localStorage 中的自訂角色排序
+    try {
+      const orderKey = `boss_party_char_order_${playerName}`;
+      const currentOrder = JSON.parse(localStorage.getItem(orderKey) || '[]');
+      const nextOrder = currentOrder.filter((id: string) => id !== charId);
+      localStorage.setItem(orderKey, JSON.stringify(nextOrder));
+    } catch {}
+
+    // 6. 執行全域自我修復與防禦校驗
+    sanitizeStoreAndTeams(updatedPlayers, {
+      teams: nextTeams,
+      weeklyRecords: nextWeeklyRecords,
+      guests: store.guests || [],
+    });
+
+    // 7. 同步儲存至 Firebase 與 Zustand
+    await savePlayersToCloud(updatedPlayers);
+    await saveStoreToCloud({
+      ...store,
+      teams: nextTeams,
+      weeklyRecords: nextWeeklyRecords,
+    });
   },
 
   renameCharacter: async (charId: string, newName: string) => {

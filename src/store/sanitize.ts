@@ -56,14 +56,17 @@ export function sanitizeStoreAndTeams(
       return Array.isArray(char.bossIds) && char.bossIds.includes(teamBossId);
     });
 
-    // 若成員被過濾後只剩 <= 1 人，解散該隊伍
-    if (validMembers.length <= 1) {
-      if (validMembers.length === 1) {
+    // 💡 關鍵防呆：若隊伍中已無任何正式角色 (全是 Guest)，或成員只剩 <= 1 人，解散該隊伍！
+    const hasRealCharacter = validMembers.some((m: any) => !m.charId.startsWith('guest_'));
+
+    if (!hasRealCharacter || validMembers.length <= 1) {
+      if (validMembers.length === 1 && !validMembers[0].charId.startsWith('guest_')) {
         const solo = validMembers[0];
         const defaultSingleId = `single_${solo.charId}_${teamBossId}_${solo.entryIndex}`;
         rawStore.teams[defaultSingleId] = {
           id: defaultSingleId,
           memberTargets: [solo],
+          schedule: team.schedule || null,
         };
         const soloRecKey = `rec_${solo.charId}_${teamBossId}_${solo.entryIndex}`;
         if (rawStore.weeklyRecords[soloRecKey]) {
@@ -72,6 +75,14 @@ export function sanitizeStoreAndTeams(
             teamId: defaultSingleId,
           };
         }
+      } else {
+        // 若為 Guest 孤立，清除該 Guest 的 weeklyRecord
+        validMembers.forEach((m: any) => {
+          if (m.charId.startsWith('guest_')) {
+            const guestRecKey = `rec_${m.charId}_${teamBossId}_${m.entryIndex || 1}`;
+            delete rawStore.weeklyRecords[guestRecKey];
+          }
+        });
       }
       delete rawStore.teams[teamId];
       hasChanged = true;
@@ -166,6 +177,25 @@ export function sanitizeStoreAndTeams(
             schedule: null,
           };
         }
+        hasChanged = true;
+      }
+    }
+  });
+
+  // 5. 💡 徹底清理所有單人 Guest 隊伍 (Guest 絕不允許有單人隊)
+  Object.keys(rawStore.teams).forEach((teamId) => {
+    if (teamId.startsWith('single_guest_')) {
+      delete rawStore.teams[teamId];
+      hasChanged = true;
+    }
+  });
+
+  // 6. 徹底清理指向不存在隊伍或單人隊伍的 Guest 孤立紀錄
+  Object.keys(rawStore.weeklyRecords).forEach((key) => {
+    if (key.startsWith('rec_guest_')) {
+      const rec = rawStore.weeklyRecords[key];
+      if (!rec?.teamId || rec.teamId.startsWith('single_') || !rawStore.teams[rec.teamId]) {
+        delete rawStore.weeklyRecords[key];
         hasChanged = true;
       }
     }
