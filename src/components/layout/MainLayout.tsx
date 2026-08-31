@@ -28,6 +28,7 @@ interface MainLayoutProps {
   onOpenNexonKeyModal?: () => void;
   onOpenAddPlayerModal: () => void;
   onOpenAddCharacterModal: (playerName: string) => void;
+  onOpenDeletePlayerModal?: (player: Player) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal: (recordKey: string, boss: Boss, team: any) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
@@ -45,6 +46,7 @@ export function MainLayout({
   onOpenNexonKeyModal,
   onOpenAddPlayerModal,
   onOpenAddCharacterModal,
+  onOpenDeletePlayerModal,
   onOpenPartyModal,
   onOpenShardModal,
   onOpenEditBosses,
@@ -335,6 +337,7 @@ export function MainLayout({
             onSelectPlayer={handleSelectPlayer}
             onOpenAddPlayerModal={onOpenAddPlayerModal}
             onOpenAddCharacterModal={onOpenAddCharacterModal}
+            onOpenDeletePlayerModal={onOpenDeletePlayerModal}
             onScrollToCharacter={scrollToCharacter}
             onReorderCharacters={handleReorderCharacters}
             onReorderPlayers={handleReorderPlayers}

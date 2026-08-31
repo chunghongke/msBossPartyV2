@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Character } from '@/types/player';
+import { Character, Player } from '@/types/player';
 import { Boss } from '@/types/boss';
 import { Team } from '@/types/party';
 import { GroupModal } from './GroupModal';
@@ -15,6 +15,7 @@ import { ScheduleInfoModal } from './ScheduleInfoModal';
 import { NotificationModal } from './NotificationModal';
 import { NexonKeyModal } from './NexonKeyModal';
 import { DeleteCharacterModal } from './DeleteCharacterModal';
+import { DeletePlayerModal } from './DeletePlayerModal';
 
 export interface ModalController {
   openGroupModal: () => void;
@@ -30,6 +31,7 @@ export interface ModalController {
   openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void;
   openScheduleInfo: (team: Team) => void;
   openDeleteCharModal: (charId: string, playerName: string) => void;
+  openDeletePlayerModal: (player: Player) => void;
 }
 
 export function useModalState() {
@@ -48,6 +50,7 @@ export function useModalState() {
   const [shardTarget, setShardTarget] = useState<{ recordKey: string; boss: Boss; team: Team | null; pendingComplete?: boolean } | null>(null);
   const [scheduleInfoTeam, setScheduleInfoTeam] = useState<Team | null>(null);
   const [deleteCharTarget, setDeleteCharTarget] = useState<{ charId: string; playerName: string } | null>(null);
+  const [deletePlayerTarget, setDeletePlayerTarget] = useState<Player | null>(null);
 
   const controller: ModalController = useMemo(
     () => ({
@@ -68,6 +71,7 @@ export function useModalState() {
         setShardTarget({ recordKey, boss, team, pendingComplete }),
       openScheduleInfo: (team: Team) => setScheduleInfoTeam(team),
       openDeleteCharModal: (charId: string, playerName: string) => setDeleteCharTarget({ charId, playerName }),
+      openDeletePlayerModal: (player: Player) => setDeletePlayerTarget(player),
     }),
     []
   );
@@ -168,6 +172,11 @@ export function useModalState() {
         onClose={() => setDeleteCharTarget(null)}
         charId={deleteCharTarget?.charId || null}
         playerName={deleteCharTarget?.playerName || null}
+      />
+          <DeletePlayerModal
+        isOpen={Boolean(deletePlayerTarget)}
+        onClose={() => setDeletePlayerTarget(null)}
+        player={deletePlayerTarget}
       />
     </>
   );

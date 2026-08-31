@@ -23,6 +23,7 @@ function AppContent() {
         onOpenNotifModal={controller.openNotifModal}
         onOpenNexonKeyModal={controller.openNexonKeyModal}
         onOpenAddPlayerModal={controller.openAddPlayerModal}
+        onOpenDeletePlayerModal={controller.openDeletePlayerModal}
         onOpenAddCharacterModal={controller.openAddCharacterModal}
         onOpenPartyModal={controller.openPartyModal}
         onOpenShardModal={controller.openShardModal}

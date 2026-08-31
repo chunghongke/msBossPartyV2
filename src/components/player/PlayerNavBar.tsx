@@ -5,7 +5,7 @@ import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
-import { UserPlus, Users, Crown, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
+import { UserPlus, Users, Crown, UserX, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ReorderPlayersModal } from '@/components/modals/ReorderPlayersModal';
 
@@ -23,6 +23,7 @@ interface PlayerNavBarProps {
   onSelectPlayer: (playerName: string) => void;
   onOpenAddPlayerModal: () => void;
   onOpenAddCharacterModal?: (playerName: string) => void;
+  onOpenDeletePlayerModal?: (player: Player) => void;
   onScrollToCharacter?: (charId: string) => void;
   onReorderCharacters?: (playerName: string, reorderedChars: Character[]) => void;
   onReorderPlayers?: (reorderedPlayers: Player[]) => void;
@@ -42,6 +43,7 @@ export function PlayerNavBar({
   onSelectPlayer,
   onOpenAddPlayerModal,
   onOpenAddCharacterModal,
+  onOpenDeletePlayerModal,
   onScrollToCharacter,
   onReorderCharacters,
   onReorderPlayers,
@@ -770,6 +772,20 @@ export function PlayerNavBar({
                 >
                   <PlusCircle className="w-3.5 h-3.5 mr-1" />
                   <span>新增角色</span>
+                </Button>
+              )}
+
+              {/* 刪除玩家按鈕 (限管理員或該玩家本人) */}
+              {onOpenDeletePlayerModal && canManage && (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => onOpenDeletePlayerModal(selectedPlayer)}
+                  className="h-7 px-2 text-xs font-bold shrink-0"
+                  title="刪除此冒險者玩家"
+                >
+                  <UserX className="w-3.5 h-3.5 mr-1" />
+                  <span className="hidden xl:inline">刪除玩家</span>
                 </Button>
               )}
             </div>
