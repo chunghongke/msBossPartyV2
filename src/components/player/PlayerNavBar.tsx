@@ -5,7 +5,7 @@ import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
-import { UserPlus, Users, Crown, UserX, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
+import { UserPlus, Users, Crown, UserX, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal, Pin, ArrowDownToLine } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ReorderPlayersModal } from '@/components/modals/ReorderPlayersModal';
 
@@ -15,6 +15,8 @@ interface PlayerNavBarProps {
   guestCount?: number;
   viewMode?: 'compact' | 'detailed';
   onSetViewMode?: (mode: 'compact' | 'detailed') => void;
+  completedSort?: 'fixed' | 'to-end';
+  onSetCompletedSort?: (mode: 'fixed' | 'to-end') => void;
   crystalEarned?: number;
   crystalExpected?: number;
   formatCrystal?: (num: number) => string;
@@ -35,6 +37,8 @@ export function PlayerNavBar({
   guestCount = 0,
   viewMode = 'compact',
   onSetViewMode,
+  completedSort = 'fixed',
+  onSetCompletedSort,
   crystalEarned = 0,
   crystalExpected = 0,
   formatCrystal,
@@ -584,6 +588,31 @@ export function PlayerNavBar({
                     <span className="hidden sm:inline">詳細大圖</span>
                   </button>
                 </div>
+              )}
+
+              {/* 完成排序模式切換器: 固定順序 / 完成置底 */}
+              {onSetCompletedSort && (
+                <button
+                  type="button"
+                  onClick={() => onSetCompletedSort(completedSort === 'fixed' ? 'to-end' : 'fixed')}
+                  className={cn(
+                    'p-1.5 rounded-xl border transition-all shrink-0 flex items-center justify-center',
+                    completedSort === 'to-end'
+                      ? 'bg-purple-500/20 border-purple-400/60 text-purple-700 dark:text-purple-300 shadow-xs'
+                      : 'bg-black/5 dark:bg-slate-800 border-kerning-stroke/50 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  )}
+                  title={
+                    completedSort === 'to-end'
+                      ? '目前模式：完成置底（已完成的 BOSS 卡片自動移至最後方）。點擊切換為固定順序。'
+                      : '目前模式：固定順序（BOSS 卡片位置不變）。點擊切換為完成置底。'
+                  }
+                >
+                  {completedSort === 'to-end' ? (
+                    <ArrowDownToLine className="w-3.5 h-3.5" />
+                  ) : (
+                    <Pin className="w-3.5 h-3.5" />
+                  )}
+                </button>
               )}
             </div>
           </div>

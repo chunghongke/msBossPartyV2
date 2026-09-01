@@ -235,6 +235,21 @@ export function MainLayout({
     } catch {}
   };
 
+  const [completedSort, setCompletedSort] = useState<'fixed' | 'to-end'>(() => {
+    try {
+      return (localStorage.getItem('boss_party_completed_sort') as 'fixed' | 'to-end') || 'fixed';
+    } catch {
+      return 'fixed';
+    }
+  });
+
+  const handleSetCompletedSort = (mode: 'fixed' | 'to-end') => {
+    setCompletedSort(mode);
+    try {
+      localStorage.setItem('boss_party_completed_sort', mode);
+    } catch {}
+  };
+
   // 當登入者變更 (例如剛登入成功或身分切換) 時，立即將主視覺與導覽列切換為該登入者
   useEffect(() => {
     if (currentPlayer?.name) {
@@ -329,6 +344,8 @@ export function MainLayout({
             guestCount={(store.guests || []).length}
             viewMode={viewMode}
             onSetViewMode={handleSetViewMode}
+            completedSort={completedSort}
+            onSetCompletedSort={handleSetCompletedSort}
             crystalEarned={activePlayerCrystalStats.earned}
             crystalExpected={activePlayerCrystalStats.expected}
             formatCrystal={formatCrystal}
@@ -405,6 +422,7 @@ export function MainLayout({
                             character={char}
                             playerName={player.name}
                             store={store}
+                            completedSort={completedSort}
                             onToggleStatus={toggleBossStatus}
                             onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}
@@ -421,6 +439,7 @@ export function MainLayout({
                             character={char}
                             playerName={player.name}
                             store={store}
+                            completedSort={completedSort}
                             onToggleStatus={toggleBossStatus}
                             onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}

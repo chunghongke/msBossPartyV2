@@ -1,4 +1,4 @@
-import { useMemo, useRef, MouseEvent } from 'react';
+import { useMemo, useRef, useLayoutEffect, MouseEvent } from 'react';
 import { Character } from '@/types/player';
 import { Boss, Difficulty } from '@/types/boss';
 import { StoreData, Team, WeeklyRecord } from '@/types/party';
@@ -27,6 +27,7 @@ interface CompactCharacterRowProps {
   onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
   onToggleAllBosses?: (character: Character) => void;
+  completedSort?: 'fixed' | 'to-end';
 }
 
 const DIFFICULTY_BADGES: Record<Difficulty, { label: string; tagClass: string; ringClass: string }> = {
@@ -334,6 +335,7 @@ export function CompactCharacterRow({
   onOpenRenameModal,
   onDeleteCharacter,
   onShowScheduleInfo,
+  completedSort = 'fixed',
 }: CompactCharacterRowProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
@@ -360,6 +362,15 @@ export function CompactCharacterRow({
     });
 
     return entries.sort((a, b) => {
+      // 完成置底模式：已完成的排到後面
+      if (completedSort === 'to-end') {
+        const aKey = `rec_${character.id}_${a.boss.id}_${a.entryIndex}`;
+        const bKey = `rec_${character.id}_${b.boss.id}_${b.entryIndex}`;
+        const aCompleted = Boolean(store.weeklyRecords[aKey]?.isCompleted);
+        const bCompleted = Boolean(store.weeklyRecords[bKey]?.isCompleted);
+        if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+      }
+
       const groupA = getBossGroupKey(a.boss.id);
       const groupB = getBossGroupKey(b.boss.id);
 
@@ -378,7 +389,70 @@ export function CompactCharacterRow({
 
       return a.entryIndex - b.entryIndex;
     });
-  }, [character.bossIds, character.resetBossIds]);
+  }, [character.bossIds, character.resetBossIds, character.id, completedSort, store.weeklyRecords]);
+
+  // FLIP 滑動動畫：記錄條列卡片位置，在排序改變後平滑流暢過渡 (無 scale，杜絕捲軸閃爍)
+  const gridRef = useRef<HTMLDivElement>(null);
+  const positionsRef = useRef<Map<string, DOMRect>>(new Map());
+
+  const prevEntriesRef = useRef(orderedBossEntries);
+  if (prevEntriesRef.current !== orderedBossEntries) {
+    if (gridRef.current) {
+      const map = new Map<string, DOMRect>();
+      gridRef.current.querySelectorAll<HTMLElement>('[data-boss-key]').forEach((el) => {
+        const key = el.getAttribute('data-boss-key');
+        if (key) map.set(key, el.getBoundingClientRect());
+      });
+      positionsRef.current = map;
+    }
+    prevEntriesRef.current = orderedBossEntries;
+  }
+
+  useLayoutEffect(() => {
+    if (!gridRef.current || positionsRef.current.size === 0) return;
+
+    const elements = gridRef.current.querySelectorAll<HTMLElement>('[data-boss-key]');
+    const animatedElements: HTMLElement[] = [];
+
+    elements.forEach((el) => {
+      const key = el.getAttribute('data-boss-key');
+      if (!key) return;
+      const oldRect = positionsRef.current.get(key);
+      if (!oldRect) return;
+
+      const newRect = el.getBoundingClientRect();
+      const dx = oldRect.left - newRect.left;
+      const dy = oldRect.top - newRect.top;
+
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.style.transition = 'none';
+        el.style.zIndex = '10';
+        el.style.willChange = 'transform';
+        void el.offsetHeight;
+        animatedElements.push(el);
+      }
+    });
+
+    positionsRef.current.clear();
+
+    if (animatedElements.length > 0) {
+      requestAnimationFrame(() => {
+        animatedElements.forEach((el) => {
+          el.style.transition = 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1)';
+          el.style.transform = '';
+
+          const cleanup = () => {
+            el.style.transition = '';
+            el.style.zIndex = '';
+            el.style.willChange = '';
+            el.removeEventListener('transitionend', cleanup);
+          };
+          el.addEventListener('transitionend', cleanup);
+        });
+      });
+    }
+  }, [orderedBossEntries]);
 
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
@@ -555,28 +629,29 @@ export function CompactCharacterRow({
 
       {/* 單列 12 格 BOSS 排版 (Single Row: 12 Columns Grid) */}
       {hasBosses ? (
-        <div className="overflow-x-auto pb-0.5">
-          <div className="grid grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 min-w-[960px] lg:min-w-0">
+        <div className="overflow-x-auto lg:overflow-x-hidden pb-0.5">
+          <div ref={gridRef} className="grid grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 min-w-[960px] lg:min-w-0">
             {orderedBossEntries.map(({ boss, entryIndex }) => {
               const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
               const rec = store.weeklyRecords[recKey];
               const team = rec?.teamId ? store.teams[rec.teamId] : null;
 
               return (
-                <SingleRowBossPill
-                  key={recKey}
-                  boss={boss}
-                  entryIndex={entryIndex}
-                  charId={character.id}
-                  record={rec}
-                  team={team}
-                  guestList={store.guests || []}
-                  canManage={isOwnerOrAdmin}
-                  onToggleStatus={onToggleStatus}
-                  onOpenPartyModal={onOpenPartyModal}
-                  onOpenShardModal={onOpenShardModal}
-                  onShowScheduleInfo={onShowScheduleInfo}
-                />
+                <div key={recKey} data-boss-key={recKey} className="min-w-0">
+                  <SingleRowBossPill
+                    boss={boss}
+                    entryIndex={entryIndex}
+                    charId={character.id}
+                    record={rec}
+                    team={team}
+                    guestList={store.guests || []}
+                    canManage={isOwnerOrAdmin}
+                    onToggleStatus={onToggleStatus}
+                    onOpenPartyModal={onOpenPartyModal}
+                    onOpenShardModal={onOpenShardModal}
+                    onShowScheduleInfo={onShowScheduleInfo}
+                  />
+                </div>
               );
             })}
           </div>

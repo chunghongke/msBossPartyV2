@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useLayoutEffect } from 'react';
 import { Character } from '@/types/player';
 import { Boss } from '@/types/boss';
 import { StoreData, Team } from '@/types/party';
@@ -26,6 +26,7 @@ interface CharacterCardProps {
   onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
   onToggleAllBosses?: (character: Character) => void;
+  completedSort?: 'fixed' | 'to-end';
 }
 
 export function CharacterCard({
@@ -41,6 +42,7 @@ export function CharacterCard({
   onDeleteCharacter,
   onShowScheduleInfo,
   onToggleAllBosses,
+  completedSort = 'fixed',
 }: CharacterCardProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
@@ -53,7 +55,7 @@ export function CharacterCard({
   const progressStats = getProgress(character);
   const removedCompletedList = getRemovedCompletedBosses(character);
 
-  // 100% 固定原本 BOSS 順序（永不跳動重排，保留完美空間記憶與消除畫面撕裂感）
+  // BOSS 排序：支援「固定順序」與「完成置底」兩種模式
   const orderedBossEntries = useMemo(() => {
     const entries: { boss: Boss; entryIndex: 1 | 2 }[] = [];
 
@@ -68,6 +70,15 @@ export function CharacterCard({
     });
 
     return entries.sort((a, b) => {
+      // 完成置底模式：已完成的排到後面
+      if (completedSort === 'to-end') {
+        const aKey = `rec_${character.id}_${a.boss.id}_${a.entryIndex}`;
+        const bKey = `rec_${character.id}_${b.boss.id}_${b.entryIndex}`;
+        const aCompleted = Boolean(store.weeklyRecords[aKey]?.isCompleted);
+        const bCompleted = Boolean(store.weeklyRecords[bKey]?.isCompleted);
+        if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+      }
+
       const groupA = getBossGroupKey(a.boss.id);
       const groupB = getBossGroupKey(b.boss.id);
 
@@ -86,7 +97,75 @@ export function CharacterCard({
 
       return a.entryIndex - b.entryIndex;
     });
-  }, [character.bossIds, character.resetBossIds]);
+  }, [character.bossIds, character.resetBossIds, character.id, completedSort, store.weeklyRecords]);
+
+  // FLIP 滑動動畫：記錄卡片位置，在排序改變後平滑流暢過渡 (無 scale，徹底杜絕 scrollbar 閃爍)
+  const gridRef = useRef<HTMLDivElement>(null);
+  const positionsRef = useRef<Map<string, DOMRect>>(new Map());
+
+  // 在每一次 render 週期中，若 orderedBossEntries 順序即將改變，立即捕捉 DOM 目前的座標 (First)
+  const prevEntriesRef = useRef(orderedBossEntries);
+  if (prevEntriesRef.current !== orderedBossEntries) {
+    if (gridRef.current) {
+      const map = new Map<string, DOMRect>();
+      gridRef.current.querySelectorAll<HTMLElement>('[data-boss-key]').forEach((el) => {
+        const key = el.getAttribute('data-boss-key');
+        if (key) map.set(key, el.getBoundingClientRect());
+      });
+      positionsRef.current = map;
+    }
+    prevEntriesRef.current = orderedBossEntries;
+  }
+
+  // DOM 更新後播放 FLIP 動畫 (Last → Invert → Play)
+  useLayoutEffect(() => {
+    if (!gridRef.current || positionsRef.current.size === 0) return;
+
+    const elements = gridRef.current.querySelectorAll<HTMLElement>('[data-boss-key]');
+    const animatedElements: HTMLElement[] = [];
+
+    elements.forEach((el) => {
+      const key = el.getAttribute('data-boss-key');
+      if (!key) return;
+      const oldRect = positionsRef.current.get(key);
+      if (!oldRect) return;
+
+      const newRect = el.getBoundingClientRect();
+      const dx = oldRect.left - newRect.left;
+      const dy = oldRect.top - newRect.top;
+
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        // Invert: 瞬移回上一刻的視覺位置 (僅使用 translate，絕不溢出邊界)
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.style.transition = 'none';
+        el.style.zIndex = '10';
+        el.style.willChange = 'transform';
+        // 強制瀏覽器進行同步 Layout Reflow，確保 Invert 狀態被引擎確實記錄
+        void el.offsetHeight;
+        animatedElements.push(el);
+      }
+    });
+
+    positionsRef.current.clear();
+
+    if (animatedElements.length > 0) {
+      requestAnimationFrame(() => {
+        animatedElements.forEach((el) => {
+          // Play: 400ms 絲滑減速貝茲曲線回彈至新位置
+          el.style.transition = 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1)';
+          el.style.transform = '';
+
+          const cleanup = () => {
+            el.style.transition = '';
+            el.style.zIndex = '';
+            el.style.willChange = '';
+            el.removeEventListener('transitionend', cleanup);
+          };
+          el.addEventListener('transitionend', cleanup);
+        });
+      });
+    }
+  }, [orderedBossEntries]);
 
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
@@ -291,27 +370,28 @@ export function CharacterCard({
           )}
 
           {hasBosses ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 sm:gap-3.5">
+            <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 sm:gap-3.5 overflow-hidden">
               {orderedBossEntries.map(({ boss, entryIndex }) => {
                 const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
                 const rec = store.weeklyRecords[recKey];
                 const team = rec?.teamId ? store.teams[rec.teamId] : null;
 
                 return (
-                  <BossCell
-                    key={recKey}
-                    boss={boss}
-                    entryIndex={entryIndex}
-                    charId={character.id}
-                    record={rec}
-                    team={team}
-                    guestList={store.guests || []}
-                    canManage={isOwnerOrAdmin}
-                    onToggleStatus={onToggleStatus}
-                    onOpenPartyModal={onOpenPartyModal}
-                    onOpenShardModal={onOpenShardModal}
-                    onShowScheduleInfo={onShowScheduleInfo}
-                  />
+                  <div key={recKey} data-boss-key={recKey}>
+                    <BossCell
+                      boss={boss}
+                      entryIndex={entryIndex}
+                      charId={character.id}
+                      record={rec}
+                      team={team}
+                      guestList={store.guests || []}
+                      canManage={isOwnerOrAdmin}
+                      onToggleStatus={onToggleStatus}
+                      onOpenPartyModal={onOpenPartyModal}
+                      onOpenShardModal={onOpenShardModal}
+                      onShowScheduleInfo={onShowScheduleInfo}
+                    />
+                  </div>
                 );
               })}
             </div>
