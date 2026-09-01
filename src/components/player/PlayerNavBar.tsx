@@ -1,6 +1,7 @@
 import * as HoverCard from '@radix-ui/react-hover-card';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback, DragEvent, WheelEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
@@ -61,6 +62,46 @@ export function PlayerNavBar({
   const [dragOverPlayerName, setDragOverPlayerName] = useState<string | null>(null);
   const [playerOrderVersion, setPlayerOrderVersion] = useState(0);
   const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
+  const [isOverflowOpen, setIsOverflowOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
+
+  const toggleOverflowMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isOverflowOpen && moreBtnRef.current) {
+      const rect = moreBtnRef.current.getBoundingClientRect();
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - 272));
+      const top = rect.bottom + 8;
+      setMenuPos({ top, left });
+    }
+    setIsOverflowOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    if (!isOverflowOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOverflowOpen(false);
+    };
+    const handleResizeOrScroll = () => {
+      if (moreBtnRef.current) {
+        const rect = moreBtnRef.current.getBoundingClientRect();
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - 272));
+        const top = rect.bottom + 8;
+        setMenuPos({ top, left });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResizeOrScroll);
+    window.addEventListener('scroll', handleResizeOrScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResizeOrScroll);
+      window.removeEventListener('scroll', handleResizeOrScroll);
+    };
+  }, [isOverflowOpen]);
 
   // 玩家標籤溢位自適應計算 (Adaptive Player Overflow Calculation - Zero Flash)
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -89,7 +130,7 @@ export function PlayerNavBar({
     if (availableWidth <= 0) return;
 
     const addBtnWidth = isAdmin ? 105 : 0;
-    const moreBtnWidth = 72; // 省略符號按鈕寬度
+    const moreBtnWidth = 56; // 省略符號按鈕寬度
     const gap = 6; // gap-1.5 是 6px
 
     let accumulated = addBtnWidth;
@@ -362,7 +403,7 @@ export function PlayerNavBar({
                       }
                     }}
                     className={cn(
-                      'group/player px-2.5 py-1 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing shrink-0 relative',
+                      'group/player px-2 sm:px-2.5 py-1 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-grab active:cursor-grabbing min-w-0 shrink relative',
                       isDragging
                         ? 'opacity-30 scale-90 border-dashed border-sky-500 bg-sky-100 dark:bg-slate-900'
                         : isDragOver
@@ -415,7 +456,7 @@ export function PlayerNavBar({
                       </HoverCard.Portal>
                     </HoverCard.Root>
 
-                    <span className="truncate max-w-[100px] pointer-events-none font-bold">{p.name}</span>
+                    <span className="truncate max-w-[65px] sm:max-w-[110px] pointer-events-none font-bold">{p.name}</span>
 
                     {p.isAdmin && <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0 pointer-events-none" />}
 
@@ -428,98 +469,115 @@ export function PlayerNavBar({
 
               {/* 省略符號按鈕 (...)：方案 B 若選取的玩家在省略清單中，按鈕會亮起橘金選中高亮 */}
               {overflowPlayers.length > 0 && (
-                <HoverCard.Root openDelay={100} closeDelay={200}>
-                  <HoverCard.Trigger asChild>
-                    <button
-                      type="button"
-                      className={cn(
-                        'px-2.5 py-1 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-pointer shrink-0 group',
-                        isSelectedInOverflow
-                          ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_1.5px_0_rgba(0,0,0,0.35)] ring-2 ring-amber-400/80 font-black'
-                          : 'border-kerning-stroke/70 bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:bg-amber-100/70 dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
-                      )}
-                      title={
-                        isSelectedInOverflow
-                          ? `目前選中玩家「${selectedPlayerName}」位於更多選單中（點擊或懸停查看）`
-                          : `還有 ${overflowPlayers.length} 位玩家（滑鼠懸停即可檢視與切換）`
-                      }
-                    >
-                      <MoreHorizontal className={cn('w-4 h-4 transition-transform group-hover:scale-110', isSelectedInOverflow ? 'text-white' : 'text-amber-700 dark:text-amber-400')} />
-                      <span className={cn('font-fredoka font-black text-xs', isSelectedInOverflow ? 'text-white' : 'text-amber-800 dark:text-amber-300')}>
-                        {isSelectedInOverflow ? `${selectedPlayerName}` : `+${overflowPlayers.length}`}
-                      </span>
-                    </button>
-                  </HoverCard.Trigger>
-                  <HoverCard.Portal>
-                    <HoverCard.Content
-                      side="bottom"
-                      align="start"
-                      sideOffset={8}
-                      className="z-[100] w-64 max-h-[380px] overflow-y-auto no-scrollbar p-2 bg-[#FFFDF9] dark:bg-slate-900 border-2.5 border-kerning-stroke rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150 outline-none select-none drop-shadow-2xl space-y-1"
-                    >
-                      <div className="px-2 py-1 text-[11px] font-black text-stone-500 dark:text-slate-400 border-b border-kerning-stroke/40 dark:border-slate-700/60 flex items-center justify-between">
-                        <span>👥 其他玩家 ({overflowPlayers.length} 位)</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsReorderModalOpen(true)}
-                          className="inline-flex items-center gap-1 text-[10px] text-amber-800 dark:text-amber-200 hover:text-amber-950 dark:hover:text-white bg-amber-400/25 hover:bg-amber-400/40 px-2 py-0.5 rounded-lg border border-amber-500/50 transition-colors font-black cursor-pointer shadow-2xs"
-                          title="開啟彈窗自訂玩家前後順序"
+                <>
+                  <button
+                    ref={moreBtnRef}
+                    type="button"
+                    onClick={toggleOverflowMenu}
+                    className={cn(
+                      'px-2 sm:px-2.5 py-1 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1 transition-all duration-100 border-1.5 select-none active:translate-y-[1px] cursor-pointer shrink-0 group z-10',
+                      isSelectedInOverflow
+                        ? 'border-kerning-stroke bg-gradient-to-b from-amber-400 to-orange-500 text-white shadow-[0_1.5px_0_rgba(0,0,0,0.35)] ring-2 ring-amber-400/80 font-black'
+                        : 'border-kerning-stroke/70 bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 hover:bg-amber-100/70 dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
+                    )}
+                    title={
+                      isSelectedInOverflow
+                        ? `目前選中玩家「${selectedPlayerName}」位於更多選單中（點擊查看）`
+                        : `還有 ${overflowPlayers.length} 位玩家（點擊檢視與切換）`
+                    }
+                  >
+                    <MoreHorizontal className={cn('w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform group-hover:scale-110', isSelectedInOverflow ? 'text-white' : 'text-amber-700 dark:text-amber-400')} />
+                    <span className={cn('font-fredoka font-black text-xs shrink-0', isSelectedInOverflow ? 'text-white' : 'text-amber-800 dark:text-amber-300')}>
+                      {isSelectedInOverflow ? `${selectedPlayerName}` : `+${overflowPlayers.length}`}
+                    </span>
+                  </button>
+
+                  {isOverflowOpen &&
+                    createPortal(
+                      <div
+                        className="fixed inset-0 z-[100] overflow-hidden"
+                        onClick={() => setIsOverflowOpen(false)}
+                      >
+                        {/* 輕量半透明遮罩 (點擊背景關閉) */}
+                        <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] animate-in fade-in-0 duration-150" />
+
+                        {/* 彈出選單 */}
+                        <div
+                          style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="fixed z-[101] w-64 max-h-[380px] overflow-y-auto no-scrollbar p-2 bg-[#FFFDF9] dark:bg-slate-900 border-2.5 border-kerning-stroke rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 outline-none select-none drop-shadow-2xl space-y-1"
                         >
-                          <SlidersHorizontal className="w-2.5 h-2.5" />
-                          <span>調整排序</span>
-                        </button>
-                      </div>
-
-                      <div className="pt-1 space-y-1">
-                        {overflowPlayers.map((p) => {
-                          const isSelected = selectedPlayer?.name === p.name;
-                          const isSelf = currentPlayer?.name === p.name;
-                          const charCount = p.characters?.length || 0;
-
-                          return (
-                            <div
-                              key={p.name}
-                              onClick={() => onSelectPlayer(p.name)}
-                              className={cn(
-                                'flex items-center justify-between p-1.5 rounded-xl border transition-all cursor-pointer select-none text-xs font-bold',
-                                isSelected
-                                  ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white border-kerning-stroke shadow-xs font-black'
-                                  : isSelf
-                                  ? 'bg-amber-400/15 text-[#4A3B2C] dark:text-yellow-300 border-amber-500/40 hover:bg-amber-400/25'
-                                  : 'bg-white dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 border-stone-200 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-slate-750 hover:border-amber-400'
-                              )}
+                          <div className="px-2 py-1 text-[11px] font-black text-stone-500 dark:text-slate-400 border-b border-kerning-stroke/40 dark:border-slate-700/60 flex items-center justify-between">
+                            <span>👥 其他玩家 ({overflowPlayers.length} 位)</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsOverflowOpen(false);
+                                setIsReorderModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10px] text-amber-800 dark:text-amber-200 hover:text-amber-950 dark:hover:text-white bg-amber-400/25 hover:bg-amber-400/40 px-2 py-0.5 rounded-lg border border-amber-500/50 transition-colors font-black cursor-pointer shadow-2xs"
+                              title="開啟彈窗自訂玩家前後順序"
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <PlayerAvatar
-                                  player={p}
-                                  size="sm"
-                                  className="w-6 h-6 rounded-lg text-xs shadow-xs border shrink-0"
-                                />
-                                <span className="truncate max-w-[120px] font-black">
-                                  {p.name}
-                                </span>
-                                {p.isAdmin && (
-                                  <Crown className="w-3 h-3 text-yellow-500 shrink-0" />
-                                )}
-                              </div>
+                              <SlidersHorizontal className="w-2.5 h-2.5" />
+                              <span>調整排序</span>
+                            </button>
+                          </div>
 
-                              <span
-                                className={cn(
-                                  'px-1.5 py-0.2 rounded-full text-[9.5px] font-fredoka font-black shrink-0',
-                                  isSelected
-                                    ? 'bg-black/20 text-white'
-                                    : 'bg-black/10 dark:bg-white/10 text-stone-600 dark:text-slate-300'
-                                )}
-                              >
-                                {charCount} 角色
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </HoverCard.Content>
-                  </HoverCard.Portal>
-                </HoverCard.Root>
+                          <div className="pt-1 space-y-1">
+                            {overflowPlayers.map((p) => {
+                              const isSelected = selectedPlayer?.name === p.name;
+                              const isSelf = currentPlayer?.name === p.name;
+                              const charCount = p.characters?.length || 0;
+
+                              return (
+                                <div
+                                  key={p.name}
+                                  onClick={() => {
+                                    onSelectPlayer(p.name);
+                                    setIsOverflowOpen(false);
+                                  }}
+                                  className={cn(
+                                    'flex items-center justify-between p-1.5 rounded-xl border transition-all cursor-pointer select-none text-xs font-bold active:scale-[0.98]',
+                                    isSelected
+                                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white border-kerning-stroke shadow-xs font-black'
+                                      : isSelf
+                                      ? 'bg-amber-400/15 text-[#4A3B2C] dark:text-yellow-300 border-amber-500/40 hover:bg-amber-400/25'
+                                      : 'bg-white dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 border-stone-200 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-slate-700 hover:border-amber-400'
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <PlayerAvatar
+                                      player={p}
+                                      size="sm"
+                                      className="w-6 h-6 rounded-lg text-xs shadow-xs border shrink-0"
+                                    />
+                                    <span className="truncate max-w-[120px] font-black">
+                                      {p.name}
+                                    </span>
+                                    {p.isAdmin && (
+                                      <Crown className="w-3 h-3 text-yellow-500 shrink-0" />
+                                    )}
+                                  </div>
+
+                                  <span
+                                    className={cn(
+                                      'px-1.5 py-0.2 rounded-full text-[9.5px] font-fredoka font-black shrink-0',
+                                      isSelected
+                                        ? 'bg-black/20 text-white'
+                                        : 'bg-black/10 dark:bg-white/10 text-stone-600 dark:text-slate-300'
+                                    )}
+                                  >
+                                    {charCount} 角色
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                </>
               )}
 
               {/* 新增玩家虛線橢圓標籤 (僅管理員顯示) */}
@@ -547,8 +605,9 @@ export function PlayerNavBar({
                     : 'bg-[#FDF5E6] dark:bg-slate-800 text-[#4A3B2C] dark:text-slate-200 border-kerning-stroke/70 dark:border-slate-700 hover:bg-[#FFF8E7] dark:hover:bg-slate-700 shadow-[0_1px_0_rgba(0,0,0,0.15)]'
                 )}
               >
-                <Users className="w-3.5 h-3.5" />
-                <span>臨時隊友</span>
+                <Users className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">臨時隊友</span>
+                <span className="sm:hidden">隊友</span>
                 {guestCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px] opacity-90 font-fredoka">
                     {guestCount}
