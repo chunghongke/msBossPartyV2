@@ -353,22 +353,31 @@ export function BossCell({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              // 若已有排程資訊則開啟排程詳情，若尚未設定時間則直接開啟組隊視窗進行設定
+              // 若已有排程資訊則開啟排程詳情，若尚未設定時間且有管理權限則直接開啟組隊視窗進行設定
               if (scheduleText && team?.schedule && onShowScheduleInfo) {
                 onShowScheduleInfo(team);
-              } else {
+              } else if (canManage) {
                 onOpenPartyModal(charId, boss.id, entryIndex);
               }
             }}
             className={cn(
               'px-2 py-0.5 rounded-md font-mono font-bold text-[11px] flex items-center gap-1 border transition-all',
               scheduleText
-                ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 border-purple-400/50 shadow-xs hover:bg-purple-50 dark:hover:bg-slate-700'
-                : 'bg-black/5 dark:bg-slate-800 text-slate-500 hover:text-slate-800 border-transparent hover:border-slate-300 text-[10px]'
+                ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 border-purple-400/50 shadow-xs hover:bg-purple-50 dark:hover:bg-slate-700 cursor-pointer'
+                : canManage
+                ? 'bg-black/5 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border-transparent hover:border-slate-300 text-[10px] cursor-pointer'
+                : 'bg-black/5 dark:bg-slate-800 text-slate-400/60 dark:text-slate-500 border-transparent text-[10px] cursor-default'
             )}
+            title={
+              scheduleText
+                ? `出團排程：${scheduleText} (點擊查看詳情)`
+                : canManage
+                ? '點擊設定出團時間與組隊'
+                : '未排定出團時間 (唯讀)'
+            }
           >
-            <Clock className="w-3 h-3 text-purple-500" />
-            <span>{scheduleText || '設定時間'}</span>
+            <Clock className={cn('w-3 h-3', scheduleText ? 'text-purple-500' : 'text-slate-400')} />
+            <span>{scheduleText || (canManage ? '設定時間' : '未排定')}</span>
           </button>
 
           {canManage && (

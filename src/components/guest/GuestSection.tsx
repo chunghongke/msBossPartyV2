@@ -5,6 +5,7 @@ import { Difficulty } from '@/types/boss';
 import { Button } from '@/components/ui/Button';
 import { useAlert } from '@/contexts/AlertContext';
 import { useStore } from '@/store';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { Users, UserPlus, Trash2, Clock, CheckCircle2 } from 'lucide-react';
 
@@ -29,6 +30,7 @@ interface GuestBossItem {
 
 export function GuestSection({ guests = [], store, onAddGuest, onDeleteGuest }: GuestSectionProps) {
   const { showConfirm } = useAlert();
+  const { isAdmin } = useAuth();
   const { getCharName, toggleBossStatus } = useStore();
   const [nameInput, setNameInput] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -154,20 +156,22 @@ export function GuestSection({ guests = [], store, onAddGuest, onDeleteGuest }: 
           </div>
         </div>
 
-        <form onSubmit={handleAdd} className="flex items-center gap-2 shrink-0">
-          <input
-            type="text"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="臨時隊友暱稱"
-            className="px-3 py-1 text-xs rounded-xl border-1.5 border-[#D4B982] dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 shadow-inner w-36 sm:w-44 font-bold"
-            maxLength={15}
-          />
-          <Button type="submit" size="sm" variant="gold" isLoading={isAdding} className="shrink-0 h-7 px-2.5 text-xs font-bold">
-            <UserPlus className="w-3.5 h-3.5 mr-1" />
-            <span>新增隊友</span>
-          </Button>
-        </form>
+        {isAdmin && (
+          <form onSubmit={handleAdd} className="flex items-center gap-2 shrink-0">
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="臨時隊友暱稱"
+              className="px-3 py-1 text-xs rounded-xl border-1.5 border-[#D4B982] dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 shadow-inner w-36 sm:w-44 font-bold"
+              maxLength={15}
+            />
+            <Button type="submit" size="sm" variant="gold" isLoading={isAdding} className="shrink-0 h-7 px-2.5 text-xs font-bold">
+              <UserPlus className="w-3.5 h-3.5 mr-1" />
+              <span>新增隊友</span>
+            </Button>
+          </form>
+        )}
       </div>
 
       {/* 臨時隊友列表 (比照 V1 逐一條列式 Character Card 布局) */}
@@ -189,23 +193,25 @@ export function GuestSection({ guests = [], store, onAddGuest, onDeleteGuest }: 
                       <span>👤 {g.name}</span>
                     </span>
 
-                    <button
-                      type="button"
-                      aria-label={`刪除臨時隊友 ${g.name}`}
-                      onClick={async () => {
-                        const ok = await showConfirm({
-                          title: '刪除臨時隊友',
-                          message: `確定要刪除臨時隊友「${g.name}」嗎？這將會同步將他從所有參與的隊伍中移除。`,
-                          isDanger: true,
-                          confirmText: '確定刪除',
-                        });
-                        if (ok) onDeleteGuest(g.id);
-                      }}
-                      className="w-5 h-5 rounded text-stone-400 hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
-                      title="刪除此臨時隊友"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        aria-label={`刪除臨時隊友 ${g.name}`}
+                        onClick={async () => {
+                          const ok = await showConfirm({
+                            title: '刪除臨時隊友',
+                            message: `確定要刪除臨時隊友「${g.name}」嗎？這將會同步將他從所有參與的隊伍中移除。`,
+                            isDanger: true,
+                            confirmText: '確定刪除',
+                          });
+                          if (ok) onDeleteGuest(g.id);
+                        }}
+                        className="w-5 h-5 rounded text-stone-400 hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
+                        title="刪除此臨時隊友"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-black text-[10px] border border-indigo-300 dark:border-indigo-700 font-fredoka">
@@ -223,14 +229,20 @@ export function GuestSection({ guests = [], store, onAddGuest, onDeleteGuest }: 
                     {participatedBosses.map((item) => (
                       <div
                         key={item.recordKey}
-                        onClick={() => toggleBossStatus(item.recordKey)}
+                        onClick={isAdmin ? () => toggleBossStatus(item.recordKey) : undefined}
                         className={cn(
-                          'group flex items-center gap-1.5 p-1.5 rounded-xl border-1.5 transition-all select-none cursor-pointer overflow-hidden',
+                          'group flex items-center gap-1.5 p-1.5 rounded-xl border-1.5 transition-all select-none overflow-hidden',
+                          isAdmin ? 'cursor-pointer' : 'cursor-default',
                           item.isCompleted
                             ? 'bg-[#EAE2D2]/60 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700 opacity-75 grayscale'
-                            : 'bg-white dark:bg-slate-800 border-amber-400/80 dark:border-amber-400/80 shadow-2xs hover:border-amber-500 active:translate-y-[1px]'
+                            : 'bg-white dark:bg-slate-800 border-amber-400/80 dark:border-amber-400/80 shadow-2xs',
+                          isAdmin && !item.isCompleted && 'hover:border-amber-500 active:translate-y-[1px]'
                         )}
-                        title={`隊伍成員: ${item.teammateNames} (點擊可切換完成狀態)`}
+                        title={
+                          isAdmin
+                            ? `隊伍成員: ${item.teammateNames} (點擊可切換完成狀態)`
+                            : `隊伍成員: ${item.teammateNames} (唯讀)`
+                        }
                       >
                         {/* BOSS 微型立繪頭像 */}
                         <div className="w-7 h-7 rounded-lg overflow-hidden bg-slate-900 shrink-0 border border-slate-700 flex items-center justify-center">

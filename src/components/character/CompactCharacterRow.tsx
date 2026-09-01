@@ -282,9 +282,9 @@ function SingleRowBossPill({
             onClick={(e) => {
               e.stopPropagation();
               if (team && onShowScheduleInfo) onShowScheduleInfo(team);
-              else onOpenPartyModal(charId, boss.id, entryIndex);
+              else if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
             }}
-            className="px-1 py-0.2 rounded bg-purple-500/15 border border-purple-400/40 text-purple-700 dark:text-purple-300 font-mono font-bold text-[8px] hover:bg-purple-500/25 flex items-center gap-0.5 shrink-0"
+            className="px-1 py-0.2 rounded bg-purple-500/15 border border-purple-400/40 text-purple-700 dark:text-purple-300 font-mono font-bold text-[8px] hover:bg-purple-500/25 flex items-center gap-0.5 shrink-0 cursor-pointer"
             title={`出團時間: ${scheduleText}`}
           >
             <Clock className="w-2 h-2" />
