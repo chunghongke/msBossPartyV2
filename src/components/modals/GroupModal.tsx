@@ -119,27 +119,21 @@ export function GroupModal({ isOpen, onClose }: GroupModalProps) {
   const handleParseSnippet = (snippet: string) => {
     setRawSnippet(snippet);
     try {
-      const extract = (key: string) => {
-        const regex = new RegExp(`${key}\\s*:\\s*['"]([^'"]+)['"]`);
-        const match = snippet.match(regex);
-        return match ? match[1] : '';
-      };
+      const apiKeyMatch = snippet.match(/apiKey:\s*['"]([^'"]+)['"]/);
+      const authDomainMatch = snippet.match(/authDomain:\s*['"]([^'"]+)['"]/);
+      const databaseURLMatch = snippet.match(/databaseURL:\s*['"]([^'"]+)['"]/);
+      const projectIdMatch = snippet.match(/projectId:\s*['"]([^'"]+)['"]/);
+      const storageBucketMatch = snippet.match(/storageBucket:\s*['"]([^'"]+)['"]/);
+      const senderIdMatch = snippet.match(/messagingSenderId:\s*['"]([^'"]+)['"]/);
+      const appIdMatch = snippet.match(/appId:\s*['"]([^'"]+)['"]/);
 
-      const extractedApiKey = extract('apiKey');
-      const extractedAuthDomain = extract('authDomain');
-      const extractedDatabaseURL = extract('databaseURL');
-      const extractedProjectId = extract('projectId');
-      const extractedStorageBucket = extract('storageBucket');
-      const extractedMessagingSenderId = extract('messagingSenderId');
-      const extractedAppId = extract('appId');
-
-      if (extractedApiKey) setApiKey(extractedApiKey);
-      if (extractedAuthDomain) setAuthDomain(extractedAuthDomain);
-      if (extractedDatabaseURL) setDatabaseURL(extractedDatabaseURL);
-      if (extractedProjectId) setProjectId(extractedProjectId);
-      if (extractedStorageBucket) setStorageBucket(extractedStorageBucket);
-      if (extractedMessagingSenderId) setMessagingSenderId(extractedMessagingSenderId);
-      if (extractedAppId) setAppId(extractedAppId);
+      if (apiKeyMatch) setApiKey(apiKeyMatch[1]);
+      if (authDomainMatch) setAuthDomain(authDomainMatch[1]);
+      if (databaseURLMatch) setDatabaseURL(databaseURLMatch[1]);
+      if (projectIdMatch) setProjectId(projectIdMatch[1]);
+      if (storageBucketMatch) setStorageBucket(storageBucketMatch[1]);
+      if (senderIdMatch) setMessagingSenderId(senderIdMatch[1]);
+      if (appIdMatch) setAppId(appIdMatch[1]);
     } catch {
       // 容錯忽略解析錯誤
     }
