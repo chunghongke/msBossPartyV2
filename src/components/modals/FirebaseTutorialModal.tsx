@@ -12,7 +12,7 @@ export function FirebaseTutorialModal({ isOpen, onClose }: FirebaseTutorialModal
   const [activeTab, setActiveTab] = useState<number>(1);
   const [copiedRules, setCopiedRules] = useState(false);
 
-  const rulesJson = `{\n  "rules": {\n    ".read": true,\n    ".write": true\n  }\n}`;
+  const rulesJson = `{\n  "rules": {\n    ".read": true,\n    "players": {\n      ".write": true,\n      "$index": {\n        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 30"\n      }\n    },\n    "store": {\n      ".write": true,\n      "teams": { ".validate": true },\n      "weeklyRecords": { ".validate": true },\n      "guests": { ".validate": true },\n      "lastResetWeekKey": {\n        ".validate": "!newData.exists() || newData.isString()"\n      },\n      "$other": { ".validate": false }\n    },\n    "_connection_test": {\n      ".write": true,\n      ".validate": true\n    },\n    "$other": {\n      ".write": false,\n      ".validate": false\n    }\n  }\n}`;
 
   const handleCopyRules = async () => {
     try {
