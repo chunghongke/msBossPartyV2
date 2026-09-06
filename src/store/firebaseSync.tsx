@@ -3,7 +3,7 @@ import { ref, onValue, set } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { useGroup } from '@/contexts/GroupContext';
 import { useAppStore } from './index';
-import { DEFAULT_STORE } from './slices/storeSlice';
+import { DEFAULT_STORE, hasPendingStoreWrites } from './slices/storeSlice';
 import { sanitizeStoreAndTeams } from './sanitize';
 import { Player } from '@/types/player';
 
@@ -79,7 +79,12 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
 
           // 執行自我修復與幽靈隊伍 GC (Self-Healing)
           const changed = sanitizeStoreAndTeams(parsedPlayers, normalizedStore);
-          store.setStore(normalizedStore);
+
+          // 🔒 防競爭保護：若有正在進行中的本地寫入（防抖尚未發送或剛發送），
+          //    則跳過此次 onValue 覆蓋，避免舊快照把本地樂觀更新的狀態回滾。
+          if (!hasPendingStoreWrites()) {
+            store.setStore(normalizedStore);
+          }
 
           if (changed && activeGroup?.firebaseConfig) {
             const currentDb = getRtdb(activeGroup.firebaseConfig);

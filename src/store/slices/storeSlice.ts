@@ -12,6 +12,16 @@ export const DEFAULT_STORE: StoreData = {
   guests: [],
 };
 
+// ── 防抖寫入機制：防止快速連續點擊造成的 Race Condition ──
+// 本地 Zustand 永遠即時更新（樂觀更新），Firebase 寫入則防抖合併
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+let _pendingWrites = 0;
+
+/** 供 FirebaseSyncProvider 的 onValue 監聽器判斷是否有正在進行中的本地寫入 */
+export function hasPendingStoreWrites(): boolean {
+  return _pendingWrites > 0;
+}
+
 export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
   store: DEFAULT_STORE,
   isLoading: true,
@@ -25,12 +35,28 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
   saveStoreToCloud: async (newStore: StoreData) => {
     const { activeGroup } = get();
-    // 💡 關鍵修復：深層序列化過濾所有 undefined 欄位，確保 Firebase RTDB 寫入純淨合法 JSON
+    // 💡 深層序列化過濾所有 undefined 欄位，確保 Firebase RTDB 寫入純淨合法 JSON
     const cleanStore = JSON.parse(JSON.stringify(newStore));
+    // ① 樂觀更新：立即更新 Zustand，讓 UI 即時回饋
     setSlice({ store: cleanStore });
     if (!activeGroup?.firebaseConfig) return;
-    const db = getRtdb(activeGroup.firebaseConfig);
-    await set(ref(db, 'store'), cleanStore);
+
+    // ② 防抖寫入：合併 150ms 內的快速連續操作，僅發送最終狀態
+    _pendingWrites++;
+    if (_saveTimer) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      try {
+        // 讀取「此刻」最新的 Zustand store，而非呼叫時的快照
+        const currentStore = JSON.parse(JSON.stringify(get().store));
+        const db = getRtdb(activeGroup.firebaseConfig);
+        await set(ref(db, 'store'), currentStore);
+      } catch (e) {
+        console.warn('saveStoreToCloud error:', e);
+      } finally {
+        // 延遲 200ms 後才解除抑制，讓 onValue 回音有時間完成
+        setTimeout(() => { _pendingWrites = Math.max(0, _pendingWrites - 1); }, 200);
+      }
+    }, 150);
   },
 
     toggleAllCharacterBosses: async (character: Character) => {

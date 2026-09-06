@@ -16,6 +16,7 @@ import { CharacterCard } from '@/components/character/CharacterCard';
 import { CompactCharacterRow } from '@/components/character/CompactCharacterRow';
 import { GuestSection } from '@/components/guest/GuestSection';
 import { Button } from '@/components/ui/Button';
+import { Footer } from '@/components/layout/Footer';
 import { Character, Player } from '@/types/player';
 import { Boss } from '@/types/boss';
 import { UserPlus, PlusCircle, ArrowUp } from 'lucide-react';
@@ -475,6 +476,9 @@ export function MainLayout({
           </div>
         )}
       </main>
+
+      {/* 頁尾資訊 (Copyright & 聯絡方式) */}
+      <Footer />
 
       {/* 浮動回到頂部按鈕 */}
       <button
