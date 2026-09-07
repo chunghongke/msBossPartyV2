@@ -278,14 +278,34 @@ export function MainLayout({
   };
 
   const scrollToCharacter = (charId: string) => {
-    const el = document.getElementById('char-card-' + charId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('ring-4', 'ring-amber-400');
-      setTimeout(() => {
-        el.classList.remove('ring-4', 'ring-amber-400');
-      }, 1500);
-    }
+    // 支援詳細大圖模式 (char-card-) 與緊湊條列模式 (compact-char-row-)
+    const el =
+      document.getElementById('char-card-' + charId) ||
+      document.getElementById('compact-char-row-' + charId);
+
+    if (!el) return;
+
+    // 動態計算置頂 Header 與 PlayerNavBar 的實際總高度 (自動適應各螢幕與斷點尺寸)
+    const headerEl = document.querySelector('header');
+    const navBarEl = document.getElementById('player-nav-bar') || document.querySelector('.sticky.top-16');
+    const headerHeight =
+      (headerEl ? headerEl.getBoundingClientRect().height : 64) +
+      (navBarEl ? navBarEl.getBoundingClientRect().height : 85);
+
+    // 預留 12px 呼吸空間，確保卡片頂部整齊貼齊在導覽列正下方
+    const padding = 12;
+    const elementTop = el.getBoundingClientRect().top + window.scrollY;
+    const targetScrollY = Math.max(0, elementTop - headerHeight - padding);
+
+    window.scrollTo({
+      top: targetScrollY,
+      behavior: 'smooth',
+    });
+
+    el.classList.add('ring-4', 'ring-amber-400');
+    setTimeout(() => {
+      el.classList.remove('ring-4', 'ring-amber-400');
+    }, 1500);
   };
 
   const scrollToTop = () => {

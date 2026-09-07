@@ -370,7 +370,7 @@ export function PlayerNavBar({
 
   return (
     <>
-      <div className="sticky top-16 z-30 w-full bg-[#EBD8B8]/95 dark:bg-slate-900/95 backdrop-blur-md border-b-2.5 border-kerning-stroke shadow-md transition-colors select-none">
+      <div id="player-nav-bar" className="sticky top-16 z-30 w-full bg-[#EBD8B8]/95 dark:bg-slate-900/95 backdrop-blur-md border-b-2.5 border-kerning-stroke shadow-md transition-colors select-none">
         <div className="max-w-[1880px] w-full mx-auto px-2.5 sm:px-4">
           {/* 第一列：玩家切換標籤列 (方案 B 嚴格固定排序，超量收納於省略號 ...) ＋ 右側常駐工具群 */}
           <div className="py-1.5 flex items-center justify-between gap-2.5 w-full">
