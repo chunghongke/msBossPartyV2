@@ -1,4 +1,4 @@
-﻿# Logs
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .env
 .env.local
+
+# Raw video assets
+*.mp4
