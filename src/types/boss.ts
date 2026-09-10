@@ -10,6 +10,9 @@ export interface Boss {
   crystalValue: number;
   erionVestiges: number;
   image: string;
+  isSeasonal?: boolean;
+  excludeFromWeeklyLimit?: boolean;
+  seasonBadge?: string;
 }
 
 export interface BossGroup {

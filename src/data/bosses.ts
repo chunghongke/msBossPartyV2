@@ -88,6 +88,11 @@ export const BOSSES: Boss[] = [
 
   // 瑪麗西亞
   { id: 'maricia_normal', name: '(普)瑪麗西亞', groupKey: 'maricia', maxPartySize: 3, difficulty: 'normal', allowReset: true, crystalValue: 150000000, erionVestiges: 0, image: './images/bosses/maricia.png' },
+
+  // ── 賽季制 BOSS (不計入每週 12 隻上限) ──
+  // 凱伊
+  { id: 'kain_normal', name: '(普)凱伊', groupKey: 'kain', maxPartySize: 1, difficulty: 'normal', allowReset: false, crystalValue: 0, erionVestiges: 0, image: './images/bosses/kain.png', isSeasonal: true, excludeFromWeeklyLimit: true, seasonBadge: 'S3'},
+  { id: 'kain_hard', name: '(困)凱伊', groupKey: 'kain', maxPartySize: 1, difficulty: 'hard', allowReset: false, crystalValue: 0, erionVestiges: 0, image: './images/bosses/kain.png', isSeasonal: true, excludeFromWeeklyLimit: true, seasonBadge: 'S3'}
 ];
 
 export const BOSS_MAP = new Map<string, Boss>(BOSSES.map((b) => [b.id, b]));

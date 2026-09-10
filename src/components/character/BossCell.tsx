@@ -41,6 +41,7 @@ const BOSS_EN_NAMES: Record<string, string> = {
   baldrix: 'Baldrix',
   youpiter: 'Youpiter',
   maricia: 'Maricia',
+  kain: 'Kain'
 };
 
 export function BossCell({
@@ -217,8 +218,18 @@ export function BossCell({
         {/* 漸層陰影遮罩：調亮遮罩，保持頂部文字清晰同時突顯立繪明亮度 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/35 pointer-events-none" />
 
-        {/* 頂部左側：BOSS 名稱 (英文/中文) - 已完成時呈現灰階已通關風格 */}
-        <div className="absolute top-2 left-2.5 z-10 flex items-baseline gap-1 pointer-events-none">
+        {/* 頂部左側：BOSS 名稱 (英文/中文) ＋ 賽季銀色膠囊徽章 */}
+        <div className="absolute top-2 left-2.5 z-10 flex items-center gap-1.5 pointer-events-none">
+          {boss.isSeasonal && (
+            <span
+              className={cn(
+                'px-2 py-0.5 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] uppercase tracking-wider shadow-[0_1px_4px_rgba(0,0,0,0.35)] border border-white/80 shrink-0',
+                isCompleted && 'opacity-60 grayscale'
+              )}
+            >
+              {boss.seasonBadge || 'SEASON'}
+            </span>
+          )}
           <span
             className={cn(
               'font-fredoka font-black text-sm sm:text-base tracking-wide transition-colors',

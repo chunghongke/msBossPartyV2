@@ -5,7 +5,7 @@ import { cn } from '@/utils/cn';
 import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/store';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS } from '@/data/bosses';
+import { BOSS_GROUPS, getBoss } from '@/data/bosses';
 import { BossGroup } from '@/types/boss';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -65,6 +65,11 @@ const AddBossGroupCard = memo(function AddBossGroupCard({
           : 'bg-white/80 dark:bg-slate-850 border-slate-200 dark:border-slate-800 opacity-60'
       )}>
       <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+        {group.bosses[0]?.isSeasonal && (
+          <span className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] uppercase tracking-wider shadow-sm border border-white/80 pointer-events-none">
+            {group.bosses[0].seasonBadge || 'SEASON'}
+          </span>
+        )}
         <img
           src={'./images/bosses/' + group.groupKey + '.png'}
           alt={group.displayName}
@@ -173,13 +178,25 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
         setErrorMsg('');
         return prev.filter((id) => id !== bossId);
       } else {
+        const targetBoss = getBoss(bossId);
+        const isSeasonal = Boolean(targetBoss?.isSeasonal || targetBoss?.excludeFromWeeklyLimit);
+
         const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
         const withoutGroup = prev.filter((id) => !otherBossIdsInGroup.includes(id));
 
-        if (withoutGroup.length >= 12) {
-          setErrorMsg('每隻角色最多只能勾選 12 隻每週 BOSS 結晶！');
-          return prev;
+        // 僅常態每週 BOSS 受 12 隻上限限制
+        if (!isSeasonal) {
+          const normalWithoutGroup = withoutGroup.filter((id) => {
+            const b = getBoss(id);
+            return !b?.isSeasonal && !b?.excludeFromWeeklyLimit;
+          });
+
+          if (normalWithoutGroup.length >= 12) {
+            setErrorMsg('每隻角色最多只能勾選 12 隻每週常態 BOSS！');
+            return prev;
+          }
         }
+
         setErrorMsg('');
         return [...withoutGroup, bossId];
       }
@@ -222,7 +239,19 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
   };
 
   const hasNexonKey = Boolean(getNexonApiKey());
-  const normalCount = selectedBossIds.length;
+
+  // 賽季制 BOSS 不計入 12 隻每週上限
+  const normalBossIds = selectedBossIds.filter((id) => {
+    const b = getBoss(id);
+    return !b?.isSeasonal && !b?.excludeFromWeeklyLimit;
+  });
+  const seasonalBossIds = selectedBossIds.filter((id) => {
+    const b = getBoss(id);
+    return Boolean(b?.isSeasonal || b?.excludeFromWeeklyLimit);
+  });
+
+  const normalCount = normalBossIds.length;
+  const seasonalCount = seasonalBossIds.length;
   const isFull = normalCount >= 12;
 
   return (
@@ -320,11 +349,16 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
 
             <div>
               <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
-                <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  選擇每週常態討伐 BOSS ({normalCount} / 12)
-                </span>
+                <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 flex-wrap">
+                  <span>選擇每週常態 BOSS ({normalCount} / 12)</span>
+                  {seasonalCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[10px] border border-white/80 shadow-xs">
+                      🏆 賽季 {seasonalCount} 隻 (不佔上限)
+                    </span>
+                  )}
+                </div>
                 <span className={isFull ? 'text-xs font-black text-red-500' : 'text-xs font-bold text-slate-400'}>
-                  {isFull ? '⚠️ 已達 12 隻上限' : `尚可選 ${12 - normalCount} 隻`}
+                  {isFull ? '⚠️ 常態已達 12 隻上限' : `常態尚可選 ${12 - normalCount} 隻`}
                 </span>
               </div>
 

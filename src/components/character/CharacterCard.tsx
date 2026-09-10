@@ -309,7 +309,14 @@ export function CharacterCard({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between text-[10px] font-black text-emerald-800 dark:text-emerald-300 mb-1">
                   <span>每週討伐進度</span>
-                  <span className="font-fredoka text-xs">{progressStats.completed} / {progressStats.total}</span>
+                  <div className="flex items-center gap-1.5">
+                    {progressStats.seasonalTotal > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] border border-white/80 shadow-2xs">
+                        🏆 賽季 {progressStats.seasonalCompleted}/{progressStats.seasonalTotal}
+                      </span>
+                    )}
+                    <span className="font-fredoka text-xs">{progressStats.completed} / {progressStats.total}</span>
+                  </div>
                 </div>
                 {/* 綠色進度條 */}
                 <div className="w-full h-3 bg-black/10 dark:bg-black/40 rounded-full overflow-hidden border border-emerald-600/40 p-0.5">
@@ -323,16 +330,26 @@ export function CharacterCard({
                 {isOwnerOrAdmin && hasBosses && onToggleAllBosses && (
                   <Button
                     size="sm"
-                    variant={progressStats.completed === progressStats.total && progressStats.total > 0 ? "parchment" : "green"}
+                    variant={
+                      progressStats.completed === progressStats.total &&
+                      progressStats.seasonalCompleted === progressStats.seasonalTotal &&
+                      progressStats.total + progressStats.seasonalTotal > 0
+                        ? "parchment"
+                        : "green"
+                    }
                     onClick={() => onToggleAllBosses(character)}
                     className="w-full text-xs font-black h-7 mt-2 shadow-xs"
                     title={
-                      progressStats.completed === progressStats.total && progressStats.total > 0
+                      progressStats.completed === progressStats.total &&
+                      progressStats.seasonalCompleted === progressStats.seasonalTotal &&
+                      progressStats.total + progressStats.seasonalTotal > 0
                         ? "一鍵全部取消完成"
-                        : "一鍵將此角色清單上的所有 BOSS 標記為已完成 (上限 12 隻)"
+                        : "一鍵將此角色清單上的所有 BOSS 標記為已完成 (常態上限 12 隻，賽季全過)"
                     }
                   >
-                    {progressStats.completed === progressStats.total && progressStats.total > 0 ? (
+                    {progressStats.completed === progressStats.total &&
+                    progressStats.seasonalCompleted === progressStats.seasonalTotal &&
+                    progressStats.total + progressStats.seasonalTotal > 0 ? (
                       <>
                         <RotateCcw className="w-3 h-3 mr-1" />
                         <span>全部取消完成</span>

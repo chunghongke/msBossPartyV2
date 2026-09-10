@@ -114,10 +114,12 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         }
       });
     } else {
-      // 全部標記完成 (尊重 12 隻上限，最多勾選至 12 隻)
-      let currentCompletedCount = Object.entries(nextRecords).filter(
-        ([k, r]) => k.startsWith(`rec_${character.id}_`) && r && r.isCompleted
-      ).length;
+      // 全部標記完成 (常態 BOSS 尊重 12 隻上限，最多勾選至 12 隻；賽季 BOSS 獨立全數標記完成)
+      let currentCompletedCount = Object.entries(nextRecords).filter(([k, r]) => {
+        if (!k.startsWith(`rec_${character.id}_`) || !r || !r.isCompleted) return false;
+        const b = getBoss(r.bossId);
+        return !b?.excludeFromWeeklyLimit && !b?.isSeasonal;
+      }).length;
 
       for (const { bossId, entryIndex } of entries) {
         const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
@@ -126,10 +128,12 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         // 若已經是完成狀態，跳過
         if (targetRecord?.isCompleted) continue;
 
-        // 若已達 12 隻上限，不再新增
-        if (currentCompletedCount >= 12) break;
-
         const boss = getBoss(bossId);
+        const isSeasonal = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal);
+
+        // 若為常態 BOSS 且已達 12 隻上限，不再新增常態 BOSS
+        if (!isSeasonal && currentCompletedCount >= 12) continue;
+
         const targetTeamId = targetRecord?.teamId;
 
         if (targetTeamId && store.teams[targetTeamId]) {
@@ -171,7 +175,9 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           };
         }
 
-        currentCompletedCount += 1;
+        if (!isSeasonal) {
+          currentCompletedCount += 1;
+        }
       }
     }
 
@@ -193,8 +199,9 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     const bossId = targetRecord?.bossId || (typeof recordKey === 'string' ? recordKey.split('_')[2] : '');
     const boss = getBoss(bossId);
 
-    // 💡 12 隻 BOSS 上限檢查 (V1 經典防呆)
-    if (nextCompleted) {
+    // 💡 12 隻 BOSS 上限檢查 (僅針對常態每週 BOSS 檢查，賽季制 BOSS 不受此限制)
+    const isSeasonal = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal);
+    if (nextCompleted && !isSeasonal) {
       const rawMembers =
         targetTeamId && store.teams[targetTeamId]
           ? store.teams[targetTeamId].memberTargets ||
@@ -206,7 +213,10 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         let completedCount = 0;
         Object.entries(store.weeklyRecords).forEach(([k, r]) => {
           if (k.startsWith(`rec_${m.charId}_`) && r && r.isCompleted) {
-            completedCount += 1;
+            const b = getBoss(r.bossId);
+            if (!b?.excludeFromWeeklyLimit && !b?.isSeasonal) {
+              completedCount += 1;
+            }
           }
         });
 

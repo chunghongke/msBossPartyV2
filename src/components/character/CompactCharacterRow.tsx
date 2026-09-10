@@ -195,6 +195,16 @@ function SingleRowBossPill({
       {/* 中間：BOSS 名稱、難度標籤與隊伍簡稱 */}
       <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.2">
         <div className="flex items-center gap-0.5 leading-tight truncate">
+          {boss.isSeasonal && (
+            <span
+              className={cn(
+                'px-1 py-0.2 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-white/80 shadow-2xs',
+                isCompleted && 'opacity-60 grayscale'
+              )}
+            >
+              {boss.seasonBadge || 'S'}
+            </span>
+          )}
           <span
             className={cn(
               'px-0.5 rounded text-[8px] font-black uppercase tracking-tight shrink-0',
@@ -566,8 +576,17 @@ export function CompactCharacterRow({
           )}
         </div>
 
-        {/* 右側：綠色擊破進度徽章 ＋ 一鍵全部完成快捷按鈕 */}
+        {/* 右側：賽季進度標籤 ＋ 綠色擊破進度徽章 ＋ 一鍵全部完成快捷按鈕 */}
         <div className="flex items-center gap-1.5">
+          {progressStats.seasonalTotal > 0 && (
+            <span
+              className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] border border-white/80 shadow-2xs select-none shrink-0"
+              title="賽季制 BOSS 進度 (不佔 12 隻每週上限)"
+            >
+              🏆 賽季 {progressStats.seasonalCompleted}/{progressStats.seasonalTotal}
+            </span>
+          )}
+
           <div className="flex items-center gap-1 px-2 py-0.2 bg-[#EEF8EE] dark:bg-emerald-950/40 rounded border border-emerald-400/60 dark:border-emerald-800 font-black text-emerald-800 dark:text-emerald-300 text-[10.5px]">
             <span>🍃</span>
             <span className="font-fredoka text-[11px]">{progressStats.completed} / {progressStats.total}</span>
@@ -581,33 +600,41 @@ export function CompactCharacterRow({
 
           {/* 💡 一鍵全部完成 / 全部取消完成快捷按鈕 */}
           {isOwnerOrAdmin && hasBosses && onToggleAllBosses && (
-            <button
-              type="button"
-              onClick={() => onToggleAllBosses(character)}
-              className={cn(
-                "px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center gap-1 border transition-all cursor-pointer select-none active:scale-95 shadow-2xs",
-                progressStats.completed === progressStats.total && progressStats.total > 0
-                  ? "bg-stone-200/90 hover:bg-stone-300 text-stone-700 dark:bg-slate-700 dark:hover:bg-slate-650 dark:text-slate-200 border-stone-300 dark:border-slate-600"
-                  : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-emerald-600 shadow-xs"
-              )}
-              title={
-                progressStats.completed === progressStats.total && progressStats.total > 0
-                  ? "一鍵全部取消完成"
-                  : "一鍵將此角色清單上的所有 BOSS 標記為完成 (上限 12 隻)"
-              }
-            >
-              {progressStats.completed === progressStats.total && progressStats.total > 0 ? (
-                <>
-                  <RotateCcw className="w-2.5 h-2.5" />
-                  <span>全部重設</span>
-                </>
-              ) : (
-                <>
-                  <CheckCheck className="w-3 h-3" />
-                  <span>一鍵全過</span>
-                </>
-              )}
-            </button>
+            (() => {
+              const isAllDone =
+                progressStats.completed === progressStats.total &&
+                progressStats.seasonalCompleted === progressStats.seasonalTotal &&
+                progressStats.total + progressStats.seasonalTotal > 0;
+              return (
+                <button
+                  type="button"
+                  onClick={() => onToggleAllBosses(character)}
+                  className={cn(
+                    "px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center gap-1 border transition-all cursor-pointer select-none active:scale-95 shadow-2xs",
+                    isAllDone
+                      ? "bg-stone-200/90 hover:bg-stone-300 text-stone-700 dark:bg-slate-700 dark:hover:bg-slate-650 dark:text-slate-200 border-stone-300 dark:border-slate-600"
+                      : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-emerald-600 shadow-xs"
+                  )}
+                  title={
+                    isAllDone
+                      ? "一鍵全部取消完成"
+                      : "一鍵將此角色清單上的所有 BOSS 標記為完成 (常態上限 12 隻，賽季全過)"
+                  }
+                >
+                  {isAllDone ? (
+                    <>
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>全部重設</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCheck className="w-3 h-3" />
+                      <span>一鍵全過</span>
+                    </>
+                  )}
+                </button>
+              );
+            })()
           )}
         </div>
       </div>

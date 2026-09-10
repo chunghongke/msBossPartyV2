@@ -2,7 +2,7 @@ import { cn } from '@/utils/cn';
 import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/store';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
+import { BOSS_GROUPS, getBossGroupKey, getBoss } from '@/data/bosses';
 import { BossGroup } from '@/types/boss';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -65,6 +65,11 @@ const EditBossGroupCard = memo(function EditBossGroupCard({
       )}>
       {/* BOSS 形象大圖相框 */}
       <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+        {group.bosses[0]?.isSeasonal && (
+          <span className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] uppercase tracking-wider shadow-sm border border-white/80 pointer-events-none">
+            {group.bosses[0].seasonBadge || 'SEASON'}
+          </span>
+        )}
         <img
           src={'./images/bosses/' + group.groupKey + '.png'}
           alt={group.displayName}
@@ -141,12 +146,24 @@ export function EditCharBossesModal({
     }
   }, [character]);
 
-  // 取得有效重置券數量
+  // 取得有效重置券數量 (僅針對常態 BOSS)
   const currentResetIds = (character?.resetBossIds || []).filter((rId) => {
     return typeof rId === 'string' && selectedBossIds.some((bId) => typeof bId === 'string' && getBossGroupKey(bId) === getBossGroupKey(rId));
   });
-  const normalCount = selectedBossIds.length;
+
+  // 賽季制 BOSS 不計入 12 隻每週上限
+  const normalBossIds = selectedBossIds.filter((id) => {
+    const b = getBoss(id);
+    return !b?.isSeasonal && !b?.excludeFromWeeklyLimit;
+  });
+  const seasonalBossIds = selectedBossIds.filter((id) => {
+    const b = getBoss(id);
+    return Boolean(b?.isSeasonal || b?.excludeFromWeeklyLimit);
+  });
+
+  const normalCount = normalBossIds.length;
   const resetCount = currentResetIds.length;
+  const seasonalCount = seasonalBossIds.length;
   const totalCount = normalCount + resetCount;
   const isFull = totalCount >= 12;
 
@@ -189,13 +206,25 @@ export function EditCharBossesModal({
         setErrorMsg('');
         return prev.filter((id) => id !== bossId);
       } else {
+        const targetBoss = getBoss(bossId);
+        const isSeasonal = Boolean(targetBoss?.isSeasonal || targetBoss?.excludeFromWeeklyLimit);
+
         const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
         const withoutGroup = prev.filter((id) => !otherBossIdsInGroup.includes(id));
 
-        if (withoutGroup.length + 1 + resetCount > 12) {
-          setErrorMsg(`每週攻略總額度已達 12 隻上限！（常態 ${withoutGroup.length} 隻 ＋ 重置券 ${resetCount} 隻 ＝ 已達 12 隻）`);
-          return prev;
+        // 僅常態每週 BOSS 受 12 隻上限約束
+        if (!isSeasonal) {
+          const normalWithoutGroup = withoutGroup.filter((id) => {
+            const b = getBoss(id);
+            return !b?.isSeasonal && !b?.excludeFromWeeklyLimit;
+          });
+
+          if (normalWithoutGroup.length + 1 + resetCount > 12) {
+            setErrorMsg(`每週常態 BOSS 總額度已達 12 隻上限！（常態 ${normalWithoutGroup.length} 隻 ＋ 重置券 ${resetCount} 隻 ＝ 已達 12 隻）`);
+            return prev;
+          }
         }
+
         setErrorMsg('');
         return [...withoutGroup, bossId];
       }
@@ -293,22 +322,27 @@ export function EditCharBossesModal({
             </div>
 
             <div>
-              {/* 額度統計列 (包含常態 + 重置券) */}
+              {/* 額度統計列 (包含常態 + 重置券 + 賽季) */}
               <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
-                <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <span>每週常態討伐 BOSS ({normalCount} 隻)</span>
+                <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 flex-wrap">
+                  <span>每週常態 BOSS ({normalCount} 隻)</span>
                   {resetCount > 0 && (
                     <span className="text-purple-600 dark:text-purple-400 font-bold">
                       ＋ 重置券 {resetCount} 隻
                     </span>
                   )}
+                  {seasonalCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[10px] border border-white/80 shadow-xs">
+                      🏆 賽季 {seasonalCount} 隻 (不佔上限)
+                    </span>
+                  )}
                 </div>
                 <div className={isFull ? 'text-xs font-black text-red-500' : 'text-xs font-bold text-slate-400'}>
                   {isFull ? (
-                    <span>⚠️ 總額度已達 12 / 12 隻上限</span>
+                    <span>⚠️ 常態總額度已達 12 / 12 隻上限</span>
                   ) : (
                     <span>
-                      總計 {totalCount} / 12 隻 <strong className="text-emerald-600 dark:text-emerald-400 font-bold">(尚可選 {12 - totalCount} 隻)</strong>
+                      常態總計 {totalCount} / 12 隻 <strong className="text-emerald-600 dark:text-emerald-400 font-bold">(尚可選 {12 - totalCount} 隻)</strong>
                     </span>
                   )}
                 </div>
