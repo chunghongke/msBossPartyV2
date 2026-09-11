@@ -1,6 +1,36 @@
 import { Player, Character } from '@/types/player';
 import { BOSSES } from '@/data/bosses';
 
+/**
+ * 健壯解析 recordKey (格式為 `rec_${charId}_${bossId}_${entryIndex}` 或舊版 `rec_${charId}_${bossId}`)
+ * 由於 charId (例如 char_172604...) 與 bossId (例如 kain_normal, first_adversary_easy) 本身皆含有底線，
+ * 絕不能使用單純的 split('_')。
+ * 本函式透過由長至短比對已知 BOSSES 清單，確保精準解析出 charId、bossId 與 entryIndex。
+ */
+export function parseRecordKey(recordKey: string): { charId: string; bossId: string; entryIndex: number } | null {
+  if (!recordKey || typeof recordKey !== 'string' || !recordKey.startsWith('rec_')) return null;
+  const content = recordKey.slice(4); // 移除 'rec_' 前綴
+
+  // 1. 檢查是否有尾端 entryIndex (_1 或 _2)
+  const entryMatch = content.match(/^(.+)_([12])$/);
+  const withoutEntry = entryMatch ? entryMatch[1] : content;
+  const entryIndex = entryMatch ? Number(entryMatch[2]) : 1;
+
+  // 2. withoutEntry 為 `${charId}_${bossId}`
+  // 比對已知 BOSS 清單，從最長的 ID 開始比對避免子字串誤判
+  const sortedBosses = [...BOSSES].sort((a, b) => b.id.length - a.id.length);
+  for (const b of sortedBosses) {
+    if (withoutEntry.endsWith(`_${b.id}`)) {
+      const charId = withoutEntry.slice(0, withoutEntry.length - (b.id.length + 1));
+      if (charId) {
+        return { charId, bossId: b.id, entryIndex };
+      }
+    }
+  }
+
+  return null;
+}
+
 export function sanitizeStoreAndTeams(
   parsedPlayers: Player[],
   rawStore: { teams: Record<string, any>; weeklyRecords: Record<string, any>; guests: any[]; lastResetWeekKey?: string }
@@ -198,6 +228,35 @@ export function sanitizeStoreAndTeams(
         delete rawStore.weeklyRecords[key];
         hasChanged = true;
       }
+    }
+  });
+  // 7. 檢查並修復可能因為先前切字串錯誤而損壞的 weeklyRecords (例如 charId 為 'char' 或 bossId 不在 BOSSES 中)
+  Object.entries(rawStore.weeklyRecords).forEach(([key, rec]) => {
+    if (!rec) return;
+    const isInvalidBoss = !rec.bossId || !BOSSES.some((b) => b.id === rec.bossId);
+    const isInvalidChar = !rec.charId || rec.charId === 'char';
+    if (isInvalidBoss || isInvalidChar) {
+      const parsed = parseRecordKey(key);
+      if (parsed) {
+        rec.charId = parsed.charId;
+        rec.bossId = parsed.bossId;
+        rec.entryIndex = parsed.entryIndex;
+        if (!rec.teamId || rec.teamId.includes('undefined') || rec.teamId.startsWith('single_char_')) {
+          rec.teamId = `single_${parsed.charId}_${parsed.bossId}_${parsed.entryIndex}`;
+        }
+        hasChanged = true;
+      } else {
+        delete rawStore.weeklyRecords[key];
+        hasChanged = true;
+      }
+    }
+  });
+
+  // 8. 清理因損壞而產生的 single_char_ 幽靈隊伍
+  Object.keys(rawStore.teams).forEach((teamId) => {
+    if (teamId.startsWith('single_char_')) {
+      delete rawStore.teams[teamId];
+      hasChanged = true;
     }
   });
 

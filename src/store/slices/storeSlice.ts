@@ -4,7 +4,7 @@ import { getRtdb } from '@/services/firebase';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
 import { getBoss, BOSSES } from '@/data/bosses';
 import { AppSlice, StoreSlice, SaveTeamOptions } from '../types';
-import { sanitizeStoreAndTeams } from '../sanitize';
+import { sanitizeStoreAndTeams, parseRecordKey } from '../sanitize';
 
 export const DEFAULT_STORE: StoreData = {
   teams: {},
@@ -196,7 +196,11 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     const targetTeamId = targetRecord?.teamId;
     const nextCompleted = !targetRecord?.isCompleted;
 
-    const bossId = targetRecord?.bossId || (typeof recordKey === 'string' ? recordKey.split('_')[2] : '');
+    // 💡 健壯解析 recordKey，避免 charId (如 char_172604...) 與 bossId (如 kain_normal) 的底線造成 split 誤判
+    const parsedKey = parseRecordKey(recordKey);
+    const charId = targetRecord?.charId || parsedKey?.charId || '';
+    const bossId = targetRecord?.bossId || parsedKey?.bossId || '';
+    const entryIndex = targetRecord?.entryIndex || parsedKey?.entryIndex || 1;
     const boss = getBoss(bossId);
 
     // 💡 12 隻 BOSS 上限檢查 (僅針對常態每週 BOSS 檢查，賽季制 BOSS 不受此限制)
@@ -206,15 +210,17 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         targetTeamId && store.teams[targetTeamId]
           ? store.teams[targetTeamId].memberTargets ||
             (store.teams[targetTeamId].memberCharIds || []).map((id: any) => ({ charId: id, entryIndex: 1 }))
-          : [{ charId: targetRecord?.charId || (typeof recordKey === 'string' ? recordKey.split('_')[1] : ''), entryIndex: 1 }];
+          : [{ charId, entryIndex }];
 
       for (const m of rawMembers) {
         if (!m.charId || m.charId.startsWith('guest_')) continue;
         let completedCount = 0;
         Object.entries(store.weeklyRecords).forEach(([k, r]) => {
-          if (k.startsWith(`rec_${m.charId}_`) && r && r.isCompleted) {
+          if (!r || !r.isCompleted) return;
+          const rCharId = r.charId || parseRecordKey(k)?.charId;
+          if (rCharId === m.charId) {
             const b = getBoss(r.bossId);
-            if (!b?.excludeFromWeeklyLimit && !b?.isSeasonal) {
+            if (b && !b.excludeFromWeeklyLimit && !b.isSeasonal) {
               completedCount += 1;
             }
           }
@@ -253,6 +259,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     }
 
     const nextRecords = { ...store.weeklyRecords };
+    const nextTeams = { ...store.teams };
 
     if (targetTeamId && store.teams[targetTeamId]) {
       const team = store.teams[targetTeamId];
@@ -285,19 +292,29 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         };
       });
     } else {
-      const parts = typeof recordKey === 'string' ? recordKey.split('_') : [];
+      const defaultSingleId = `single_${charId}_${bossId}_${entryIndex}`;
       nextRecords[recordKey] = {
         ...(targetRecord || {
-          charId: parts[1],
-          bossId: parts[2],
-          entryIndex: Number(parts[3]) || 1,
+          charId,
+          bossId,
+          entryIndex,
+          teamId: defaultSingleId,
         }),
         isCompleted: nextCompleted,
       };
+
+      if (!nextTeams[defaultSingleId]) {
+        nextTeams[defaultSingleId] = {
+          id: defaultSingleId,
+          memberTargets: [{ charId, entryIndex }],
+          schedule: null,
+        };
+      }
     }
 
     await saveStoreToCloud({
       ...store,
+      teams: nextTeams,
       weeklyRecords: nextRecords,
     });
   },
