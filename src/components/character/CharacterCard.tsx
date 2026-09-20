@@ -9,7 +9,7 @@ import { BossCell } from './BossCell';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
 import { Edit2, Ticket, Sparkles, UserX, CheckCheck, RotateCcw } from 'lucide-react';
-import { checkIsSoloTeam } from '@/utils/teamFilter';
+import { checkIsSoloTeam, checkIsPartyTeam, TeamFilterMode } from '@/utils/teamFilter';
 
 interface CharacterCardProps {
   character: Character;
@@ -28,7 +28,7 @@ interface CharacterCardProps {
   onShowScheduleInfo?: (team: Team) => void;
   onToggleAllBosses?: (character: Character) => void;
   completedSort?: 'fixed' | 'to-end';
-  teamFilter?: 'all' | 'solo';
+  teamFilter?: TeamFilterMode;
 }
 
 export function CharacterCard({
@@ -102,13 +102,25 @@ export function CharacterCard({
     });
   }, [character.bossIds, character.resetBossIds, character.id, completedSort, store.weeklyRecords]);
 
-  // 隊伍過濾模式：若啟用「僅單人」，只保留單人隊伍的 BOSS
-  const filteredBossEntries = useMemo(() => {
-    if (teamFilter !== 'solo') return orderedBossEntries;
+  // 分別計算個人隊伍與多人隊伍
+  const soloBossEntries = useMemo(() => {
     return orderedBossEntries.filter(({ boss, entryIndex }) =>
       checkIsSoloTeam(character.id, boss, entryIndex, store)
     );
-  }, [orderedBossEntries, teamFilter, character.id, store]);
+  }, [orderedBossEntries, character.id, store]);
+
+  const partyBossEntries = useMemo(() => {
+    return orderedBossEntries.filter(({ boss, entryIndex }) =>
+      checkIsPartyTeam(character.id, boss, entryIndex, store)
+    );
+  }, [orderedBossEntries, character.id, store]);
+
+  // 隊伍過濾模式：若啟用「僅個人」或「僅多人」
+  const filteredBossEntries = useMemo(() => {
+    if (teamFilter === 'solo') return soloBossEntries;
+    if (teamFilter === 'party') return partyBossEntries;
+    return orderedBossEntries;
+  }, [orderedBossEntries, soloBossEntries, partyBossEntries, teamFilter]);
 
   // FLIP 滑動動畫：記錄卡片位置，在排序改變後平滑流暢過渡 (無 scale，徹底杜絕 scrollbar 閃爍)
   const gridRef = useRef<HTMLDivElement>(null);
@@ -341,9 +353,19 @@ export function CharacterCard({
                   <div className="mt-1.5 flex items-center justify-center">
                     <span
                       className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-300 font-black text-[10px] select-none"
-                      title="目前篩選：僅顯示單人隊伍"
+                      title="目前篩選：僅顯示個人隊伍"
                     >
-                      👤 僅顯示單人隊伍 ({filteredBossEntries.length} 隻)
+                      👤 僅顯示個人隊伍 ({filteredBossEntries.length} 隻)
+                    </span>
+                  </div>
+                )}
+                {teamFilter === 'party' && (
+                  <div className="mt-1.5 flex items-center justify-center">
+                    <span
+                      className="px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/40 text-indigo-900 dark:text-indigo-300 font-black text-[10px] select-none"
+                      title="目前篩選：僅顯示多人隊伍"
+                    >
+                      ⚔️ 僅顯示多人隊伍 ({filteredBossEntries.length} 隻)
                     </span>
                   </div>
                 )}
@@ -437,9 +459,11 @@ export function CharacterCard({
               </div>
             ) : (
               <div className="py-12 px-6 text-center bg-black/5 dark:bg-black/20 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center">
-                <span className="text-3xl mb-2">👤</span>
+                <span className="text-3xl mb-2">{teamFilter === 'solo' ? '👤' : '⚔️'}</span>
                 <p className="text-sm font-bold text-stone-600 dark:text-slate-300">
-                  此角色目前無單人隊伍 BOSS（所有 {orderedBossEntries.length} 隻配置皆為多人組隊）
+                  {teamFilter === 'solo'
+                    ? `此角色目前無個人隊伍 BOSS（所有 ${orderedBossEntries.length} 隻配置皆為多人組隊）`
+                    : `此角色目前無多人隊伍 BOSS（所有 ${orderedBossEntries.length} 隻配置皆為個人單挑）`}
                 </p>
               </div>
             )

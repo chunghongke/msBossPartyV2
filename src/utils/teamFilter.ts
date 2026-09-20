@@ -1,6 +1,8 @@
 import { StoreData } from '@/types/party';
 import { Boss } from '@/types/boss';
 
+export type TeamFilterMode = 'all' | 'solo' | 'party';
+
 /**
  * 檢查角色在特定 BOSS (與刷次 entryIndex) 是否為單人隊伍
  * 條件：
@@ -35,22 +37,35 @@ export function checkIsSoloTeam(
 }
 
 /**
- * 取得指定玩家的單人隊伍過濾偏好
+ * 檢查角色在特定 BOSS 是否為多人隊伍 (成員數 >= 2)
+ */
+export function checkIsPartyTeam(
+  charId: string,
+  boss: Boss,
+  entryIndex: number,
+  store: StoreData
+): boolean {
+  return !checkIsSoloTeam(charId, boss, entryIndex, store);
+}
+
+/**
+ * 取得指定玩家的隊伍過濾偏好
  * 預設為 'all' (顯示全部隊伍)
  */
-export function getLocalPlayerTeamFilter(playerName: string): 'all' | 'solo' {
+export function getLocalPlayerTeamFilter(playerName: string): TeamFilterMode {
   try {
     const val = localStorage.getItem(`boss_party_team_filter_${playerName}`);
-    return (val as 'all' | 'solo') || 'all';
+    if (val === 'solo' || val === 'party') return val;
+    return 'all';
   } catch {
     return 'all';
   }
 }
 
 /**
- * 儲存指定玩家的單人隊伍過濾偏好至 LocalStorage
+ * 儲存指定玩家的隊伍過濾偏好至 LocalStorage
  */
-export function saveLocalPlayerTeamFilter(playerName: string, filter: 'all' | 'solo') {
+export function saveLocalPlayerTeamFilter(playerName: string, filter: TeamFilterMode) {
   try {
     localStorage.setItem(`boss_party_team_filter_${playerName}`, filter);
   } catch {}

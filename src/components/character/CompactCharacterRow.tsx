@@ -10,7 +10,7 @@ import { cn } from '@/utils/cn';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import { BossCell } from './BossCell';
 import { Edit2, Ticket, Sparkles, UserX, Users, Clock, CheckCheck, RotateCcw } from 'lucide-react';
-import { checkIsSoloTeam } from '@/utils/teamFilter';
+import { checkIsSoloTeam, TeamFilterMode } from '@/utils/teamFilter';
 
 interface CompactCharacterRowProps {
   character: Character;
@@ -29,7 +29,7 @@ interface CompactCharacterRowProps {
   onShowScheduleInfo?: (team: Team) => void;
   onToggleAllBosses?: (character: Character) => void;
   completedSort?: 'fixed' | 'to-end';
-  teamFilter?: 'all' | 'solo';
+  teamFilter?: TeamFilterMode;
 }
 
 const DIFFICULTY_BADGES: Record<Difficulty, { label: string; tagClass: string; ringClass: string }> = {
@@ -404,13 +404,24 @@ export function CompactCharacterRow({
     });
   }, [character.bossIds, character.resetBossIds, character.id, completedSort, store.weeklyRecords]);
 
-  // 隊伍過濾模式：若啟用「僅單人」，只保留單人隊伍的 BOSS
-  const filteredBossEntries = useMemo(() => {
-    if (teamFilter !== 'solo') return orderedBossEntries;
+  const soloBossEntries = useMemo(() => {
     return orderedBossEntries.filter(({ boss, entryIndex }) =>
       checkIsSoloTeam(character.id, boss, entryIndex, store)
     );
-  }, [orderedBossEntries, teamFilter, character.id, store]);
+  }, [orderedBossEntries, character.id, store]);
+
+  const partyBossEntries = useMemo(() => {
+    return orderedBossEntries.filter(({ boss, entryIndex }) =>
+      !checkIsSoloTeam(character.id, boss, entryIndex, store)
+    );
+  }, [orderedBossEntries, character.id, store]);
+
+  // 隊伍過濾模式：'all' (全部), 'solo' (個人隊伍), 'party' (多人隊伍)
+  const filteredBossEntries = useMemo(() => {
+    if (teamFilter === 'solo') return soloBossEntries;
+    if (teamFilter === 'party') return partyBossEntries;
+    return orderedBossEntries;
+  }, [orderedBossEntries, teamFilter, soloBossEntries, partyBossEntries]);
 
   // FLIP 滑動動畫：記錄條列卡片位置，在排序改變後平滑流暢過渡 (無 scale，杜絕捲軸閃爍)
   const gridRef = useRef<HTMLDivElement>(null);
@@ -592,9 +603,29 @@ export function CompactCharacterRow({
           {teamFilter === 'solo' && (
             <span
               className="px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-300 font-black text-[9.5px] select-none shrink-0"
-              title="目前篩選：僅顯示單人隊伍"
+              title="目前篩選：僅顯示個人隊伍"
             >
-              👤 單人 {filteredBossEntries.length} 隻
+              👤 個人 {soloBossEntries.length} 隻
+            </span>
+          )}
+
+          {teamFilter === 'party' && (
+            <span
+              className="px-1.5 py-0.2 rounded bg-indigo-500/15 border border-indigo-500/40 text-indigo-900 dark:text-indigo-300 font-black text-[9.5px] select-none shrink-0"
+              title="目前篩選：僅顯示多人隊伍"
+            >
+              ⚔️ 多人 {partyBossEntries.length} 隻
+            </span>
+          )}
+
+          {teamFilter === 'all' && hasBosses && (
+            <span
+              className="px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/5 border border-kerning-stroke/40 text-stone-600 dark:text-slate-400 font-bold text-[9px] select-none shrink-0 hidden md:inline-flex items-center gap-1"
+              title="隊伍統計：個人隊伍與多人組隊數量"
+            >
+              <span>👤 {soloBossEntries.length}</span>
+              <span className="opacity-40">/</span>
+              <span>⚔️ {partyBossEntries.length}</span>
             </span>
           )}
 
@@ -706,7 +737,9 @@ export function CompactCharacterRow({
           </div>
         ) : (
           <div className="py-2.5 px-3 text-center text-xs text-stone-500 dark:text-slate-400 font-bold bg-black/5 dark:bg-black/20 rounded-xl border border-dashed border-stone-300 dark:border-slate-700">
-            此角色目前無單人隊伍 BOSS（所有 {orderedBossEntries.length} 隻配置皆為多人組隊）
+            {teamFilter === 'solo'
+              ? `此角色目前無個人隊伍 BOSS（所有 ${orderedBossEntries.length} 隻配置皆為多人組隊）`
+              : `此角色目前無多人隊伍 BOSS（所有 ${orderedBossEntries.length} 隻配置皆為個人單挑）`}
           </div>
         )
       ) : (

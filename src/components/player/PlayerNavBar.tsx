@@ -6,9 +6,10 @@ import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
-import { User, UserPlus, Users, Crown, UserX, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal, Pin, ArrowDownToLine } from 'lucide-react';
+import { User, UserPlus, Users, Swords, Crown, UserX, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal, Pin, ArrowDownToLine } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ReorderPlayersModal } from '@/components/modals/ReorderPlayersModal';
+import { TeamFilterMode } from '@/utils/teamFilter';
 
 interface PlayerNavBarProps {
   players: Player[];
@@ -18,8 +19,8 @@ interface PlayerNavBarProps {
   onSetViewMode?: (mode: 'compact' | 'detailed') => void;
   completedSort?: 'fixed' | 'to-end';
   onSetCompletedSort?: (mode: 'fixed' | 'to-end') => void;
-  teamFilter?: 'all' | 'solo';
-  onSetTeamFilter?: (mode: 'all' | 'solo') => void;
+  teamFilter?: TeamFilterMode;
+  onSetTeamFilter?: (mode: TeamFilterMode) => void;
   crystalEarned?: number;
   crystalExpected?: number;
   formatCrystal?: (num: number) => string;
@@ -678,32 +679,57 @@ export function PlayerNavBar({
                 </button>
               )}
 
-              {/* 隊伍過濾模式切換器: 全部隊伍 / 僅單人隊伍 (僅在選取玩家時顯示) */}
+              {/* 隊伍過濾模式切換器: 三切開關 (全部 / 個人 / 多人) */}
               {onSetTeamFilter && selectedPlayerName !== '__guests__' && (
-                <button
-                  type="button"
-                  onClick={() => onSetTeamFilter(teamFilter === 'solo' ? 'all' : 'solo')}
-                  className={cn(
-                    'p-1.5 sm:px-2.5 sm:py-1 rounded-xl border transition-all shrink-0 flex items-center gap-1 text-xs select-none',
-                    teamFilter === 'solo'
-                      ? 'bg-amber-400 dark:bg-amber-500 text-slate-950 border-amber-500 shadow-xs font-black ring-1 ring-amber-400/50'
-                      : 'bg-black/5 dark:bg-slate-800 border-kerning-stroke/50 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-bold'
-                  )}
-                  title={
-                    teamFilter === 'solo'
-                      ? '目前過濾：僅顯示單人隊伍。點擊切換為顯示全部隊伍。'
-                      : '目前過濾：顯示全部隊伍。點擊切換為僅顯示單人隊伍。'
-                  }
-                >
-                  {teamFilter === 'solo' ? (
-                    <User className="w-3.5 h-3.5 shrink-0" />
-                  ) : (
+                <div className="flex items-center p-0.5 bg-black/10 dark:bg-slate-800 rounded-xl border border-kerning-stroke/50 select-none shrink-0 shadow-inner">
+                  {/* 全部隊伍 (左) */}
+                  <button
+                    type="button"
+                    onClick={() => onSetTeamFilter('all')}
+                    className={cn(
+                      'px-2 sm:px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                      teamFilter === 'all'
+                        ? 'bg-amber-400 text-slate-950 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    )}
+                    title="顯示全部隊伍（個人單挑 ＋ 多人組隊）"
+                  >
                     <Users className="w-3.5 h-3.5 shrink-0" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {teamFilter === 'solo' ? '僅單人' : '全部隊伍'}
-                  </span>
-                </button>
+                    <span className="hidden sm:inline">全部</span>
+                  </button>
+
+                  {/* 個人隊伍 (中) */}
+                  <button
+                    type="button"
+                    onClick={() => onSetTeamFilter('solo')}
+                    className={cn(
+                      'px-2 sm:px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                      teamFilter === 'solo'
+                        ? 'bg-amber-400 text-slate-950 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    )}
+                    title="僅顯示個人隊伍（單人單挑）"
+                  >
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline">個人</span>
+                  </button>
+
+                  {/* 多人隊伍 (右) */}
+                  <button
+                    type="button"
+                    onClick={() => onSetTeamFilter('party')}
+                    className={cn(
+                      'px-2 sm:px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all',
+                      teamFilter === 'party'
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    )}
+                    title="僅顯示多人隊伍（與其他隊友組隊）"
+                  >
+                    <Swords className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline">多人</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>

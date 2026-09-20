@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder } from '@/utils/localOrder';
-import { getLocalPlayerTeamFilter, saveLocalPlayerTeamFilter } from '@/utils/teamFilter';
+import { getLocalPlayerTeamFilter, saveLocalPlayerTeamFilter, TeamFilterMode } from '@/utils/teamFilter';
 import { useWeeklyReset } from '@/hooks/useWeeklyReset';
 import { useCalculator } from '@/hooks/useCalculator';
 import { Header } from './Header';
@@ -252,9 +252,9 @@ export function MainLayout({
     } catch {}
   };
 
-  const [playerTeamFilters, setPlayerTeamFilters] = useState<Record<string, 'all' | 'solo'>>({});
+  const [playerTeamFilters, setPlayerTeamFilters] = useState<Record<string, TeamFilterMode>>({});
 
-  const getPlayerTeamFilterValue = (pName: string): 'all' | 'solo' => {
+  const getPlayerTeamFilterValue = (pName: string): TeamFilterMode => {
     if (playerTeamFilters[pName]) {
       return playerTeamFilters[pName];
     }
@@ -265,7 +265,7 @@ export function MainLayout({
     return getLocalPlayerTeamFilter(pName);
   };
 
-  const handleSetPlayerTeamFilter = async (targetPlayerName: string, mode: 'all' | 'solo') => {
+  const handleSetPlayerTeamFilter = async (targetPlayerName: string, mode: TeamFilterMode) => {
     if (!targetPlayerName || targetPlayerName === '__guests__') return;
 
     // 1. 本地儲存與 React 狀態即時響應 (0ms 樂觀更新)
