@@ -6,7 +6,7 @@ import { Player, Character } from '@/types/player';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/utils/cn';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder, sortPlayersByLocalOrder, saveLocalPlayerOrder } from '@/utils/localOrder';
-import { UserPlus, Users, Crown, UserX, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal, Pin, ArrowDownToLine } from 'lucide-react';
+import { User, UserPlus, Users, Crown, UserX, PlusCircle, LayoutList, LayoutGrid, RefreshCw, ChevronLeft, ChevronRight, MoreHorizontal, SlidersHorizontal, Pin, ArrowDownToLine } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ReorderPlayersModal } from '@/components/modals/ReorderPlayersModal';
 
@@ -18,6 +18,8 @@ interface PlayerNavBarProps {
   onSetViewMode?: (mode: 'compact' | 'detailed') => void;
   completedSort?: 'fixed' | 'to-end';
   onSetCompletedSort?: (mode: 'fixed' | 'to-end') => void;
+  teamFilter?: 'all' | 'solo';
+  onSetTeamFilter?: (mode: 'all' | 'solo') => void;
   crystalEarned?: number;
   crystalExpected?: number;
   formatCrystal?: (num: number) => string;
@@ -40,6 +42,8 @@ export function PlayerNavBar({
   onSetViewMode,
   completedSort = 'fixed',
   onSetCompletedSort,
+  teamFilter = 'all',
+  onSetTeamFilter,
   crystalEarned = 0,
   crystalExpected = 0,
   formatCrystal,
@@ -671,6 +675,34 @@ export function PlayerNavBar({
                   ) : (
                     <Pin className="w-3.5 h-3.5" />
                   )}
+                </button>
+              )}
+
+              {/* 隊伍過濾模式切換器: 全部隊伍 / 僅單人隊伍 (僅在選取玩家時顯示) */}
+              {onSetTeamFilter && selectedPlayerName !== '__guests__' && (
+                <button
+                  type="button"
+                  onClick={() => onSetTeamFilter(teamFilter === 'solo' ? 'all' : 'solo')}
+                  className={cn(
+                    'p-1.5 sm:px-2.5 sm:py-1 rounded-xl border transition-all shrink-0 flex items-center gap-1 text-xs select-none',
+                    teamFilter === 'solo'
+                      ? 'bg-amber-400 dark:bg-amber-500 text-slate-950 border-amber-500 shadow-xs font-black ring-1 ring-amber-400/50'
+                      : 'bg-black/5 dark:bg-slate-800 border-kerning-stroke/50 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-bold'
+                  )}
+                  title={
+                    teamFilter === 'solo'
+                      ? '目前過濾：僅顯示單人隊伍。點擊切換為顯示全部隊伍。'
+                      : '目前過濾：顯示全部隊伍。點擊切換為僅顯示單人隊伍。'
+                  }
+                >
+                  {teamFilter === 'solo' ? (
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                  ) : (
+                    <Users className="w-3.5 h-3.5 shrink-0" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {teamFilter === 'solo' ? '僅單人' : '全部隊伍'}
+                  </span>
                 </button>
               )}
             </div>

@@ -15,4 +15,5 @@ export interface Player {
   passwordHash?: string;
   isAdmin?: boolean;
   characters: Character[];
+  teamFilter?: 'all' | 'solo';
 }

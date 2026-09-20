@@ -10,6 +10,7 @@ import { cn } from '@/utils/cn';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import { BossCell } from './BossCell';
 import { Edit2, Ticket, Sparkles, UserX, Users, Clock, CheckCheck, RotateCcw } from 'lucide-react';
+import { checkIsSoloTeam } from '@/utils/teamFilter';
 
 interface CompactCharacterRowProps {
   character: Character;
@@ -28,6 +29,7 @@ interface CompactCharacterRowProps {
   onShowScheduleInfo?: (team: Team) => void;
   onToggleAllBosses?: (character: Character) => void;
   completedSort?: 'fixed' | 'to-end';
+  teamFilter?: 'all' | 'solo';
 }
 
 const DIFFICULTY_BADGES: Record<Difficulty, { label: string; tagClass: string; ringClass: string }> = {
@@ -346,6 +348,7 @@ export function CompactCharacterRow({
   onDeleteCharacter,
   onShowScheduleInfo,
   completedSort = 'fixed',
+  teamFilter = 'all',
 }: CompactCharacterRowProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
@@ -401,12 +404,20 @@ export function CompactCharacterRow({
     });
   }, [character.bossIds, character.resetBossIds, character.id, completedSort, store.weeklyRecords]);
 
+  // 隊伍過濾模式：若啟用「僅單人」，只保留單人隊伍的 BOSS
+  const filteredBossEntries = useMemo(() => {
+    if (teamFilter !== 'solo') return orderedBossEntries;
+    return orderedBossEntries.filter(({ boss, entryIndex }) =>
+      checkIsSoloTeam(character.id, boss, entryIndex, store)
+    );
+  }, [orderedBossEntries, teamFilter, character.id, store]);
+
   // FLIP 滑動動畫：記錄條列卡片位置，在排序改變後平滑流暢過渡 (無 scale，杜絕捲軸閃爍)
   const gridRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Map<string, DOMRect>>(new Map());
 
-  const prevEntriesRef = useRef(orderedBossEntries);
-  if (prevEntriesRef.current !== orderedBossEntries) {
+  const prevEntriesRef = useRef(filteredBossEntries);
+  if (prevEntriesRef.current !== filteredBossEntries) {
     if (gridRef.current) {
       const map = new Map<string, DOMRect>();
       gridRef.current.querySelectorAll<HTMLElement>('[data-boss-key]').forEach((el) => {
@@ -415,7 +426,7 @@ export function CompactCharacterRow({
       });
       positionsRef.current = map;
     }
-    prevEntriesRef.current = orderedBossEntries;
+    prevEntriesRef.current = filteredBossEntries;
   }
 
   useLayoutEffect(() => {
@@ -462,7 +473,7 @@ export function CompactCharacterRow({
         });
       });
     }
-  }, [orderedBossEntries]);
+  }, [filteredBossEntries]);
 
   const hasBosses = orderedBossEntries.length > 0;
   const progressPercent = progressStats.total > 0
@@ -576,8 +587,17 @@ export function CompactCharacterRow({
           )}
         </div>
 
-        {/* 右側：賽季進度標籤 ＋ 綠色擊破進度徽章 ＋ 一鍵全部完成快捷按鈕 */}
+        {/* 右側：隊伍過濾提示 ＋ 賽季進度標籤 ＋ 綠色擊破進度徽章 ＋ 一鍵全部完成快捷按鈕 */}
         <div className="flex items-center gap-1.5">
+          {teamFilter === 'solo' && (
+            <span
+              className="px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-300 font-black text-[9.5px] select-none shrink-0"
+              title="目前篩選：僅顯示單人隊伍"
+            >
+              👤 單人 {filteredBossEntries.length} 隻
+            </span>
+          )}
+
           {progressStats.seasonalTotal > 0 && (
             <span
               className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] border border-white/80 shadow-2xs select-none shrink-0"
@@ -656,33 +676,39 @@ export function CompactCharacterRow({
 
       {/* 單列 12 格 BOSS 排版 (Single Row: 12 Columns Grid) */}
       {hasBosses ? (
-        <div className="overflow-x-auto lg:overflow-x-hidden pb-0.5">
-          <div ref={gridRef} className="grid grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 min-w-[960px] lg:min-w-0">
-            {orderedBossEntries.map(({ boss, entryIndex }) => {
-              const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
-              const rec = store.weeklyRecords[recKey];
-              const team = rec?.teamId ? store.teams[rec.teamId] : null;
+        filteredBossEntries.length > 0 ? (
+          <div className="overflow-x-auto lg:overflow-x-hidden pb-0.5">
+            <div ref={gridRef} className="grid grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 min-w-[960px] lg:min-w-0">
+              {filteredBossEntries.map(({ boss, entryIndex }) => {
+                const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
+                const rec = store.weeklyRecords[recKey];
+                const team = rec?.teamId ? store.teams[rec.teamId] : null;
 
-              return (
-                <div key={recKey} data-boss-key={recKey} className="min-w-0">
-                  <SingleRowBossPill
-                    boss={boss}
-                    entryIndex={entryIndex}
-                    charId={character.id}
-                    record={rec}
-                    team={team}
-                    guestList={store.guests || []}
-                    canManage={isOwnerOrAdmin}
-                    onToggleStatus={onToggleStatus}
-                    onOpenPartyModal={onOpenPartyModal}
-                    onOpenShardModal={onOpenShardModal}
-                    onShowScheduleInfo={onShowScheduleInfo}
-                  />
-                </div>
-              );
-            })}
+                return (
+                  <div key={recKey} data-boss-key={recKey} className="min-w-0">
+                    <SingleRowBossPill
+                      boss={boss}
+                      entryIndex={entryIndex}
+                      charId={character.id}
+                      record={rec}
+                      team={team}
+                      guestList={store.guests || []}
+                      canManage={isOwnerOrAdmin}
+                      onToggleStatus={onToggleStatus}
+                      onOpenPartyModal={onOpenPartyModal}
+                      onOpenShardModal={onOpenShardModal}
+                      onShowScheduleInfo={onShowScheduleInfo}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="py-2.5 px-3 text-center text-xs text-stone-500 dark:text-slate-400 font-bold bg-black/5 dark:bg-black/20 rounded-xl border border-dashed border-stone-300 dark:border-slate-700">
+            此角色目前無單人隊伍 BOSS（所有 {orderedBossEntries.length} 隻配置皆為多人組隊）
+          </div>
+        )
       ) : (
         <div className="py-2 text-center text-xs text-slate-400">
           尚未設定 BOSS 清單，

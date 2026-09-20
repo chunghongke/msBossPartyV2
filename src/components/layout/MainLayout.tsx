@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { fetchNexonCharacterInfo, getNexonApiKey } from '@/services/nexon';
 import { sortCharactersByLocalOrder, saveLocalCharacterOrder } from '@/utils/localOrder';
+import { getLocalPlayerTeamFilter, saveLocalPlayerTeamFilter } from '@/utils/teamFilter';
 import { useWeeklyReset } from '@/hooks/useWeeklyReset';
 import { useCalculator } from '@/hooks/useCalculator';
 import { Header } from './Header';
@@ -57,9 +58,9 @@ export function MainLayout({
   onShowScheduleInfo,
 }: MainLayoutProps) {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
-  const { currentPlayer } = useAuth();
+  const { currentPlayer, canManagePlayerName } = useAuth();
   const { players, store, isLoading: isStoreLoading, toggleBossStatus,
-    toggleAllCharacterBosses, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud } = useStore();
+    toggleAllCharacterBosses, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud, updatePlayer } = useStore();
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
   const { calculateCrystal, formatCrystal } = useCalculator(store);
 
@@ -251,6 +252,41 @@ export function MainLayout({
     } catch {}
   };
 
+  const [playerTeamFilters, setPlayerTeamFilters] = useState<Record<string, 'all' | 'solo'>>({});
+
+  const getPlayerTeamFilterValue = (pName: string): 'all' | 'solo' => {
+    if (playerTeamFilters[pName]) {
+      return playerTeamFilters[pName];
+    }
+    const p = players.find((x) => x.name === pName);
+    if (p?.teamFilter) {
+      return p.teamFilter;
+    }
+    return getLocalPlayerTeamFilter(pName);
+  };
+
+  const handleSetPlayerTeamFilter = async (targetPlayerName: string, mode: 'all' | 'solo') => {
+    if (!targetPlayerName || targetPlayerName === '__guests__') return;
+
+    // 1. 本地儲存與 React 狀態即時響應 (0ms 樂觀更新)
+    saveLocalPlayerTeamFilter(targetPlayerName, mode);
+    setPlayerTeamFilters((prev) => ({
+      ...prev,
+      [targetPlayerName]: mode,
+    }));
+
+    // 2. 若具有該玩家管理權限，同步更新 Player 物件
+    const targetPlayer = players.find((p) => p.name === targetPlayerName);
+    if (targetPlayer && canManagePlayerName(targetPlayerName) && updatePlayer) {
+      try {
+        await updatePlayer({
+          ...targetPlayer,
+          teamFilter: mode,
+        });
+      } catch {}
+    }
+  };
+
   // 當登入者變更 (例如剛登入成功或身分切換) 時，立即將主視覺與導覽列切換為該登入者
   useEffect(() => {
     if (currentPlayer?.name) {
@@ -367,6 +403,16 @@ export function MainLayout({
             onSetViewMode={handleSetViewMode}
             completedSort={completedSort}
             onSetCompletedSort={handleSetCompletedSort}
+            teamFilter={
+              effectiveSelectedPlayerName && effectiveSelectedPlayerName !== '__guests__'
+                ? getPlayerTeamFilterValue(effectiveSelectedPlayerName)
+                : 'all'
+            }
+            onSetTeamFilter={(mode) => {
+              if (effectiveSelectedPlayerName && effectiveSelectedPlayerName !== '__guests__') {
+                handleSetPlayerTeamFilter(effectiveSelectedPlayerName, mode);
+              }
+            }}
             crystalEarned={activePlayerCrystalStats.earned}
             crystalExpected={activePlayerCrystalStats.expected}
             formatCrystal={formatCrystal}
@@ -430,6 +476,7 @@ export function MainLayout({
             {displayPlayers.map((player) => {
               // 依據本地自訂排序 (由上至下) 並響應 orderVersion 狀態更新
               const characters = sortCharactersByLocalOrder(player.name, player.characters || []);
+              const playerFilter = getPlayerTeamFilterValue(player.name);
 
               return (
                 <div key={player.name} className="space-y-2">
@@ -438,12 +485,13 @@ export function MainLayout({
                     {characters.length > 0 ? (
                       characters.map((char) =>
                         viewMode === 'compact' ? (
-                                                    <CompactCharacterRow
+                          <CompactCharacterRow
                             key={char.id}
                             character={char}
                             playerName={player.name}
                             store={store}
                             completedSort={completedSort}
+                            teamFilter={playerFilter}
                             onToggleStatus={toggleBossStatus}
                             onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}
@@ -455,12 +503,13 @@ export function MainLayout({
                             onShowScheduleInfo={onShowScheduleInfo}
                           />
                         ) : (
-                                                    <CharacterCard
+                          <CharacterCard
                             key={char.id}
                             character={char}
                             playerName={player.name}
                             store={store}
                             completedSort={completedSort}
+                            teamFilter={playerFilter}
                             onToggleStatus={toggleBossStatus}
                             onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}
