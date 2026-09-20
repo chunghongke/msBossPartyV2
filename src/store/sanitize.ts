@@ -241,8 +241,9 @@ export function sanitizeStoreAndTeams(
         rec.charId = parsed.charId;
         rec.bossId = parsed.bossId;
         rec.entryIndex = parsed.entryIndex;
-        if (!rec.teamId || rec.teamId.includes('undefined') || rec.teamId.startsWith('single_char_')) {
-          rec.teamId = `single_${parsed.charId}_${parsed.bossId}_${parsed.entryIndex}`;
+        const expectedSingleId = `single_${parsed.charId}_${parsed.bossId}_${parsed.entryIndex}`;
+        if (!rec.teamId || rec.teamId.includes('undefined') || !rawStore.teams[rec.teamId]) {
+          rec.teamId = expectedSingleId;
         }
         hasChanged = true;
       } else {
@@ -252,9 +253,17 @@ export function sanitizeStoreAndTeams(
     }
   });
 
-  // 8. 清理因損壞而產生的 single_char_ 幽靈隊伍
+  // 8. 清理成員無效或損壞的單人隊伍 (例如 charId 為 'char' 或不存在於任何玩家角色中)
   Object.keys(rawStore.teams).forEach((teamId) => {
-    if (teamId.startsWith('single_char_')) {
+    if (!teamId.startsWith('single_')) return;
+    const team = rawStore.teams[teamId];
+    if (!team || !team.memberTargets || team.memberTargets.length === 0) {
+      delete rawStore.teams[teamId];
+      hasChanged = true;
+      return;
+    }
+    const memberCharId = team.memberTargets[0]?.charId;
+    if (!memberCharId || memberCharId === 'char' || !allCharsMap.has(memberCharId)) {
       delete rawStore.teams[teamId];
       hasChanged = true;
     }

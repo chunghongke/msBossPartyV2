@@ -81,16 +81,16 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
           const changed = sanitizeStoreAndTeams(parsedPlayers, normalizedStore);
 
           // 🔒 防競爭保護：若有正在進行中的本地寫入（防抖尚未發送或剛發送），
-          //    則跳過此次 onValue 覆蓋，避免舊快照把本地樂觀更新的狀態回滾。
+          //    則跳過此次 onValue 覆蓋與自動修復回寫，避免舊快照把本地樂觀更新的狀態回滾。
           if (!hasPendingStoreWrites()) {
             store.setStore(normalizedStore);
-          }
 
-          if (changed && activeGroup?.firebaseConfig) {
-            const currentDb = getRtdb(activeGroup.firebaseConfig);
-            set(ref(currentDb, 'store'), normalizedStore).catch((e) =>
-              console.warn('Auto-sanitize sync error:', e)
-            );
+            if (changed && activeGroup?.firebaseConfig) {
+              const currentDb = getRtdb(activeGroup.firebaseConfig);
+              set(ref(currentDb, 'store'), normalizedStore).catch((e) =>
+                console.warn('Auto-sanitize sync error:', e)
+              );
+            }
           }
         } else {
           store.setStore(DEFAULT_STORE);

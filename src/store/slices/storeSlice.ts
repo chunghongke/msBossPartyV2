@@ -15,11 +15,12 @@ export const DEFAULT_STORE: StoreData = {
 // ── 防抖寫入機制：防止快速連續點擊造成的 Race Condition ──
 // 本地 Zustand 永遠即時更新（樂觀更新），Firebase 寫入則防抖合併
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
-let _pendingWrites = 0;
+let _isWriting = false;
+let _suppressSyncUntil = 0;
 
 /** 供 FirebaseSyncProvider 的 onValue 監聽器判斷是否有正在進行中的本地寫入 */
 export function hasPendingStoreWrites(): boolean {
-  return _pendingWrites > 0;
+  return _saveTimer !== null || _isWriting || Date.now() < _suppressSyncUntil;
 }
 
 export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
@@ -42,9 +43,10 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     if (!activeGroup?.firebaseConfig) return;
 
     // ② 防抖寫入：合併 150ms 內的快速連續操作，僅發送最終狀態
-    _pendingWrites++;
     if (_saveTimer) clearTimeout(_saveTimer);
     _saveTimer = setTimeout(async () => {
+      _saveTimer = null;
+      _isWriting = true;
       try {
         // 讀取「此刻」最新的 Zustand store，而非呼叫時的快照
         const currentStore = JSON.parse(JSON.stringify(get().store));
@@ -53,8 +55,9 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
       } catch (e) {
         console.warn('saveStoreToCloud error:', e);
       } finally {
-        // 延遲 200ms 後才解除抑制，讓 onValue 回音有時間完成
-        setTimeout(() => { _pendingWrites = Math.max(0, _pendingWrites - 1); }, 200);
+        _isWriting = false;
+        // 延遲 250ms 後才解除抑制，讓 onValue 回音有時間完成
+        _suppressSyncUntil = Date.now() + 250;
       }
     }, 150);
   },
