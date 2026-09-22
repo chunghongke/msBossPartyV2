@@ -249,9 +249,6 @@ export function LootEditModal({
     setItemName(presetName);
     if (preset) {
       setCategory(preset.category);
-      if (preset.defaultBossGroupKey && !lootToEdit) {
-        handleBossGroupChange(preset.defaultBossGroupKey);
-      }
     } else {
       setCategory(inferCategoryByName(presetName));
     }
