@@ -85,7 +85,7 @@ export function LootEditModal({
   const [priceInputStr, setPriceInputStr] = useState('');
   const [taxRatePercent, setTaxRatePercent] = useState<number>(3);
 
-  // 分贓成員
+  // 分配成員
   const [members, setMembers] = useState<LootMemberPayout[]>([]);
   const [note, setNote] = useState('');
 
@@ -330,7 +330,7 @@ export function LootEditModal({
       return;
     }
     if (members.length === 0) {
-      alert('請至少加入一位參與分贓的隊友成員！');
+      alert('請至少加入一位參與分配的隊友成員！');
       return;
     }
 
@@ -384,8 +384,8 @@ export function LootEditModal({
             <span>
               {lootToEdit
                 ? canManage
-                  ? '編輯戰利品分贓紀錄'
-                  : '檢視戰利品分贓明細 (唯讀模式)'
+                  ? '編輯戰利品分配紀錄'
+                  : '檢視戰利品分配明細 (唯讀模式)'
                 : '登記新獲得戰利品'}
             </span>
           </DialogTitle>
@@ -577,12 +577,12 @@ export function LootEditModal({
             </div>
           </div>
 
-          {/* 3. 拍賣售出與分贓金額試算 */}
+          {/* 3. 拍賣售出與分配金額試算 */}
           <div className="bg-amber-500/10 dark:bg-amber-950/20 rounded-2xl p-3.5 sm:p-4 border border-amber-500/30 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <h4 className="text-xs font-black text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
                 <Coins className="w-3.5 h-3.5 text-amber-500" />
-                <span>售價與分贓試算</span>
+                <span>售價與收益分配試算</span>
               </h4>
 
               {/* 售出狀態切換 */}
@@ -607,8 +607,8 @@ export function LootEditModal({
                     setIsSold(true);
                     setTimeout(() => {
                       if (priceInputRef.current) {
-                        priceInputRef.current.focus();
-                        priceInputRef.current.select();
+                         priceInputRef.current.focus();
+                         priceInputRef.current.select();
                       }
                     }, 50);
                   }}
@@ -619,7 +619,7 @@ export function LootEditModal({
                       : 'text-stone-600 dark:text-slate-400 hover:text-stone-900'
                   )}
                 >
-                  🔵 已售出，開始分贓
+                  🔵 已售出，開始分配收益
                 </button>
               </div>
             </div>
@@ -804,18 +804,18 @@ export function LootEditModal({
             ) : (
               <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed font-bold">
                 {saleCurrency === 'twd'
-                  ? '物品預計以台幣交易出售中。買家交易完成後，隨時切換為「已售出，開始分贓」並填入成交金額，系統將自動精算每人應分配份額。'
-                  : '物品仍在拍賣場上架中。售出後可隨時切換為「已售出，開始分贓」並填入成交金額，系統將自動精算每人應分配數額。'}
+                  ? '物品預計以台幣交易出售中。買家交易完成後，隨時切換為「已售出，開始分配收益」並填入成交金額，系統將自動精算每人應分配份額。'
+                  : '物品仍在拍賣場上架中。售出後可隨時切換為「已售出，開始分配收益」並填入成交金額，系統將自動精算每人應分配數額。'}
               </p>
             )}
           </div>
 
-          {/* 4. 參與分贓的隊友名冊 */}
+          {/* 4. 參與分配的隊友名冊 */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-stone-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-indigo-500" />
-                <span>參與分贓的隊友名單 ({members.length} 人)</span>
+                <span>參與分配的隊友名單 ({members.length} 人)</span>
                 <span className="text-rose-500">*</span>
               </label>
 
@@ -917,7 +917,7 @@ export function LootEditModal({
                           type="button"
                           onClick={() => handleRemoveMember(member.charId)}
                           className="p-1 text-stone-400 hover:text-rose-500 transition-colors shrink-0"
-                          title="從本次分贓中移除"
+                          title="從本次分配中移除"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

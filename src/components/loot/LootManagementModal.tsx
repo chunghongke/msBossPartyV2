@@ -156,7 +156,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
       alert(`此戰利品由「${loot.handlerPlayerName || '其他玩家'}」保管，只有保管人或管理員才能刪除！`);
       return;
     }
-    if (confirm(`確定要刪除「${loot.itemName}」的分贓紀錄嗎？此動作無法復原。`)) {
+    if (confirm(`確定要刪除「${loot.itemName}」的分配紀錄嗎？此動作無法復原。`)) {
       await deleteLoot(loot.id);
     }
   };
@@ -170,7 +170,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
             <div>
               <DialogTitle className="text-lg sm:text-xl font-black flex items-center gap-2">
                 <span className="text-2xl">🎁</span>
-                <span>戰利品分贓管理中心</span>
+                <span>戰利品分配管理中心</span>
                 {activeCount > 0 && (
                   <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-black">
                     {activeCount} 件進行中
@@ -203,7 +203,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                   </div>
                   <div>
                     <div className="text-xs font-bold text-stone-600 dark:text-slate-400 flex items-center gap-1.5">
-                      <span>{currentPlayer.name} 的分贓收益儀表板</span>
+                      <span>{currentPlayer.name} 的收益分配儀表板</span>
                     </div>
                     <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                       <span className="text-xs text-stone-500 dark:text-slate-400 font-bold">待領取總計：</span>
@@ -300,7 +300,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                   )}
                 >
                   <Clock className="w-3.5 h-3.5" />
-                  <span>進行中 (待售 / 分贓中)</span>
+                  <span>進行中 (待售 / 分配中)</span>
                   <span className="px-1.5 py-0.2 rounded-full bg-black/15 text-[10px] font-black">
                     {activeCount}
                   </span>
@@ -461,7 +461,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                           ) : (
                             <span className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center gap-1 shadow-xs">
                               <Coins className="w-3.5 h-3.5" />
-                              <span>分贓中 ({paidCount}/{totalMembers})</span>
+                              <span>分配中 ({paidCount}/{totalMembers})</span>
                             </span>
                           )}
 
@@ -708,13 +708,13 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                 <span className="text-4xl block">🎁</span>
                 <p className="text-sm font-black text-stone-700 dark:text-slate-300">
                   {activeTab === 'mine'
-                    ? '目前沒有與你相關的戰利品分贓紀錄'
+                    ? '目前沒有與你相關的戰利品分配紀錄'
                     : activeTab === 'active'
-                    ? '太棒了！目前沒有待售出或分贓中的戰利品'
+                    ? '太棒了！目前沒有待售出或分配中的戰利品'
                     : '目前尚無已結清的歷史紀錄'}
                 </p>
                 <p className="text-xs text-stone-500 dark:text-slate-400">
-                  打完每週 BOSS 若有掉落漆黑飾品、戒指箱或永恆裝備，點擊上方「登記新戰利品」快速開始分贓！
+                  打完每週 BOSS 若有掉落漆黑飾品、戒指箱或永恆裝備，點擊上方「登記新戰利品」快速開始分配！
                 </p>
                 <Button size="sm" variant="gold" onClick={handleOpenAdd} className="mt-2 font-black">
                   <Plus className="w-4 h-4 mr-1" />

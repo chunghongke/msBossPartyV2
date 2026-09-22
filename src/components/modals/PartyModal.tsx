@@ -1010,7 +1010,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
                 size="sm"
                 onClick={() => setIsRegisterLootOpen(true)}
                 className="font-black text-xs gap-1.5 text-amber-900 dark:text-amber-200 border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20"
-                title="登記本團獲得的掉落戰利品進行分贓"
+                title="登記本團獲得的掉落戰利品進行分配"
               >
                 <span>🎁</span>
                 <span>登記掉落物</span>

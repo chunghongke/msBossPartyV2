@@ -178,7 +178,7 @@ export function Header({
                     className="h-9 px-2 sm:px-2.5 relative text-amber-300 hover:text-amber-100 flex items-center gap-1.5 font-black text-xs shrink-0"
                   >
                     <span className="text-base">🎁</span>
-                    <span className="hidden md:inline">分贓管理</span>
+                    <span className="hidden md:inline">戰利品分配</span>
                     {activeLootCount > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black leading-tight">
                         {activeLootCount}
@@ -186,7 +186,7 @@ export function Header({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>戰利品分贓管理中心 {activeLootCount > 0 ? `(${activeLootCount} 件進行中)` : ''}</TooltipContent>
+                <TooltipContent>戰利品分配管理中心 {activeLootCount > 0 ? `(${activeLootCount} 件進行中)` : ''}</TooltipContent>
               </Tooltip>
             )}
 

@@ -16,7 +16,7 @@ export interface LootMemberPayout {
   charName: string;
   playerName: string;
   isGuest?: boolean;
-  isPaid: boolean;      // 是否已將分贓金額交付給該成員
+  isPaid: boolean;      // 是否已將分配金額交付給該成員
   paidAt?: string;       // 交付時間戳記 (ISO string)
   note?: string;         // 備註 (如：已遊戲內郵寄、扣抵裝備費)
 }
@@ -34,7 +34,7 @@ export interface LootItem {
   handlerPlayerName?: string;      // 保管人 / 上架者玩家名稱
 
   // 拍賣與金額設定
-  status: LootStatus;              // 'selling' (待售) | 'distributing' (分贓中) | 'done' (已結清)
+  status: LootStatus;              // 'selling' (待售) | 'distributing' (分配中) | 'done' (已結清)
   saleCurrency?: LootSaleCurrency; // 交易幣別: 'meso' (楓幣，預設) | 'twd' (新台幣)
   totalSalePrice: number;          // 拍賣售出總金額 (楓幣或台幣元)
   taxRatePercent: number;          // 拍賣/交易手續費 % (預設 3%)
