@@ -6,6 +6,7 @@ import { AlertProvider } from './contexts/AlertContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { useModalState } from './components/modals/ModalRoot';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { VersionUpdateBanner } from './components/ui/VersionUpdateBanner';
 
 function AppContent() {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
@@ -16,6 +17,7 @@ function AppContent() {
 
   return (
     <>
+      <VersionUpdateBanner />
       <MainLayout
         isGlobalLoading={isGlobalLoading}
         onOpenLoginModal={controller.openLoginModal}
