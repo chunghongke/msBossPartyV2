@@ -1,5 +1,6 @@
 import { Player, Character } from '@/types/player';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
+import { LootItem } from '@/types/loot';
 import { GroupConfig } from '@/types/group';
 import { StateCreator } from 'zustand';
 
@@ -48,11 +49,19 @@ export interface StoreSlice {
   deleteGuest: (guestId: string) => Promise<void>;
 }
 
+export interface LootSlice {
+  addLoot: (loot: Omit<LootItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<LootItem>;
+  updateLoot: (lootId: string, updates: Partial<LootItem>) => Promise<void>;
+  deleteLoot: (lootId: string) => Promise<void>;
+  toggleLootMemberPaid: (lootId: string, charId: string, isPaid?: boolean, note?: string) => Promise<void>;
+  batchSetLootMembersPaid: (lootId: string, isPaid: boolean) => Promise<void>;
+}
+
 export interface DerivedSlice {
   getAllCharacters: () => (Character & { playerName: string })[];
   getCharName: (charId: string) => string;
 }
 
-export type AppState = PlayerSlice & StoreSlice & DerivedSlice;
+export type AppState = PlayerSlice & StoreSlice & DerivedSlice & LootSlice;
 
 export type AppSlice<T> = StateCreator<AppState, [], [], T>;

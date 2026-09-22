@@ -115,3 +115,24 @@ export const BOSS_GROUPS: BossGroup[] = Array.from(
     return acc;
   }, new Map<string, BossGroup>()).values()
 );
+
+export function getBossGroup(groupKeyOrBossId: string): BossGroup | undefined {
+  const cleanKey = getBossGroupKey(groupKeyOrBossId);
+  return BOSS_GROUPS.find((g) => g.groupKey === cleanKey);
+}
+
+export function getBossGroupName(groupKeyOrBossId: string): string {
+  const group = getBossGroup(groupKeyOrBossId);
+  if (group) return group.displayName;
+  const boss = getBoss(groupKeyOrBossId);
+  if (boss) return getBossCleanName(boss.name);
+  return groupKeyOrBossId;
+}
+
+export function getBossGroupImage(groupKeyOrBossId: string): string | undefined {
+  const group = getBossGroup(groupKeyOrBossId);
+  if (group && group.bosses[0]) return group.bosses[0].image;
+  const boss = getBoss(groupKeyOrBossId);
+  if (boss) return boss.image;
+  return undefined;
+}

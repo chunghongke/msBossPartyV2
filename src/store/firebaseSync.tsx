@@ -65,6 +65,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
             weeklyRecords: data.weeklyRecords || {},
             guests: data.guests || [],
             lastResetWeekKey: data.lastResetWeekKey,
+            loots: data.loots || {},
           };
         }
 
@@ -75,6 +76,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
             weeklyRecords: rawStore.weeklyRecords || {},
             guests: Array.isArray(rawGuests) ? rawGuests : Object.values(rawGuests),
             lastResetWeekKey: rawStore.lastResetWeekKey,
+            loots: rawStore.loots || {},
           };
 
           // 執行自我修復與幽靈隊伍 GC (Self-Healing)

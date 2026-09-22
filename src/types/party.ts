@@ -1,3 +1,5 @@
+import { LootItem } from './loot';
+
 export interface MemberTarget {
   charId: string;
   entryIndex: number; // 1: 首刷, 2: 重置刷
@@ -45,4 +47,5 @@ export interface StoreData {
   weeklyRecords: Record<string, WeeklyRecord>;
   guests: Guest[];
   lastResetWeekKey?: string;
+  loots?: Record<string, LootItem>;
 }

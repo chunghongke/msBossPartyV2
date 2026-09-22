@@ -26,8 +26,9 @@ interface MainLayoutProps {
   isGlobalLoading?: boolean;
   onOpenLoginModal: () => void;
   onOpenGroupModal: () => void;
-  onOpenNotifModal: () => void;
+  onOpenNotifModal?: () => void;
   onOpenNexonKeyModal?: () => void;
+  onOpenLootModal?: () => void;
   onOpenAddPlayerModal: () => void;
   onOpenAddCharacterModal: (playerName: string) => void;
   onOpenDeletePlayerModal?: (player: Player) => void;
@@ -46,6 +47,7 @@ export function MainLayout({
   onOpenGroupModal,
   onOpenNotifModal,
   onOpenNexonKeyModal,
+  onOpenLootModal,
   onOpenAddPlayerModal,
   onOpenAddCharacterModal,
   onOpenDeletePlayerModal,
@@ -371,6 +373,7 @@ export function MainLayout({
         onOpenGroupModal={onOpenGroupModal}
         onOpenNotifModal={onOpenNotifModal}
         onOpenNexonKeyModal={onOpenNexonKeyModal}
+        onOpenLootModal={onOpenLootModal}
         countdownText={countdown.text}
       />
 

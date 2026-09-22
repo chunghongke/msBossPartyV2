@@ -10,6 +10,7 @@ export const DEFAULT_STORE: StoreData = {
   teams: {},
   weeklyRecords: {},
   guests: [],
+  loots: {},
 };
 
 // ── 防抖寫入機制：防止快速連續點擊造成的 Race Condition ──

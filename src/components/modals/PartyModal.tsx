@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFoo
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
 import { Users, Clock, Zap, AlertCircle, Plus, Trash2, UserCheck, ChevronDown, ChevronRight, Sparkles, Swords, Layers } from 'lucide-react';
+import { LootEditModal } from '@/components/loot/LootEditModal';
+import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
 
 interface PartyModalProps {
   isOpen: boolean;
@@ -87,6 +89,7 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const [expandedPlayerNames, setExpandedPlayerNames] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isRegisterLootOpen, setIsRegisterLootOpen] = useState(false);
 
   // 取得同 BOSS 群組的所有難度選項
   const bossGroupKey = getBossGroupKey(bossId);
@@ -141,6 +144,27 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const allChars = getAllCharacters();
   const currentChar = allChars.find((c) => c.id === charId);
   const currentOwnerPlayerName = currentChar?.playerName;
+
+  const currentTeamMembers = useMemo(() => {
+    return memberTargets.map((mt) => {
+      if (mt.charId.startsWith('guest_')) {
+        const guest = (store.guests || []).find((g) => g.id === mt.charId);
+        return {
+          charId: mt.charId,
+          charName: guest?.name || '臨時隊友',
+          playerName: '臨時隊友',
+          isGuest: true,
+        };
+      }
+      const char = allChars.find((c) => c.id === mt.charId);
+      return {
+        charId: mt.charId,
+        charName: char?.name || '未知角色',
+        playerName: char?.playerName || '未知玩家',
+        isGuest: false,
+      };
+    });
+  }, [memberTargets, store.guests, allChars]);
 
   // 切換難度處理函式
   const handleSwitchDifficulty = (newBossId: string) => {
@@ -474,7 +498,8 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
   const isDifficultyChanged = selectedBossId !== bossId;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent maxWidthClass="max-w-5xl">
         <DialogHeader className="pr-10">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -978,9 +1003,21 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
           </DialogBody>
 
           <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
-            <div className="text-[11px] text-stone-500 dark:text-slate-400 font-bold">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="parchment"
+                size="sm"
+                onClick={() => setIsRegisterLootOpen(true)}
+                className="font-black text-xs gap-1.5 text-amber-900 dark:text-amber-200 border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20"
+                title="登記本團獲得的掉落戰利品進行分贓"
+              >
+                <span>🎁</span>
+                <span>登記掉落物</span>
+              </Button>
+
               {isDifficultyChanged && (
-                <span className="text-amber-700 dark:text-amber-300 font-black">
+                <span className="text-amber-700 dark:text-amber-300 font-black text-[11px]">
                   ⚠️ 儲存時將自動更新角色 BOSS 清單為【{activeBoss.name}】
                 </span>
               )}
@@ -1004,5 +1041,16 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         </form>
       </DialogContent>
     </Dialog>
+
+    <LootEditModal
+      isOpen={isRegisterLootOpen}
+      onClose={() => setIsRegisterLootOpen(false)}
+      initialBossId={selectedBossId}
+      initialEntryIndex={entryIndex}
+      initialWeekKey={getCurrentResetWeekKey()}
+      initialTeamId={currentTeamId}
+      initialMembers={currentTeamMembers}
+    />
+    </>
   );
 }

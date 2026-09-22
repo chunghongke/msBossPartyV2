@@ -16,12 +16,22 @@ import { NotificationModal } from './NotificationModal';
 import { NexonKeyModal } from './NexonKeyModal';
 import { DeleteCharacterModal } from './DeleteCharacterModal';
 import { DeletePlayerModal } from './DeletePlayerModal';
+import { LootManagementModal } from '@/components/loot/LootManagementModal';
+import { LootEditModal } from '@/components/loot/LootEditModal';
 
 export interface ModalController {
   openGroupModal: () => void;
   openLoginModal: (preselectedPlayerName?: string) => void;
   openNotifModal: () => void;
   openNexonKeyModal: () => void;
+  openLootModal: () => void;
+  openAddLootModal: (initialContext?: {
+    bossId?: string;
+    entryIndex?: number;
+    weekKey?: string;
+    teamId?: string;
+    members?: Array<{ charId: string; charName: string; playerName: string; isGuest?: boolean }>;
+  }) => void;
   openAddPlayerModal: () => void;
   openAddCharacterModal: (playerName: string) => void;
   openRenameModal: (character: Character) => void;
@@ -40,6 +50,14 @@ export function useModalState() {
   const [authPreselectedPlayer, setAuthPreselectedPlayer] = useState<string | undefined>(undefined);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isNexonKeyOpen, setIsNexonKeyOpen] = useState(false);
+  const [isLootOpen, setIsLootOpen] = useState(false);
+  const [addLootContext, setAddLootContext] = useState<{
+    bossId?: string;
+    entryIndex?: number;
+    weekKey?: string;
+    teamId?: string;
+    members?: Array<{ charId: string; charName: string; playerName: string; isGuest?: boolean }>;
+  } | null>(null);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
 
   const [addCharPlayerName, setAddCharPlayerName] = useState<string | null>(null);
@@ -61,6 +79,8 @@ export function useModalState() {
       },
       openNotifModal: () => setIsNotifOpen(true),
       openNexonKeyModal: () => setIsNexonKeyOpen(true),
+      openLootModal: () => setIsLootOpen(true),
+      openAddLootModal: (initialContext) => setAddLootContext(initialContext || {}),
       openAddPlayerModal: () => setIsAddPlayerOpen(true),
       openAddCharacterModal: (playerName: string) => setAddCharPlayerName(playerName),
       openRenameModal: (character: Character) => setRenameChar(character),
@@ -177,6 +197,21 @@ export function useModalState() {
         isOpen={Boolean(deletePlayerTarget)}
         onClose={() => setDeletePlayerTarget(null)}
         player={deletePlayerTarget}
+      />
+
+      <LootManagementModal
+        isOpen={isLootOpen}
+        onClose={() => setIsLootOpen(false)}
+      />
+
+      <LootEditModal
+        isOpen={Boolean(addLootContext)}
+        onClose={() => setAddLootContext(null)}
+        initialBossId={addLootContext?.bossId}
+        initialEntryIndex={addLootContext?.entryIndex}
+        initialWeekKey={addLootContext?.weekKey}
+        initialTeamId={addLootContext?.teamId}
+        initialMembers={addLootContext?.members}
       />
     </>
   );

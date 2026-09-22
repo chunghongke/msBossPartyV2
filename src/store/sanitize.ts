@@ -33,7 +33,7 @@ export function parseRecordKey(recordKey: string): { charId: string; bossId: str
 
 export function sanitizeStoreAndTeams(
   parsedPlayers: Player[],
-  rawStore: { teams: Record<string, any>; weeklyRecords: Record<string, any>; guests: any[]; lastResetWeekKey?: string }
+  rawStore: { teams: Record<string, any>; weeklyRecords: Record<string, any>; guests: any[]; lastResetWeekKey?: string; loots?: Record<string, any> }
 ): boolean {
   if (!rawStore.teams || !rawStore.weeklyRecords) return false;
 

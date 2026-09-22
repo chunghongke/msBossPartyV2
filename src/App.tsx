@@ -22,6 +22,7 @@ function AppContent() {
         onOpenGroupModal={controller.openGroupModal}
         onOpenNotifModal={controller.openNotifModal}
         onOpenNexonKeyModal={controller.openNexonKeyModal}
+        onOpenLootModal={controller.openLootModal}
         onOpenAddPlayerModal={controller.openAddPlayerModal}
         onOpenDeletePlayerModal={controller.openDeletePlayerModal}
         onOpenAddCharacterModal={controller.openAddCharacterModal}
