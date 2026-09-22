@@ -20,7 +20,7 @@ import {
   formatLootPriceShort,
 } from '@/utils/currency';
 import { cn } from '@/utils/cn';
-import { Sparkles, Users, Coins, Calendar, Trash2, Plus, Banknote } from 'lucide-react';
+import { Sparkles, Users, Coins, Calendar, Trash2, Plus, Banknote, X } from 'lucide-react';
 
 interface LootEditModalProps {
   isOpen: boolean;
@@ -66,6 +66,7 @@ export function LootEditModal({
   const [itemName, setItemName] = useState('');
   const [category, setCategory] = useState<LootCategory>('ring_related');
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<LootCategory | 'all'>('all');
+  const [isCapsuleView, setIsCapsuleView] = useState(false);
 
   const [bossGroupKey, setBossGroupKey] = useState(() =>
     initialBossId ? getBossGroupKey(initialBossId) : 'lotus'
@@ -103,6 +104,7 @@ export function LootEditModal({
       setItemName(lootToEdit.itemName);
       setCategory(lootToEdit.category);
       setSelectedCategoryTab(lootToEdit.category);
+      setIsCapsuleView(LOOT_PRESETS.some((p) => p.name === lootToEdit.itemName));
       setBossGroupKey(getBossGroupKey(lootToEdit.bossId));
       setEntryIndex(lootToEdit.entryIndex);
       setWeekKey(lootToEdit.weekKey);
@@ -122,6 +124,7 @@ export function LootEditModal({
       setItemName('');
       setCategory('ring_related');
       setSelectedCategoryTab('all');
+      setIsCapsuleView(false);
       const defaultGroup = initialBossId ? getBossGroupKey(initialBossId) : 'lotus';
       setBossGroupKey(defaultGroup);
       setEntryIndex(initialEntryIndex);
@@ -245,13 +248,25 @@ export function LootEditModal({
 
   // ── 點擊預設物品 ──
   const handleSelectPreset = (presetName: string) => {
+    // 若已選中該標籤且處於膠囊狀態，再次點擊等同於取消選取
+    if (itemName === presetName && isCapsuleView) {
+      setItemName('');
+      setIsCapsuleView(false);
+      return;
+    }
     const preset = LOOT_PRESETS.find((p) => p.name === presetName);
     setItemName(presetName);
+    setIsCapsuleView(true);
     if (preset) {
       setCategory(preset.category);
     } else {
       setCategory(inferCategoryByName(presetName));
     }
+  };
+
+  const handleClearCapsule = () => {
+    setItemName('');
+    setIsCapsuleView(false);
   };
 
   // ── 幣別切換 ──
@@ -421,17 +436,60 @@ export function LootEditModal({
               </div>
             </div>
 
-            <Input
-              type="text"
-              disabled={!canManage}
-              value={itemName}
-              onChange={(e) => {
-                setItemName(e.target.value);
-                setCategory(inferCategoryByName(e.target.value));
-              }}
-              placeholder="例如：受詛咒的魔導書、全面控制核心、根源的耳語、卓越鐵鎚 (口紅)、規範四..."
-              className="font-bold text-sm"
-            />
+            {isCapsuleView && itemName ? (
+              <div className="flex h-10 w-full items-center justify-between rounded-xl border-2 border-[#D4B982] dark:border-slate-700 bg-[#FFFDF9] dark:bg-slate-900/90 px-3 shadow-inner">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/25 dark:bg-amber-400/20 text-slate-950 dark:text-amber-200 border border-amber-500/50 text-xs sm:text-sm font-black shadow-xs select-none animate-in fade-in zoom-in-95 duration-150">
+                  <span className="text-sm leading-none">{LOOT_CATEGORIES[category]?.icon || '📦'}</span>
+                  <span className="leading-none">{itemName}</span>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={handleClearCapsule}
+                      className="ml-1 p-0.5 rounded-full hover:bg-amber-500/30 text-stone-600 dark:text-amber-300 hover:text-rose-600 dark:hover:text-rose-300 transition-colors cursor-pointer flex items-center justify-center"
+                      title="取消選取 / 清除"
+                      aria-label="取消選取"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCapsuleView(false)}
+                    className="text-[11px] font-bold text-stone-400 hover:text-stone-700 dark:text-slate-500 dark:hover:text-slate-300 transition-colors cursor-pointer px-1 py-0.5"
+                    title="切換為手動輸入自訂名稱"
+                  >
+                    改為自訂名稱
+                  </button>
+                )}
+              </div>
+            ) : (
+              <Input
+                type="text"
+                disabled={!canManage}
+                value={itemName}
+                onChange={(e) => {
+                  setItemName(e.target.value);
+                  setCategory(inferCategoryByName(e.target.value));
+                }}
+                placeholder="例如：受詛咒的魔導書、全面控制核心、根源的耳語、卓越鐵鎚 (口紅)、規範四..."
+                className="font-bold text-sm"
+                rightIcon={
+                  itemName && canManage ? (
+                    <button
+                      type="button"
+                      onClick={handleClearCapsule}
+                      className="p-1 hover:bg-black/5 dark:hover:bg-slate-700 rounded-full text-stone-400 hover:text-stone-700 cursor-pointer"
+                      title="清空"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : undefined
+                }
+              />
+            )}
 
             {/* 預設分類與快選標籤 */}
             <div className="bg-black/5 dark:bg-slate-800/80 rounded-2xl p-2.5 border border-kerning-stroke/30 dark:border-slate-700 space-y-2">
