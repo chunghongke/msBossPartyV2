@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { StoreData, Team, WeeklyRecord } from '@/types/party';
 import { Player } from '@/types/player';
 
@@ -210,8 +210,14 @@ export function useWeeklyReset(
     }
   }, [players, store, saveStore, isStoreLoading]);
 
+  const lastRunRef = useRef(0);
+
   useEffect(() => {
     if (!isStoreLoading && store && players.length > 0) {
+      const now = Date.now();
+      if (now - lastRunRef.current < 5000) return;
+      lastRunRef.current = now;
+
       checkAndPerformWeeklyReset().then(() => {
         ensureDefaultSingleTeams();
       });
