@@ -20,7 +20,7 @@ import {
   formatLootPriceShort,
 } from '@/utils/currency';
 import { cn } from '@/utils/cn';
-import { Sparkles, Users, Coins, Calendar, Trash2, Plus, Banknote, X } from 'lucide-react';
+import { Sparkles, Users, Coins, Calendar, Trash2, Plus, Banknote, X, ChevronDown, ChevronRight, Search, Zap } from 'lucide-react';
 
 interface LootEditModalProps {
   isOpen: boolean;
@@ -45,7 +45,7 @@ export function LootEditModal({
   initialMembers,
   autoFocusPrice = false,
 }: LootEditModalProps) {
-  const { store, addLoot, updateLoot, getAllCharacters, players } = useStore();
+  const { store, addLoot, updateLoot, getAllCharacters, players, addGuest, deleteGuest } = useStore();
   const { currentPlayer, isAdmin } = useAuth();
   const priceInputRef = useRef<HTMLInputElement>(null);
 
@@ -87,12 +87,14 @@ export function LootEditModal({
   const [taxRatePercent, setTaxRatePercent] = useState<number>(3);
 
   // 分配成員
+  // 分配成員
   const [members, setMembers] = useState<LootMemberPayout[]>([]);
   const [note, setNote] = useState('');
 
-  // 輔助加入成員選擇器
-  const [isAddingMember, setIsAddingMember] = useState(false);
-  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  // 隊員選擇器狀態 (依照玩家分群 Checkbox 模式)
+  const [memberSearchFilter, setMemberSearchFilter] = useState('');
+  const [expandedPlayerNames, setExpandedPlayerNames] = useState<Set<string>>(new Set());
+  const [quickGuestName, setQuickGuestName] = useState('');
 
   const allCharacters = useMemo(() => getAllCharacters(), [getAllCharacters]);
 
@@ -117,8 +119,17 @@ export function LootEditModal({
       setTotalSalePrice(lootToEdit.totalSalePrice);
       setPriceInputStr(lootToEdit.totalSalePrice > 0 ? String(lootToEdit.totalSalePrice) : '');
       setTaxRatePercent(lootToEdit.taxRatePercent ?? (curr === 'twd' ? 0 : 3));
-      setMembers(lootToEdit.members || []);
+      const editMembers = lootToEdit.members || [];
+      setMembers(editMembers);
       setNote(lootToEdit.note || '');
+
+      // 自動展開有成員被選取的玩家手風琴
+      const initExpanded = new Set<string>();
+      editMembers.forEach((m) => {
+        if (m.isGuest) initExpanded.add('__GUEST__');
+        else if (m.playerName) initExpanded.add(m.playerName);
+      });
+      setExpandedPlayerNames(initExpanded);
     } else {
       // 新增模式
       setItemName('');
@@ -141,15 +152,21 @@ export function LootEditModal({
 
       // 若有帶入初始隊伍成員
       if (initialMembers && initialMembers.length > 0) {
-        setMembers(
-          initialMembers.map((m) => ({
-            charId: m.charId,
-            charName: m.charName,
-            playerName: m.playerName,
-            isGuest: m.isGuest,
-            isPaid: false,
-          }))
-        );
+        const resolved = initialMembers.map((m) => ({
+          charId: m.charId,
+          charName: m.charName,
+          playerName: m.playerName,
+          isGuest: m.isGuest,
+          isPaid: false,
+        }));
+        setMembers(resolved);
+
+        const initExpanded = new Set<string>();
+        resolved.forEach((m) => {
+          if (m.isGuest) initExpanded.add('__GUEST__');
+          else if (m.playerName) initExpanded.add(m.playerName);
+        });
+        setExpandedPlayerNames(initExpanded);
       } else {
         // 自動從現有隊伍尋找該 Boss Group 的成員
         const matchingTeam = Object.values(store.teams || {}).find((t) =>
@@ -183,8 +200,16 @@ export function LootEditModal({
             };
           });
           setMembers(resolved);
+
+          const initExpanded = new Set<string>();
+          resolved.forEach((m) => {
+            if (m.isGuest) initExpanded.add('__GUEST__');
+            else if (m.playerName) initExpanded.add(m.playerName);
+          });
+          setExpandedPlayerNames(initExpanded);
         } else {
           setMembers([]);
+          setExpandedPlayerNames(new Set());
         }
       }
     }
@@ -241,10 +266,17 @@ export function LootEditModal({
             isPaid: false,
           };
         });
-        setMembers(resolved);
+          setMembers(resolved);
+
+          const initExpanded = new Set<string>();
+          resolved.forEach((m) => {
+            if (m.isGuest) initExpanded.add('__GUEST__');
+            else if (m.playerName) initExpanded.add(m.playerName);
+          });
+          setExpandedPlayerNames(initExpanded);
+        }
       }
-    }
-  };
+    };
 
   // ── 點擊預設物品 ──
   const handleSelectPreset = (presetName: string) => {
@@ -313,25 +345,177 @@ export function LootEditModal({
     );
   }, [isSold, totalSalePrice, taxRatePercent, members.length]);
 
-  // ── 移除成員 ──
-  const handleRemoveMember = (charId: string) => {
-    setMembers((prev) => prev.filter((m) => m.charId !== charId));
+  // 尋找當前 BOSS 隊伍
+  const currentBossTeam = useMemo(() => {
+    if (teamId && store.teams[teamId]) {
+      return store.teams[teamId];
+    }
+    return Object.values(store.teams || {}).find((t) =>
+      t.memberTargets?.some((mt) => {
+        return Object.values(store.weeklyRecords || {}).some(
+          (rec) => rec.charId === mt.charId && rec.teamId === t.id && getBossGroupKey(rec.bossId) === bossGroupKey
+        );
+      })
+    );
+  }, [teamId, store.teams, store.weeklyRecords, bossGroupKey]);
+
+  // 依玩家分群的角色清單與過濾 (保持自然穩定順序，選取後不跳動)
+  const filteredPlayersWithChars = useMemo(() => {
+    const query = memberSearchFilter.trim().toLowerCase();
+    return (players || []).map((player) => {
+      const allChars = player.characters || [];
+      const matchesPlayerName = player.name.toLowerCase().includes(query);
+      const matchingChars = query
+        ? allChars.filter((c) => matchesPlayerName || c.name.toLowerCase().includes(query))
+        : allChars;
+
+      const selectedCount = allChars.filter((c) =>
+        members.some((m) => m.charId === c.id)
+      ).length;
+
+      return {
+        player,
+        chars: matchingChars,
+        totalCharCount: allChars.length,
+        selectedCount,
+        matchesQuery: !query || matchesPlayerName || matchingChars.length > 0,
+      };
+    }).filter((item) => item.matchesQuery);
+  }, [players, memberSearchFilter, members]);
+
+  const filteredGuests = useMemo(() => {
+    const query = memberSearchFilter.trim().toLowerCase();
+    return (store.guests || []).filter((g) => !query || g.name.toLowerCase().includes(query));
+  }, [store.guests, memberSearchFilter]);
+
+  const isAllExpanded = useMemo(() => {
+    if (!players || players.length === 0) return false;
+    return players.every((p) => expandedPlayerNames.has(p.name));
+  }, [players, expandedPlayerNames]);
+
+  const togglePlayerAccordion = (pName: string) => {
+    setExpandedPlayerNames((prev) => {
+      const next = new Set(prev);
+      if (next.has(pName)) {
+        next.delete(pName);
+      } else {
+        next.add(pName);
+      }
+      return next;
+    });
   };
 
-  // ── 新增成員 ──
-  const handleAddMemberFromList = (charId: string, charName: string, playerName: string, isGuest: boolean = false) => {
-    if (members.some((m) => m.charId === charId)) return;
-    setMembers((prev) => [
-      ...prev,
-      {
-        charId,
-        charName,
-        playerName,
-        isGuest,
+  const toggleAllAccordions = () => {
+    if (isAllExpanded) {
+      setExpandedPlayerNames(new Set());
+    } else {
+      const allNames = new Set((players || []).map((p) => p.name));
+      allNames.add('__GUEST__');
+      setExpandedPlayerNames(allNames);
+    }
+  };
+
+  // ── 成員勾選 / 反選 ──
+  const handleToggleMember = (
+    charId: string,
+    charName: string,
+    playerName: string,
+    isGuest: boolean = false
+  ) => {
+    setMembers((prev) => {
+      const exists = prev.some((m) => m.charId === charId);
+      if (exists) {
+        return prev.filter((m) => m.charId !== charId);
+      } else {
+        return [
+          ...prev,
+          {
+            charId,
+            charName,
+            playerName,
+            isGuest,
+            isPaid: false,
+          },
+        ];
+      }
+    });
+  };
+
+  // ── 清空所有已選成員 ──
+  const handleClearAllMembers = () => {
+    setMembers([]);
+  };
+
+  // ── 帶入當前 BOSS 隊伍成員 ──
+  const handleFillCurrentBossTeam = () => {
+    if (!currentBossTeam || !currentBossTeam.memberTargets) return;
+    const resolved: LootMemberPayout[] = currentBossTeam.memberTargets.map((mt) => {
+      if (mt.charId.startsWith('guest_')) {
+        const guest = (store.guests || []).find((g) => g.id === mt.charId);
+        return {
+          charId: mt.charId,
+          charName: guest?.name || '臨時隊友',
+          playerName: '臨時隊友',
+          isGuest: true,
+          isPaid: false,
+        };
+      }
+      const char = allCharacters.find((c) => c.id === mt.charId);
+      return {
+        charId: mt.charId,
+        charName: char?.name || '未知角色',
+        playerName: char?.playerName || '未知玩家',
+        isGuest: false,
         isPaid: false,
-      },
-    ]);
-    setIsAddingMember(false);
+      };
+    });
+
+    setMembers(resolved);
+
+    // 自動展開有成員被選取的玩家手風琴
+    const nextExpanded = new Set<string>();
+    resolved.forEach((m) => {
+      if (m.isGuest) {
+        nextExpanded.add('__GUEST__');
+      } else if (m.playerName) {
+        nextExpanded.add(m.playerName);
+      }
+    });
+    setExpandedPlayerNames(nextExpanded);
+  };
+
+  // ── 快速新增 Guest 並自動勾選 ──
+  const handleQuickAddGuest = async () => {
+    const clean = quickGuestName.trim();
+    if (!clean) return;
+    try {
+      const newGuest = await addGuest(clean);
+      setQuickGuestName('');
+      setMembers((prev) => {
+        if (prev.some((m) => m.charId === newGuest.id)) return prev;
+        return [
+          ...prev,
+          {
+            charId: newGuest.id,
+            charName: newGuest.name,
+            playerName: '臨時隊友',
+            isGuest: true,
+            isPaid: false,
+          },
+        ];
+      });
+      setExpandedPlayerNames((prev) => new Set([...prev, '__GUEST__']));
+    } catch (err) {
+      console.error('Failed to add guest:', err);
+    }
+  };
+
+  // ── 刪除臨時隊友 ──
+  const handleDeleteGuest = async (guestId: string) => {
+    if (confirm('確定要刪除此臨時隊友嗎？此動作將同步自名冊中移除。')) {
+      setMembers((prev) => prev.filter((m) => m.charId !== guestId));
+      await deleteGuest(guestId);
+    }
   };
 
   // ── 儲存送出 ──
@@ -392,7 +576,7 @@ export function LootEditModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent maxWidthClass="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent maxWidthClass="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-5 sm:px-6 border-b border-kerning-stroke/30 dark:border-slate-700 bg-black/5 dark:bg-black/20">
           <DialogTitle className="text-base sm:text-lg font-black flex items-center gap-2">
             <span className="text-xl">🎁</span>
@@ -868,197 +1052,406 @@ export function LootEditModal({
             )}
           </div>
 
-          {/* 4. 參與分配的隊友名冊 */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
+          {/* 4. 參與分配的隊友名冊 (依照玩家分群 Checkbox 模式) */}
+          <div className="space-y-3">
+            {/* 標題與快捷按鈕列 */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="text-xs font-black text-stone-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-indigo-500" />
-                <span>參與分配的隊友名單 ({members.length} 人)</span>
+                <span>參與分配的隊友成員 ({members.length} 人)</span>
                 <span className="text-rose-500">*</span>
               </label>
 
-              {canManage && (
+              <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                {canManage && currentBossTeam && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="parchment"
+                    onClick={handleFillCurrentBossTeam}
+                    className="h-7 px-2 text-[11px] font-bold gap-1 text-amber-700 dark:text-amber-300"
+                    title="自動帶入當前此 BOSS 排定隊伍的名單"
+                  >
+                    <Zap className="w-3 h-3 text-amber-500" />
+                    <span>帶入本團成員</span>
+                  </Button>
+                )}
+
                 <Button
+                  type="button"
                   size="sm"
                   variant="parchment"
-                  onClick={() => setIsAddingMember(true)}
-                  className="text-xs h-7 gap-1"
+                  onClick={toggleAllAccordions}
+                  className="h-7 px-2 text-[11px] font-bold text-stone-600 dark:text-slate-300"
                 >
-                  <Plus className="w-3 h-3" />
-                  <span>手動加入成員</span>
+                  {isAllExpanded ? '全部收合' : '全部展開'}
                 </Button>
+
+                {canManage && members.length > 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="parchment"
+                    onClick={handleClearAllMembers}
+                    className="h-7 px-2 text-[11px] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>清空名單</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* 已選成員摘要預覽 */}
+            {members.length === 0 ? (
+              <div className="py-4 px-3 text-center text-xs text-rose-500 bg-rose-500/10 border border-dashed border-rose-400/80 rounded-xl">
+                尚未勾選任何隊友！請在下方玩家名冊中勾選參與此次掉落分配的成員。
+              </div>
+            ) : !isSold ? (
+              /* 待售中：精簡標籤膠囊預覽 */
+              <div className="p-2.5 rounded-xl bg-amber-500/10 dark:bg-amber-950/20 border border-amber-500/30">
+                <div className="text-[11px] font-black text-amber-900 dark:text-amber-200 mb-1.5 flex items-center justify-between">
+                  <span>已選成員 ({members.length} 人)：</span>
+                  <span className="text-[10px] text-stone-500 dark:text-slate-400 font-normal">
+                    點擊標籤 ✕ 或下方核取方塊可取消
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {members.map((m) => {
+                    const isCurrent = currentPlayer?.name === m.playerName;
+                    return (
+                      <span
+                        key={m.charId}
+                        className={cn(
+                          'inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold transition-all',
+                          m.isGuest
+                            ? 'bg-purple-100 dark:bg-purple-900/60 text-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-700'
+                            : isCurrent
+                            ? 'bg-amber-200 dark:bg-amber-800/60 text-amber-950 dark:text-amber-100 border border-amber-400'
+                            : 'bg-white dark:bg-slate-800 text-stone-800 dark:text-slate-200 border border-stone-300 dark:border-slate-700'
+                        )}
+                      >
+                        <span>{m.charName}</span>
+                        {m.isGuest ? (
+                          <span className="text-[9px] opacity-75 font-normal">(Guest)</span>
+                        ) : (
+                          <span className="text-[9px] opacity-60 font-normal">({m.playerName})</span>
+                        )}
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMember(m.charId, m.charName, m.playerName, m.isGuest)}
+                            className="hover:text-rose-500 ml-0.5 p-0.5 rounded transition-colors cursor-pointer"
+                            title="取消勾選"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* 已售出：顯示分配金額與個人交付狀態 */
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/20 border border-emerald-500/30 space-y-2">
+                <div className="text-[11px] font-black text-emerald-900 dark:text-emerald-200 flex items-center justify-between">
+                  <span>已選成員與收益分配 ({members.length} 人)：</span>
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                    每人應得：{formatLootPrice(splitCalc.splitAmountPerMember, saleCurrency)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
+                  {members.map((member) => {
+                    const isCurrent = currentPlayer?.name === member.playerName;
+                    return (
+                      <div
+                        key={member.charId}
+                        className={cn(
+                          'p-2 rounded-lg border flex items-center justify-between gap-1.5 transition-all text-xs',
+                          isCurrent
+                            ? 'bg-amber-500/10 border-amber-500/40 dark:bg-amber-950/30'
+                            : 'bg-white dark:bg-slate-800 border-stone-300 dark:border-slate-700'
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-xs text-stone-900 dark:text-slate-100 truncate">
+                              {member.charName}
+                            </span>
+                            {member.isGuest ? (
+                              <span className="px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-800 dark:text-indigo-300 text-[9px] font-black">
+                                Guest
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-stone-500 dark:text-slate-400 truncate">
+                                ({member.playerName})
+                              </span>
+                            )}
+                            {isCurrent && (
+                              <span className="px-1 py-0.2 rounded bg-amber-500 text-slate-950 text-[9px] font-black">
+                                你
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {canManage ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMembers((prev) =>
+                                  prev.map((m) =>
+                                    m.charId === member.charId
+                                      ? { ...m, isPaid: !m.isPaid, paidAt: !m.isPaid ? new Date().toISOString() : undefined }
+                                      : m
+                                  )
+                                );
+                              }}
+                              className={cn(
+                                'px-1.5 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer',
+                                member.isPaid
+                                  ? 'bg-emerald-500 text-white'
+                                  : 'bg-stone-200 dark:bg-slate-700 text-stone-600 dark:text-slate-300'
+                              )}
+                            >
+                              {member.isPaid ? '✓ 已交付' : '未交付'}
+                            </button>
+                          ) : (
+                            <span
+                              className={cn(
+                                'px-1.5 py-0.5 rounded text-[10px] font-black',
+                                member.isPaid
+                                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                                  : 'bg-stone-200/70 dark:bg-slate-700/60 text-stone-500 dark:text-slate-400'
+                              )}
+                            >
+                              {member.isPaid ? '✓ 已交付' : '未交付'}
+                            </span>
+                          )}
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleMember(member.charId, member.charName, member.playerName, member.isGuest)}
+                              className="p-1 text-stone-400 hover:text-rose-500 transition-colors"
+                              title="取消勾選此成員"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 搜尋過濾輸入框 */}
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="搜尋玩家或角色名稱..."
+                value={memberSearchFilter}
+                onChange={(e) => setMemberSearchFilter(e.target.value)}
+                className="text-xs h-8 pl-8 pr-7"
+              />
+              <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-2.5 pointer-events-none" />
+              {memberSearchFilter && (
+                <button
+                  type="button"
+                  onClick={() => setMemberSearchFilter('')}
+                  className="absolute right-2 top-2 p-0.5 text-stone-400 hover:text-stone-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               )}
             </div>
 
-            {/* 成員清單 */}
-            {members.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {members.map((member) => {
-                  const isCurrent = currentPlayer?.name === member.playerName;
-                  return (
-                    <div
-                      key={member.charId}
-                      className={cn(
-                        'p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all',
-                        isCurrent
-                          ? 'bg-amber-500/10 border-amber-500/40 dark:bg-amber-950/30'
-                          : 'bg-white/70 dark:bg-slate-800/70 border-stone-300 dark:border-slate-700'
-                      )}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-black text-xs text-stone-900 dark:text-slate-100 truncate">
-                            {member.charName}
-                          </span>
-                          {member.isGuest ? (
-                            <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-800 dark:text-indigo-300 text-[9px] font-black">
-                              臨時隊友
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-stone-500 dark:text-slate-400 truncate">
-                              ({member.playerName})
-                            </span>
-                          )}
-                          {isCurrent && (
-                            <span className="px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 text-[9px] font-black">
-                              你
-                            </span>
+            {/* 雙欄排版：左欄為全體玩家手風琴名冊，右欄為臨時隊友 (Guest) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
+              {/* 第 1 欄：👥 小隊正式角色名冊 (所有玩家手風琴置於同一容器區塊內) */}
+              <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2">
+                <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-300/60 dark:border-slate-700">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-amber-500" />
+                    <span>小隊正式角色名冊</span>
+                  </div>
+                  <span className="text-[10px] text-stone-400 font-normal">依玩家分群</span>
+                </div>
+
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {filteredPlayersWithChars.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 italic">
+                      無符合條件的玩家或角色
+                    </div>
+                  ) : (
+                    filteredPlayersWithChars.map(({ player, chars, totalCharCount, selectedCount }) => {
+                      const isExpanded = memberSearchFilter.trim() !== '' || expandedPlayerNames.has(player.name);
+                      return (
+                        <div
+                          key={player.name}
+                          className="rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 overflow-hidden shadow-2xs"
+                        >
+                          {/* 玩家標題列 */}
+                          <button
+                            type="button"
+                            onClick={() => togglePlayerAccordion(player.name)}
+                            className="w-full px-2.5 py-2 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-left"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span>{player.avatarEmoji || '👤'}</span>
+                              <span className="font-black text-xs text-[#3E2F20] dark:text-slate-100 truncate">
+                                {player.name}
+                              </span>
+                              <span className="text-[10px] text-stone-400 font-bold">
+                                ({totalCharCount})
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              {selectedCount > 0 && (
+                                <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black">
+                                  已選 {selectedCount}
+                                </span>
+                              )}
+                              {isExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+                              )}
+                            </div>
+                          </button>
+
+                          {/* 展開之角色勾選清單 */}
+                          {isExpanded && (
+                            <div className="p-1.5 pt-0 space-y-1 border-t border-slate-200 dark:border-slate-700">
+                              {chars.length === 0 ? (
+                                <div className="py-2 text-center text-[11px] text-stone-400 italic">
+                                  無符合角色
+                                </div>
+                              ) : (
+                                chars.map((char) => {
+                                  const isChecked = members.some((m) => m.charId === char.id);
+                                  return (
+                                    <label
+                                      key={char.id}
+                                      className={cn(
+                                        'flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer text-xs select-none',
+                                        isChecked
+                                          ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-500 font-black text-amber-900 dark:text-amber-200'
+                                          : 'hover:bg-slate-100 dark:hover:bg-slate-700/60 border-transparent text-slate-700 dark:text-slate-300'
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <input
+                                          type="checkbox"
+                                          disabled={!canManage}
+                                          checked={isChecked}
+                                          onChange={() => handleToggleMember(char.id, char.name, player.name, false)}
+                                          className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 cursor-pointer disabled:cursor-not-allowed"
+                                        />
+                                        <span className="truncate">{char.name}</span>
+                                      </div>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
                           )}
                         </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
 
-                        {/* 已售出時顯示個人金額與交付狀態 */}
-                        {isSold && (
-                          <div className="mt-1 flex items-center gap-2 text-[11px]">
-                            <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                              應分：{formatLootPriceShort(splitCalc.splitAmountPerMember, saleCurrency)}
-                            </span>
-                            {canManage ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMembers((prev) =>
-                                    prev.map((m) =>
-                                      m.charId === member.charId
-                                        ? { ...m, isPaid: !m.isPaid, paidAt: !m.isPaid ? new Date().toISOString() : undefined }
-                                        : m
-                                    )
-                                  );
-                                }}
-                                className={cn(
-                                  'px-1.5 py-0.2 rounded text-[10px] font-black transition-all cursor-pointer',
-                                  member.isPaid
-                                    ? 'bg-emerald-500 text-white'
-                                    : 'bg-stone-200 dark:bg-slate-700 text-stone-600 dark:text-slate-300'
-                                )}
-                              >
-                                {member.isPaid ? '✓ 已交付' : '未交付'}
-                              </button>
-                            ) : (
-                              <div
-                                className={cn(
-                                  'px-1.5 py-0.2 rounded text-[10px] font-black cursor-default opacity-90',
-                                  member.isPaid
-                                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-                                    : 'bg-stone-200/70 dark:bg-slate-700/60 text-stone-500 dark:text-slate-400'
-                                )}
-                                title="僅保管人或管理員可更新交付狀態"
-                              >
-                                {member.isPaid ? '✓ 已交付' : '未交付'}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+              {/* 第 2 欄：👥 臨時隊友 (Guest) */}
+              <div className="flex flex-col bg-black/5 dark:bg-black/25 rounded-2xl border-2 border-slate-300 dark:border-slate-700 p-3 space-y-2">
+                <div className="font-black text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between pb-1 border-b border-slate-300/60 dark:border-slate-700">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-purple-500" />
+                    <span>臨時隊友 (Guest)</span>
+                  </div>
+                  <span className="text-[10px] text-stone-400 font-normal">快速建立/勾選</span>
+                </div>
 
-                      {canManage && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMember(member.charId)}
-                          className="p-1 text-stone-400 hover:text-rose-500 transition-colors shrink-0"
-                          title="從本次分配中移除"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {filteredGuests.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-slate-400 italic">
+                      目前尚無 Guest 隊友
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-6 text-center text-xs text-rose-500 bg-rose-500/10 border border-dashed border-rose-400 rounded-xl">
-                尚未加入任何隊友！請點擊上方按鈕加入成員。
-              </div>
-            )}
-
-            {/* 加入成員選擇面板 */}
-            {isAddingMember && (
-              <div className="p-3 bg-black/5 dark:bg-slate-800 rounded-xl border border-kerning-stroke/30 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-stone-800 dark:text-slate-200">
-                    選擇要加入的公會同伴或臨時隊友
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingMember(false)}
-                    className="text-xs text-stone-400 hover:text-stone-700"
-                  >
-                    取消
-                  </button>
-                </div>
-
-                <Input
-                  type="text"
-                  placeholder="搜尋玩家或角色名稱..."
-                  value={memberSearchQuery}
-                  onChange={(e) => setMemberSearchQuery(e.target.value)}
-                  className="text-xs h-8"
-                />
-
-                <div className="max-h-36 overflow-y-auto space-y-1">
-                  {allCharacters
-                    .filter((c) => {
-                      const q = memberSearchQuery.trim().toLowerCase();
+                  ) : (
+                    filteredGuests.map((guest) => {
+                      const isChecked = members.some((m) => m.charId === guest.id);
                       return (
-                        !members.some((m) => m.charId === c.id) &&
-                        (!q || c.name.toLowerCase().includes(q) || c.playerName.toLowerCase().includes(q))
+                        <div
+                          key={guest.id}
+                          className={cn(
+                            'flex items-center justify-between p-1.5 rounded-xl border transition-all text-xs select-none',
+                            isChecked
+                              ? 'bg-purple-100 dark:bg-purple-950/60 border-purple-500 font-black text-purple-900 dark:text-purple-200'
+                              : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          )}
+                        >
+                          <label className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              disabled={!canManage}
+                              checked={isChecked}
+                              onChange={() => handleToggleMember(guest.id, guest.name, '臨時隊友', true)}
+                              className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-400 cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            <span className="truncate font-bold">{guest.name}</span>
+                          </label>
+
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteGuest(guest.id)}
+                              className="p-1 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                              title="刪除此 Guest"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       );
                     })
-                    .slice(0, 15)
-                    .map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleAddMemberFromList(c.id, c.name, c.playerName, false)}
-                        className="w-full text-left p-1.5 rounded-lg text-xs hover:bg-black/10 dark:hover:bg-slate-700 flex items-center justify-between"
-                      >
-                        <span className="font-bold text-stone-900 dark:text-slate-100">{c.name}</span>
-                        <span className="text-[10px] text-stone-500">({c.playerName})</span>
-                      </button>
-                    ))}
-
-                  {/* 臨時隊友 */}
-                  {(store.guests || [])
-                    .filter((g) => {
-                      const q = memberSearchQuery.trim().toLowerCase();
-                      return (
-                        !members.some((m) => m.charId === g.id) &&
-                        (!q || g.name.toLowerCase().includes(q))
-                      );
-                    })
-                    .map((g) => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => handleAddMemberFromList(g.id, g.name, '臨時隊友', true)}
-                        className="w-full text-left p-1.5 rounded-lg text-xs hover:bg-black/10 dark:hover:bg-slate-700 flex items-center justify-between text-indigo-700 dark:text-indigo-300"
-                      >
-                        <span className="font-bold">{g.name}</span>
-                        <span className="text-[10px]">(臨時隊友)</span>
-                      </button>
-                    ))}
+                  )}
                 </div>
+
+                {/* 快速新增 Guest 輸入框 */}
+                {canManage && (
+                  <div className="pt-2 border-t border-slate-300/60 dark:border-slate-700 flex items-center gap-1">
+                    <Input
+                      placeholder="輸入臨時隊友稱呼..."
+                      value={quickGuestName}
+                      onChange={(e) => setQuickGuestName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleQuickAddGuest();
+                        }
+                      }}
+                      className="h-7 text-xs flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="parchment"
+                      onClick={handleQuickAddGuest}
+                      disabled={!quickGuestName.trim()}
+                      className="h-7 px-2 text-xs font-black shrink-0 flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>新增</span>
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* 5. 備註說明 */}
