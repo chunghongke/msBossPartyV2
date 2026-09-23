@@ -168,45 +168,20 @@ export function LootEditModal({
         });
         setExpandedPlayerNames(initExpanded);
       } else {
-        // 自動從現有隊伍尋找該 Boss Group 的成員
-        const matchingTeam = Object.values(store.teams || {}).find((t) =>
-          t.memberTargets?.some((mt) => {
-            return Object.values(store.weeklyRecords || {}).some(
-              (rec) => rec.charId === mt.charId && rec.teamId === t.id && getBossGroupKey(rec.bossId) === defaultGroup
-            );
-          })
-        );
-
-        if (matchingTeam && matchingTeam.memberTargets) {
-          setTeamId(matchingTeam.id);
-          const resolved = matchingTeam.memberTargets.map((mt) => {
-            if (mt.charId.startsWith('guest_')) {
-              const guest = (store.guests || []).find((g) => g.id === mt.charId);
-              return {
-                charId: mt.charId,
-                charName: guest?.name || '臨時隊友',
-                playerName: '臨時隊友',
-                isGuest: true,
-                isPaid: false,
-              };
-            }
-            const char = allCharacters.find((c) => c.id === mt.charId);
-            return {
-              charId: mt.charId,
-              charName: char?.name || '未知角色',
-              playerName: char?.playerName || '未知玩家',
+        // 入口 A（由右上角全域打開）：
+        // 預設帶入當前操作者的第 1 個角色
+        const myFirstChar = currentPlayer?.characters?.[0];
+        if (myFirstChar && currentPlayer) {
+          setMembers([
+            {
+              charId: myFirstChar.id,
+              charName: myFirstChar.name,
+              playerName: currentPlayer.name,
               isGuest: false,
               isPaid: false,
-            };
-          });
-          setMembers(resolved);
-
-          const initExpanded = new Set<string>();
-          resolved.forEach((m) => {
-            if (m.isGuest) initExpanded.add('__GUEST__');
-            else if (m.playerName) initExpanded.add(m.playerName);
-          });
-          setExpandedPlayerNames(initExpanded);
+            },
+          ]);
+          setExpandedPlayerNames(new Set([currentPlayer.name]));
         } else {
           setMembers([]);
           setExpandedPlayerNames(new Set());
@@ -234,49 +209,7 @@ export function LootEditModal({
   // ── 切換 BOSS 群組 ──
   const handleBossGroupChange = (newGroupKey: string) => {
     setBossGroupKey(newGroupKey);
-    // 若當前無固定初始名單，自動搜尋該 Boss 群組所屬的隊伍與成員
-    if (!initialMembers || initialMembers.length === 0) {
-      const matchingTeam = Object.values(store.teams || {}).find((t) =>
-        t.memberTargets?.some((mt) => {
-          return Object.values(store.weeklyRecords || {}).some(
-            (rec) => rec.charId === mt.charId && rec.teamId === t.id && getBossGroupKey(rec.bossId) === newGroupKey
-          );
-        })
-      );
-
-      if (matchingTeam && matchingTeam.memberTargets) {
-        setTeamId(matchingTeam.id);
-        const resolved = matchingTeam.memberTargets.map((mt) => {
-          if (mt.charId.startsWith('guest_')) {
-            const guest = (store.guests || []).find((g) => g.id === mt.charId);
-            return {
-              charId: mt.charId,
-              charName: guest?.name || '臨時隊友',
-              playerName: '臨時隊友',
-              isGuest: true,
-              isPaid: false,
-            };
-          }
-          const char = allCharacters.find((c) => c.id === mt.charId);
-          return {
-            charId: mt.charId,
-            charName: char?.name || '未知角色',
-            playerName: char?.playerName || '未知玩家',
-            isGuest: false,
-            isPaid: false,
-          };
-        });
-          setMembers(resolved);
-
-          const initExpanded = new Set<string>();
-          resolved.forEach((m) => {
-            if (m.isGuest) initExpanded.add('__GUEST__');
-            else if (m.playerName) initExpanded.add(m.playerName);
-          });
-          setExpandedPlayerNames(initExpanded);
-        }
-      }
-    };
+  };
 
   // ── 點擊預設物品 ──
   const handleSelectPreset = (presetName: string) => {
@@ -345,19 +278,14 @@ export function LootEditModal({
     );
   }, [isSold, totalSalePrice, taxRatePercent, members.length]);
 
-  // 尋找當前 BOSS 隊伍
+  // 尋找當前 BOSS 隊伍 (僅當有明確的小隊 ID 時才具備「本團」上下文)
   const currentBossTeam = useMemo(() => {
-    if (teamId && store.teams[teamId]) {
-      return store.teams[teamId];
+    const targetTeamId = initialTeamId || teamId;
+    if (targetTeamId && store.teams[targetTeamId]) {
+      return store.teams[targetTeamId];
     }
-    return Object.values(store.teams || {}).find((t) =>
-      t.memberTargets?.some((mt) => {
-        return Object.values(store.weeklyRecords || {}).some(
-          (rec) => rec.charId === mt.charId && rec.teamId === t.id && getBossGroupKey(rec.bossId) === bossGroupKey
-        );
-      })
-    );
-  }, [teamId, store.teams, store.weeklyRecords, bossGroupKey]);
+    return null;
+  }, [initialTeamId, teamId, store.teams]);
 
   // 依玩家分群的角色清單與過濾 (保持自然穩定順序，選取後不跳動)
   const filteredPlayersWithChars = useMemo(() => {
