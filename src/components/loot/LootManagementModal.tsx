@@ -41,7 +41,9 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
   const { store, deleteLoot, toggleLootMemberPaid, batchSetLootMembersPaid } = useStore();
   const { currentPlayer, isAdmin } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<TabType>('mine');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    return currentPlayer ? 'mine' : 'active';
+  });
   const [editingLoot, setEditingLoot] = useState<LootItem | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [autoFocusPrice, setAutoFocusPrice] = useState(false);
@@ -749,6 +751,10 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
+          // 💡 防呆改善：若是新增戰利品，自動切換至「進行中」頁籤，防止因「與我相關」過濾造成視覺上誤以為戰利品消失
+          if (!editingLoot) {
+            setActiveTab('active');
+          }
           setEditingLoot(null);
           setAutoFocusPrice(false);
         }}

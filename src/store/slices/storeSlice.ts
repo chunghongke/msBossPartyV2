@@ -51,10 +51,30 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
       try {
         // 讀取「此刻」最新的 Zustand store，而非呼叫時的快照
         const currentStore = JSON.parse(JSON.stringify(get().store));
+        // 💡 嚴格白名單過濾：只送出 Firebase 安全性規則允許的合法欄位，防止 $other: false 誤殺
+        const payload: Record<string, any> = {
+          teams: currentStore.teams || {},
+          weeklyRecords: currentStore.weeklyRecords || {},
+          guests: currentStore.guests || [],
+        };
+        if (currentStore.lastResetWeekKey) {
+          payload.lastResetWeekKey = currentStore.lastResetWeekKey;
+        }
+        if (currentStore.loots) {
+          payload.loots = currentStore.loots;
+        }
+
         const db = getRtdb(activeGroup.firebaseConfig);
-        await set(ref(db, 'store'), currentStore);
-      } catch (e) {
-        console.warn('saveStoreToCloud error:', e);
+        await set(ref(db, 'store'), payload);
+      } catch (e: any) {
+        console.error('saveStoreToCloud error:', e);
+        if (e?.message?.includes('PERMISSION_DENIED') || e?.code === 'PERMISSION_DENIED') {
+          alert(
+            '【Firebase 雲端同步失敗】：寫入遭到權限拒絕 (PERMISSION_DENIED)！\n\n' +
+            '原因通常為 Firebase 控制台的「安全性規則」未包含 loots 節點，或是修改後「尚未點擊發布 (Publish)」！\n' +
+            '請至 Firebase 控制台確認規則已成功發布，否則新增的戰利品將會被伺服器拒絕並回滾消失。'
+          );
+        }
       } finally {
         _isWriting = false;
         // 延遲 250ms 後才解除抑制，讓 onValue 回音有時間完成

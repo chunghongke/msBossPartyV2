@@ -89,8 +89,11 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
           };
 
           // 執行自我修復與幽靈隊伍 GC (Self-Healing)
+          // 🔒 防呆保護：若玩家資料尚未讀取完成 (currentPlayers 為空)，絕不執行破壞性隊伍解散
           const currentPlayers = useAppStore.getState().players;
-          const changed = sanitizeStoreAndTeams(currentPlayers, normalizedStore);
+          const changed = currentPlayers.length > 0
+            ? sanitizeStoreAndTeams(currentPlayers, normalizedStore)
+            : false;
 
           // 🔒 防競爭保護：若有正在進行中的本地寫入（防抖尚未發送或剛發送），
           //    則跳過此次 onValue 覆蓋與自動修復回寫，避免舊快照把本地樂觀更新的狀態回滾。
@@ -104,7 +107,19 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
               if (now - _lastSanitizeWriteTime >= cooldownMs) {
                 _lastSanitizeWriteTime = now;
                 const currentDb = getRtdb(activeGroup.firebaseConfig);
-                set(ref(currentDb, 'store'), normalizedStore)
+                const payload: Record<string, any> = {
+                  teams: normalizedStore.teams || {},
+                  weeklyRecords: normalizedStore.weeklyRecords || {},
+                  guests: normalizedStore.guests || [],
+                };
+                if (normalizedStore.lastResetWeekKey) {
+                  payload.lastResetWeekKey = normalizedStore.lastResetWeekKey;
+                }
+                if (normalizedStore.loots) {
+                  payload.loots = normalizedStore.loots;
+                }
+
+                set(ref(currentDb, 'store'), payload)
                   .then(() => {
                     _sanitizeFailCount = 0;
                   })
