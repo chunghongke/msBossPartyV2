@@ -287,7 +287,13 @@ export function LootEditModal({
     return null;
   }, [initialTeamId, teamId, store.teams]);
 
-  // 依玩家分群的角色清單與過濾 (保持自然穩定順序，選取後不跳動)
+  // 已選成員角色 ID Set (提供 O(1) 極速比對與零延遲渲染)
+  const selectedCharIdSet = useMemo(
+    () => new Set(members.map((m) => m.charId)),
+    [members]
+  );
+
+  // 依玩家分群的角色清單與過濾 (僅在玩家名冊或搜尋字串變更時重算，點擊勾選不重算名冊)
   const filteredPlayersWithChars = useMemo(() => {
     const query = memberSearchFilter.trim().toLowerCase();
     return (players || []).map((player) => {
@@ -297,19 +303,14 @@ export function LootEditModal({
         ? allChars.filter((c) => matchesPlayerName || c.name.toLowerCase().includes(query))
         : allChars;
 
-      const selectedCount = allChars.filter((c) =>
-        members.some((m) => m.charId === c.id)
-      ).length;
-
       return {
         player,
         chars: matchingChars,
         totalCharCount: allChars.length,
-        selectedCount,
         matchesQuery: !query || matchesPlayerName || matchingChars.length > 0,
       };
     }).filter((item) => item.matchesQuery);
-  }, [players, memberSearchFilter, members]);
+  }, [players, memberSearchFilter]);
 
   const filteredGuests = useMemo(() => {
     const query = memberSearchFilter.trim().toLowerCase();
@@ -343,7 +344,7 @@ export function LootEditModal({
     }
   };
 
-  // ── 成員勾選 / 反選 ──
+  // ── 成員勾選 / 反選（每位玩家名下單選互斥替換） ──
   const handleToggleMember = (
     charId: string,
     charName: string,
@@ -351,21 +352,36 @@ export function LootEditModal({
     isGuest: boolean = false
   ) => {
     setMembers((prev) => {
-      const exists = prev.some((m) => m.charId === charId);
-      if (exists) {
+      const isCurrentlySelected = prev.some((m) => m.charId === charId);
+      if (isCurrentlySelected) {
         return prev.filter((m) => m.charId !== charId);
-      } else {
+      }
+
+      if (isGuest) {
         return [
           ...prev,
           {
             charId,
             charName,
             playerName,
-            isGuest,
+            isGuest: true,
             isPaid: false,
           },
         ];
       }
+
+      // 同一玩家名下只能選 1 隻角色：排除該玩家原先已勾選的任何角色，再加入新勾選角色
+      const filteredOthers = prev.filter((m) => m.isGuest || m.playerName !== playerName);
+      return [
+        ...filteredOthers,
+        {
+          charId,
+          charName,
+          playerName,
+          isGuest: false,
+          isPaid: false,
+        },
+      ];
     });
   };
 
@@ -1215,8 +1231,9 @@ export function LootEditModal({
                       無符合條件的玩家或角色
                     </div>
                   ) : (
-                    filteredPlayersWithChars.map(({ player, chars, totalCharCount, selectedCount }) => {
+                    filteredPlayersWithChars.map(({ player, chars, totalCharCount }) => {
                       const isExpanded = memberSearchFilter.trim() !== '' || expandedPlayerNames.has(player.name);
+                      const selectedCount = chars.filter((c) => selectedCharIdSet.has(c.id)).length;
                       return (
                         <div
                           key={player.name}
@@ -1252,7 +1269,7 @@ export function LootEditModal({
                             </div>
                           </button>
 
-                          {/* 展開之角色勾選清單 */}
+                          {/* 展開之角色勾選清單 (零延遲即時反饋，無 transition 阻滯) */}
                           {isExpanded && (
                             <div className="p-1.5 pt-0 space-y-1 border-t border-slate-200 dark:border-slate-700">
                               {chars.length === 0 ? (
@@ -1261,12 +1278,12 @@ export function LootEditModal({
                                 </div>
                               ) : (
                                 chars.map((char) => {
-                                  const isChecked = members.some((m) => m.charId === char.id);
+                                  const isChecked = selectedCharIdSet.has(char.id);
                                   return (
                                     <label
                                       key={char.id}
                                       className={cn(
-                                        'flex items-center justify-between p-1.5 rounded-lg border transition-all cursor-pointer text-xs select-none',
+                                        'flex items-center justify-between p-1.5 rounded-lg border cursor-pointer text-xs select-none',
                                         isChecked
                                           ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-500 font-black text-amber-900 dark:text-amber-200'
                                           : 'hover:bg-slate-100 dark:hover:bg-slate-700/60 border-transparent text-slate-700 dark:text-slate-300'
@@ -1278,7 +1295,7 @@ export function LootEditModal({
                                           disabled={!canManage}
                                           checked={isChecked}
                                           onChange={() => handleToggleMember(char.id, char.name, player.name, false)}
-                                          className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 cursor-pointer disabled:cursor-not-allowed"
+                                          className="w-3.5 h-3.5 rounded accent-amber-500 text-amber-500 focus:ring-amber-400 cursor-pointer disabled:cursor-not-allowed"
                                         />
                                         <span className="truncate">{char.name}</span>
                                       </div>
@@ -1312,12 +1329,12 @@ export function LootEditModal({
                     </div>
                   ) : (
                     filteredGuests.map((guest) => {
-                      const isChecked = members.some((m) => m.charId === guest.id);
+                      const isChecked = selectedCharIdSet.has(guest.id);
                       return (
                         <div
                           key={guest.id}
                           className={cn(
-                            'flex items-center justify-between p-1.5 rounded-xl border transition-all text-xs select-none',
+                            'flex items-center justify-between p-1.5 rounded-xl border text-xs select-none',
                             isChecked
                               ? 'bg-purple-100 dark:bg-purple-950/60 border-purple-500 font-black text-purple-900 dark:text-purple-200'
                               : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
@@ -1329,7 +1346,7 @@ export function LootEditModal({
                               disabled={!canManage}
                               checked={isChecked}
                               onChange={() => handleToggleMember(guest.id, guest.name, '臨時隊友', true)}
-                              className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-400 cursor-pointer disabled:cursor-not-allowed"
+                              className="w-3.5 h-3.5 rounded accent-purple-600 text-purple-600 focus:ring-purple-400 cursor-pointer disabled:cursor-not-allowed"
                             />
                             <span className="truncate font-bold">{guest.name}</span>
                           </label>
