@@ -49,19 +49,6 @@ export function LootEditModal({
   const { currentPlayer, isAdmin } = useAuth();
   const priceInputRef = useRef<HTMLInputElement>(null);
 
-  // 權限檢查：管理員、新增模式、或此戰利品的保管人（未指定保管人時開放登入者）
-  const isHandler = Boolean(
-    currentPlayer &&
-    lootToEdit?.handlerPlayerName &&
-    lootToEdit.handlerPlayerName.trim().toLowerCase() === currentPlayer.name.trim().toLowerCase()
-  );
-  const canManage = Boolean(
-    isAdmin ||
-    !lootToEdit ||
-    isHandler ||
-    (!lootToEdit?.handlerPlayerName?.trim() && currentPlayer)
-  );
-
   // ── 表單狀態 ──
   const [itemName, setItemName] = useState('');
   const [category, setCategory] = useState<LootCategory>('ring_related');
@@ -77,6 +64,25 @@ export function LootEditModal({
   const [droppedAt, setDroppedAt] = useState(() => new Date().toISOString().split('T')[0]);
   const [handlerPlayerName, setHandlerPlayerName] = useState(
     () => currentPlayer?.name || (players && players[0]?.name) || ''
+  );
+
+  // 權限與保管人檢查：管理員、新增模式、或此戰利品的保管人
+  const isHandler = Boolean(
+    currentPlayer &&
+    lootToEdit?.handlerPlayerName &&
+    lootToEdit.handlerPlayerName.trim().toLowerCase() === currentPlayer.name.trim().toLowerCase()
+  );
+  const isCurrentPlayerHandler = Boolean(
+    currentPlayer?.name &&
+    handlerPlayerName &&
+    currentPlayer.name.trim().toLowerCase() === handlerPlayerName.trim().toLowerCase()
+  );
+  const canManage = Boolean(
+    isAdmin ||
+    !lootToEdit ||
+    isHandler ||
+    isCurrentPlayerHandler ||
+    (!lootToEdit?.handlerPlayerName?.trim() && currentPlayer)
   );
 
   // 拍賣售價與狀態
@@ -112,14 +118,48 @@ export function LootEditModal({
       setWeekKey(lootToEdit.weekKey);
       setTeamId(lootToEdit.teamId || '');
       setDroppedAt(lootToEdit.droppedAt);
-      setHandlerPlayerName(lootToEdit.handlerPlayerName || currentPlayer?.name || (players && players[0]?.name) || '');
+      const handler = lootToEdit.handlerPlayerName || currentPlayer?.name || (players && players[0]?.name) || '';
+      setHandlerPlayerName(handler);
+      const isCustodian = Boolean(
+        currentPlayer?.name &&
+        handler &&
+        currentPlayer.name.trim().toLowerCase() === handler.trim().toLowerCase()
+      );
       const curr = lootToEdit.saleCurrency || 'meso';
       setSaleCurrency(curr);
-      setIsSold(lootToEdit.status !== 'selling' && lootToEdit.totalSalePrice > 0);
+      const wasSelling = !lootToEdit.status || lootToEdit.status === 'selling';
+      const isEnteringDistribution = autoFocusPrice || (!wasSelling && lootToEdit.totalSalePrice > 0);
+      setIsSold(isEnteringDistribution);
       setTotalSalePrice(lootToEdit.totalSalePrice);
       setPriceInputStr(lootToEdit.totalSalePrice > 0 ? String(lootToEdit.totalSalePrice) : '');
-      setTaxRatePercent(lootToEdit.taxRatePercent ?? (curr === 'twd' ? 0 : 3));
-      const editMembers = lootToEdit.members || [];
+      const initTax = curr === 'twd'
+        ? (lootToEdit.taxRatePercent ?? 0)
+        : (wasSelling && (lootToEdit.taxRatePercent === 5 || lootToEdit.taxRatePercent === undefined)
+            ? 3
+            : (lootToEdit.taxRatePercent ?? 3));
+      setTaxRatePercent(initTax);
+      
+      const editMembers: LootMemberPayout[] = (lootToEdit.members || []).map((m) => {
+        // 若此戰利品原為待售中，且因 autoFocusPrice (點擊「填寫售出金額」) 準備進入分配狀態：
+        // 當前登入者為保管人填寫，預設自己已交付；管理員代填則保持所有成員未交付
+        if (wasSelling && autoFocusPrice) {
+          const isSelf = Boolean(
+            isCustodian &&
+            !m.isGuest &&
+            currentPlayer &&
+            m.playerName.trim().toLowerCase() === currentPlayer.name.trim().toLowerCase()
+          );
+          return {
+            ...m,
+            isPaid: isSelf,
+            paidAt: isSelf ? (m.paidAt || new Date().toISOString()) : undefined,
+          };
+        }
+        return {
+          ...m,
+          isPaid: Boolean(m.isPaid),
+        };
+      });
       setMembers(editMembers);
       setNote(lootToEdit.note || '');
 
@@ -269,6 +309,59 @@ export function LootEditModal({
     setPriceInputStr(String(next));
   };
 
+  // ── 售出狀態切換 (待售中 vs 已售出開始分配) ──
+  const handleToggleIsSold = (sold: boolean) => {
+    setIsSold(sold);
+    if (sold) {
+      // 填寫售出金額 準備進入分配狀態：
+      // 當前登入者為保管人填寫，預設自己已交付；管理員代填則保持所有成員未交付
+      if (isCurrentPlayerHandler && currentPlayer) {
+        setMembers((prev) =>
+          prev.map((m) => {
+            if (!m.isGuest && m.playerName.trim().toLowerCase() === currentPlayer.name.trim().toLowerCase()) {
+              return {
+                ...m,
+                isPaid: true,
+                paidAt: m.paidAt || new Date().toISOString(),
+              };
+            }
+            return m;
+          })
+        );
+      }
+      setTimeout(() => {
+        if (priceInputRef.current) {
+          priceInputRef.current.focus();
+          priceInputRef.current.select();
+        }
+      }, 50);
+    }
+  };
+
+  // ── 更換保管人 ──
+  const handleHandlerPlayerChange = (newHandler: string) => {
+    setHandlerPlayerName(newHandler);
+    if (isSold) {
+      const isNowHandler = Boolean(
+        currentPlayer?.name &&
+        newHandler &&
+        currentPlayer.name.trim().toLowerCase() === newHandler.trim().toLowerCase()
+      );
+      setMembers((prev) =>
+        prev.map((m) => {
+          if (!m.isGuest && currentPlayer && m.playerName.trim().toLowerCase() === currentPlayer.name.trim().toLowerCase()) {
+            return {
+              ...m,
+              isPaid: isNowHandler,
+              paidAt: isNowHandler ? (m.paidAt || new Date().toISOString()) : undefined,
+            };
+          }
+          return m;
+        })
+      );
+    }
+  };
+
   // 即時試算
   const splitCalc = useMemo(() => {
     return calculateNetAndSplit(
@@ -372,6 +465,12 @@ export function LootEditModal({
 
       // 同一玩家名下只能選 1 隻角色：排除該玩家原先已勾選的任何角色，再加入新勾選角色
       const filteredOthers = prev.filter((m) => m.isGuest || m.playerName !== playerName);
+      const isSelfCustodian = Boolean(
+        isSold &&
+        isCurrentPlayerHandler &&
+        currentPlayer &&
+        playerName.trim().toLowerCase() === currentPlayer.name.trim().toLowerCase()
+      );
       return [
         ...filteredOthers,
         {
@@ -379,7 +478,8 @@ export function LootEditModal({
           charName,
           playerName,
           isGuest: false,
-          isPaid: false,
+          isPaid: isSelfCustodian,
+          paidAt: isSelfCustodian ? new Date().toISOString() : undefined,
         },
       ];
     });
@@ -405,12 +505,20 @@ export function LootEditModal({
         };
       }
       const char = allCharacters.find((c) => c.id === mt.charId);
+      const pName = char?.playerName || '未知玩家';
+      const isSelfCustodian = Boolean(
+        isSold &&
+        isCurrentPlayerHandler &&
+        currentPlayer &&
+        pName.trim().toLowerCase() === currentPlayer.name.trim().toLowerCase()
+      );
       return {
         charId: mt.charId,
         charName: char?.name || '未知角色',
-        playerName: char?.playerName || '未知玩家',
+        playerName: pName,
         isGuest: false,
-        isPaid: false,
+        isPaid: isSelfCustodian,
+        paidAt: isSelfCustodian ? new Date().toISOString() : undefined,
       };
     });
 
@@ -716,7 +824,7 @@ export function LootEditModal({
                 <select
                   value={handlerPlayerName}
                   disabled={!canManage}
-                  onChange={(e) => setHandlerPlayerName(e.target.value)}
+                  onChange={(e) => handleHandlerPlayerChange(e.target.value)}
                   className="w-full h-9 rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-xs font-bold text-stone-900 dark:text-slate-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <option value="">-- 請選擇上架玩家 --</option>
@@ -776,7 +884,7 @@ export function LootEditModal({
                 <button
                   type="button"
                   disabled={!canManage}
-                  onClick={() => setIsSold(false)}
+                  onClick={() => handleToggleIsSold(false)}
                   className={cn(
                     'px-2.5 py-1 rounded-lg text-xs font-black transition-all disabled:opacity-60 disabled:cursor-not-allowed',
                     !isSold
@@ -789,15 +897,7 @@ export function LootEditModal({
                 <button
                   type="button"
                   disabled={!canManage}
-                  onClick={() => {
-                    setIsSold(true);
-                    setTimeout(() => {
-                      if (priceInputRef.current) {
-                         priceInputRef.current.focus();
-                         priceInputRef.current.select();
-                      }
-                    }, 50);
-                  }}
+                  onClick={() => handleToggleIsSold(true)}
                   className={cn(
                     'px-2.5 py-1 rounded-lg text-xs font-black transition-all disabled:opacity-60 disabled:cursor-not-allowed',
                     isSold
@@ -1141,7 +1241,7 @@ export function LootEditModal({
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {canManage ? (
+                          {canManage && lootToEdit?.status !== 'done' ? (
                             <button
                               type="button"
                               onClick={() => {

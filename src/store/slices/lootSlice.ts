@@ -1,5 +1,5 @@
 import { AppSlice, LootSlice } from '../types';
-import { LootItem } from '@/types/loot';
+import { LootItem, LootStatus } from '@/types/loot';
 import { calculateNetAndSplit } from '@/utils/currency';
 
 export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
@@ -111,7 +111,7 @@ export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
   toggleLootMemberPaid: async (lootId, charId, isPaidOverride, note) => {
     const { store, saveStoreToCloud } = get();
     const existing = store.loots?.[lootId];
-    if (!existing) return;
+    if (!existing || existing.status === 'done' || existing.status === 'selling') return;
 
     const now = new Date().toISOString();
     const nextMembers = (existing.members || []).map((m) => {
@@ -128,12 +128,7 @@ export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
     });
 
     const allPaid = nextMembers.length > 0 && nextMembers.every((m) => m.isPaid);
-    let nextStatus = existing.status;
-    if (allPaid) {
-      nextStatus = 'done';
-    } else if (existing.status === 'done') {
-      nextStatus = existing.totalSalePrice > 0 ? 'distributing' : 'selling';
-    }
+    const nextStatus: LootStatus = allPaid ? 'done' : 'distributing';
 
     const updated: LootItem = {
       ...existing,
@@ -156,7 +151,7 @@ export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
   batchSetLootMembersPaid: async (lootId, isPaid) => {
     const { store, saveStoreToCloud } = get();
     const existing = store.loots?.[lootId];
-    if (!existing) return;
+    if (!existing || existing.status === 'done' || existing.status === 'selling') return;
 
     const now = new Date().toISOString();
     const nextMembers = (existing.members || []).map((m) => ({

@@ -269,5 +269,20 @@ export function sanitizeStoreAndTeams(
     }
   });
 
+  // 9. 校正歷史戰利品紀錄的預設拍賣手續費 (待售中的 5% 歷史舊預設全面自動遷移為 3%)
+  if (rawStore.loots) {
+    Object.values(rawStore.loots).forEach((loot: any) => {
+      if (!loot) return;
+      if (
+        (!loot.saleCurrency || loot.saleCurrency === 'meso') &&
+        loot.taxRatePercent === 5 &&
+        loot.status === 'selling'
+      ) {
+        loot.taxRatePercent = 3;
+        hasChanged = true;
+      }
+    });
+  }
+
   return hasChanged;
 }

@@ -574,11 +574,17 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-bold text-stone-600 dark:text-slate-400 flex items-center gap-1">
                             <Users className="w-3.5 h-3.5" />
-                            <span>隊員交付進度 ({paidCount}/{totalMembers} 人已給)</span>
+                            <span>
+                              {isSelling
+                                ? `參與分配成員 (${totalMembers} 人)`
+                                : isDone
+                                ? `全體隊員已完成交付 (${totalMembers}/${totalMembers} 人已給)`
+                                : `隊員交付進度 (${paidCount}/${totalMembers} 人已給)`}
+                            </span>
                           </span>
 
-                          {/* 批次交付按鈕 (僅保管人或管理員可操作) */}
-                          {!isSelling && canManage && (
+                          {/* 批次交付按鈕 (僅在分配中且為保管人/管理員才可操作；待售中與已結清不顯示) */}
+                          {!isSelling && !isDone && canManage && (
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
@@ -645,8 +651,20 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                                   </div>
                                 </div>
 
-                                {/* 交付狀態切換按鈕 (保管人/管理員可點擊切換，其他隊員為唯讀狀態徽章) */}
-                                {canManage ? (
+                                {/* 交付狀態按鈕 / 標籤：
+                                    1. 拍賣待售中 (isSelling)：不可變更交付狀態，完全不顯示交付按鈕！
+                                    2. 歷史已結清 (isDone)：不可再被變動，顯示靜態完成標籤，不可點擊！
+                                    3. 收益分配中 (!isSelling && !isDone)：保管人/管理員可點擊切換，其他隊員為唯讀狀態徽章
+                                */}
+                                {isSelling ? null : isDone ? (
+                                  <div
+                                    className="px-2 py-1 rounded-lg text-xs font-black flex items-center gap-1 shrink-0 select-none bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 opacity-90 cursor-default"
+                                    title="此戰利品已結清歸檔，交付紀錄已鎖定"
+                                  >
+                                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                    <span>已給</span>
+                                  </div>
+                                ) : canManage ? (
                                   <button
                                     type="button"
                                     onClick={() => toggleLootMemberPaid(loot.id, member.charId)}
