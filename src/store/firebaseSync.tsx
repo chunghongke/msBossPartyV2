@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
-import { ref, onValue, set } from 'firebase/database';
+import { ref, onValue, get, update } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { useGroup } from '@/contexts/GroupContext';
 import { useAppStore } from './index';
-import { DEFAULT_STORE, hasPendingStoreWrites } from './slices/storeSlice';
+import { DEFAULT_STORE, hasPendingStoreWrites, lockWritesDuringResync } from './slices/storeSlice';
 import { sanitizeStoreAndTeams } from './sanitize';
 import { Player } from '@/types/player';
 
@@ -139,7 +139,8 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
                   payload.loots = normalizedStore.loots;
                 }
 
-                set(ref(currentDb, 'store'), payload)
+                // 💡 關鍵修復：改用 update 避免覆蓋其他獨立節點
+                update(ref(currentDb, 'store'), payload)
                   .then(() => {
                     _sanitizeFailCount = 0;
                   })
@@ -164,10 +165,71 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
       }
     );
 
+    // 💡 3. 視窗喚醒與焦點即時強制刷新 (Wake-up & Focus Auto Re-sync)
+    // 當隊友手機點亮解鎖、筆電掀開、或切換回本分頁時，立即強制拉取雲端最新快照，並鎖定本地寫入 1.5 秒
+    const handleWakeupRefresh = async () => {
+      if (document.visibilityState !== 'visible' && !navigator.onLine) return;
+      console.log('🔄 [Firebase] 偵測到分頁喚醒 / 焦點切回，鎖定本地寫入並強刷雲端最新狀態...');
+      lockWritesDuringResync(1500);
+
+      try {
+        const [playersSnap, storeSnap] = await Promise.all([
+          get(playersRef),
+          get(storeRef),
+        ]);
+
+        if (playersSnap.exists()) {
+          let rawPlayers = playersSnap.val();
+          if (rawPlayers && rawPlayers.players) rawPlayers = rawPlayers.players;
+          const list = Array.isArray(rawPlayers) ? rawPlayers : Object.values(rawPlayers);
+          const parsed = list.filter((p): p is Player => Boolean(p && typeof p === 'object' && p.name));
+          store.setPlayers(parsed);
+        }
+
+        if (storeSnap.exists()) {
+          let rawStore = storeSnap.val();
+          if (rawStore && rawStore.store) rawStore = rawStore.store;
+          const rawGuests = rawStore.guests || [];
+          const normalized = {
+            teams: rawStore.teams || {},
+            weeklyRecords: rawStore.weeklyRecords || {},
+            guests: Array.isArray(rawGuests) ? rawGuests : Object.values(rawGuests),
+            lastResetWeekKey: rawStore.lastResetWeekKey,
+            loots: rawStore.loots || {},
+          };
+          store.setStore(normalized);
+        }
+        console.log('✅ [Firebase 喚醒刷新] 已成功拉取最新雲端狀態！');
+      } catch (err) {
+        console.warn('⚠️ [Firebase 喚醒刷新] 拉取失敗:', err);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleWakeupRefresh();
+      }
+    };
+
+    const handleFocus = () => {
+      handleWakeupRefresh();
+    };
+
+    const handleOnline = () => {
+      handleWakeupRefresh();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+
     return () => {
       unsubConnected();
       unsubPlayers();
       unsubStore();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
     };
   }, [activeGroup, isGroupLoading]);
 

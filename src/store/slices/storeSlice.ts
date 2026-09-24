@@ -1,5 +1,5 @@
 import { Character } from '@/types/player';
-import { ref, set } from 'firebase/database';
+import { ref, update } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
 import { getBoss, BOSSES } from '@/data/bosses';
@@ -22,6 +22,11 @@ let _suppressSyncUntil = 0;
 /** 供 FirebaseSyncProvider 的 onValue 監聽器判斷是否有正在進行中的本地寫入 */
 export function hasPendingStoreWrites(): boolean {
   return _saveTimer !== null || _isWriting || Date.now() < _suppressSyncUntil;
+}
+
+/** 供視窗喚醒/重新連線時鎖定本地寫入，防止手持過期記憶體快照覆蓋雲端最新狀態 */
+export function lockWritesDuringResync(durationMs: number = 1500): void {
+  _suppressSyncUntil = Math.max(_suppressSyncUntil, Date.now() + durationMs);
 }
 
 export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
@@ -70,12 +75,14 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         const db = getRtdb(activeGroup.firebaseConfig);
         const startTime = Date.now();
         console.log(`📡 [Firebase] 正在同步 store 至小隊「${activeGroup.name}」(${activeGroup.firebaseConfig.projectId})...`, {
-          lootsCount: Object.keys(payload.loots || {}).length,
-          teamsCount: Object.keys(payload.teams || {}).length,
-          recordsCount: Object.keys(payload.weeklyRecords || {}).length,
+          teamsCount: Object.keys(payload.teams).length,
+          recordsCount: Object.keys(payload.weeklyRecords).length,
         });
 
-        await set(ref(db, 'store'), payload);
+        // 💡 關鍵修復：使用 update 取代 set！
+        // update 僅更新指定頂層節點 (teams, weeklyRecords, guests)，
+        // 絕對不會將由 lootSlice 獨立單點維護的 store/loots 節點沖刷覆蓋！
+        await update(ref(db, 'store'), payload);
         console.log(`✅ [Firebase] 成功同步 store 至雲端！(耗時: ${Date.now() - startTime}ms)`);
       } catch (e: any) {
         console.error('❌ [Firebase] saveStoreToCloud 寫入失敗:', e);

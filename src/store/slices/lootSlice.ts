@@ -1,10 +1,53 @@
 import { AppSlice, LootSlice } from '../types';
 import { LootItem, LootStatus } from '@/types/loot';
 import { calculateNetAndSplit } from '@/utils/currency';
+import { ref, set, remove } from 'firebase/database';
+import { getRtdb } from '@/services/firebase';
 
-export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
+/**
+ * 💡 單點路徑更新核心函數 (Granular Path Update)
+ * 直接精準操作 `store/loots/${lootId}`，絕不夾帶 teams 或 weeklyRecords，
+ * 實現戰利品與隊伍常規操作的「物理隔離」，杜絕任何覆寫沖刷！
+ */
+async function syncSingleLootToCloud(
+  activeGroup: any,
+  lootId: string,
+  loot: LootItem | null
+) {
+  if (!activeGroup?.firebaseConfig) {
+    console.warn(`⚠️ [Firebase] 未綁定小隊群組，戰利品 ${lootId} 僅儲存於本機記憶體中！`);
+    return;
+  }
+  const db = getRtdb(activeGroup.firebaseConfig);
+  const lootRef = ref(db, `store/loots/${lootId}`);
+  const startTime = Date.now();
+  try {
+    if (loot) {
+      const cleanLoot = JSON.parse(JSON.stringify(loot));
+      await set(lootRef, cleanLoot);
+      console.log(
+        `🎁 [Firebase 單點更新] 成功同步戰利品「${loot.itemName}」至 store/loots/${lootId} (耗時: ${Date.now() - startTime}ms)`
+      );
+    } else {
+      await remove(lootRef);
+      console.log(
+        `🗑️ [Firebase 單點更新] 成功自雲端刪除戰利品 store/loots/${lootId} (耗時: ${Date.now() - startTime}ms)`
+      );
+    }
+  } catch (err: any) {
+    console.error(`❌ [Firebase 單點更新失敗] 戰利品 ${lootId}:`, err);
+    if (err?.message?.includes('PERMISSION_DENIED') || err?.code === 'PERMISSION_DENIED') {
+      alert(
+        '【戰利品同步失敗】：寫入遭到權限拒絕 (PERMISSION_DENIED)！\n\n' +
+        '原因通常為 Firebase 控制台的「安全性規則」未包含 loots 節點，或是修改後「尚未點擊發布 (Publish)」！'
+      );
+    }
+  }
+}
+
+export const createLootSlice: AppSlice<LootSlice> = (setSlice, get) => ({
   addLoot: async (lootData) => {
-    const { store, saveStoreToCloud } = get();
+    const { store, activeGroup } = get();
     const id = `loot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = new Date().toISOString();
 
@@ -40,17 +83,19 @@ export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
       [id]: newLoot,
     };
 
-    const nextStore = {
-      ...store,
-      loots: nextLoots,
-    };
+    setSlice({
+      store: {
+        ...store,
+        loots: nextLoots,
+      },
+    });
 
-    await saveStoreToCloud(nextStore);
+    await syncSingleLootToCloud(activeGroup, id, newLoot);
     return newLoot;
   },
 
   updateLoot: async (lootId, updates) => {
-    const { store, saveStoreToCloud } = get();
+    const { store, activeGroup } = get();
     const existing = store.loots?.[lootId];
     if (!existing) return;
 
@@ -89,27 +134,35 @@ export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
       [lootId]: merged,
     };
 
-    await saveStoreToCloud({
-      ...store,
-      loots: nextLoots,
+    setSlice({
+      store: {
+        ...store,
+        loots: nextLoots,
+      },
     });
+
+    await syncSingleLootToCloud(activeGroup, lootId, merged);
   },
 
   deleteLoot: async (lootId) => {
-    const { store, saveStoreToCloud } = get();
+    const { store, activeGroup } = get();
     if (!store.loots?.[lootId]) return;
 
     const nextLoots = { ...store.loots };
     delete nextLoots[lootId];
 
-    await saveStoreToCloud({
-      ...store,
-      loots: nextLoots,
+    setSlice({
+      store: {
+        ...store,
+        loots: nextLoots,
+      },
     });
+
+    await syncSingleLootToCloud(activeGroup, lootId, null);
   },
 
   toggleLootMemberPaid: async (lootId, charId, isPaidOverride, note) => {
-    const { store, saveStoreToCloud } = get();
+    const { store, activeGroup } = get();
     const existing = store.loots?.[lootId];
     if (!existing || existing.status === 'done' || existing.status === 'selling') return;
 
@@ -142,14 +195,18 @@ export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
       [lootId]: updated,
     };
 
-    await saveStoreToCloud({
-      ...store,
-      loots: nextLoots,
+    setSlice({
+      store: {
+        ...store,
+        loots: nextLoots,
+      },
     });
+
+    await syncSingleLootToCloud(activeGroup, lootId, updated);
   },
 
   batchSetLootMembersPaid: async (lootId, isPaid) => {
-    const { store, saveStoreToCloud } = get();
+    const { store, activeGroup } = get();
     const existing = store.loots?.[lootId];
     if (!existing || existing.status === 'done' || existing.status === 'selling') return;
 
@@ -178,9 +235,13 @@ export const createLootSlice: AppSlice<LootSlice> = (_setSlice, get) => ({
       [lootId]: updated,
     };
 
-    await saveStoreToCloud({
-      ...store,
-      loots: nextLoots,
+    setSlice({
+      store: {
+        ...store,
+        loots: nextLoots,
+      },
     });
+
+    await syncSingleLootToCloud(activeGroup, lootId, updated);
   },
 });
