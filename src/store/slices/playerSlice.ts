@@ -15,9 +15,19 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
     // 💡 關鍵修復：深層序列化過濾所有 undefined 欄位，徹底防止 Firebase RTDB 拋出 Error: set failed: value contains undefined
     const cleanPlayers = JSON.parse(JSON.stringify(newPlayers));
     setSlice({ players: cleanPlayers });
-    if (!activeGroup?.firebaseConfig) return;
+    if (!activeGroup?.firebaseConfig) {
+      console.warn('⚠️ [Firebase] 當前尚未綁定任何小隊群組 (activeGroup is null/empty)，玩家資料僅暫存於本地記憶體中，無法同步至雲端！');
+      return;
+    }
     const db = getRtdb(activeGroup.firebaseConfig);
-    await set(ref(db, 'players'), cleanPlayers);
+    const startTime = Date.now();
+    console.log(`📡 [Firebase] 正在同步 players (${cleanPlayers.length} 位玩家) 至小隊「${activeGroup.name}」...`);
+    try {
+      await set(ref(db, 'players'), cleanPlayers);
+      console.log(`✅ [Firebase] 成功同步 players 至雲端！(耗時: ${Date.now() - startTime}ms)`);
+    } catch (e: any) {
+      console.error('❌ [Firebase] savePlayersToCloud 寫入失敗:', e);
+    }
   },
 
   addPlayer: async (newPlayer: Player) => {

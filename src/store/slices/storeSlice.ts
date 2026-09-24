@@ -41,7 +41,10 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     const cleanStore = JSON.parse(JSON.stringify(newStore));
     // ① 樂觀更新：立即更新 Zustand，讓 UI 即時回饋
     setSlice({ store: cleanStore });
-    if (!activeGroup?.firebaseConfig) return;
+    if (!activeGroup?.firebaseConfig) {
+      console.warn('⚠️ [Firebase] 當前尚未綁定任何小隊群組 (activeGroup is null/empty)，操作僅暫存於本地記憶體中，無法同步至雲端！');
+      return;
+    }
 
     // ② 防抖寫入：合併 150ms 內的快速連續操作，僅發送最終狀態
     if (_saveTimer) clearTimeout(_saveTimer);
@@ -65,9 +68,17 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         }
 
         const db = getRtdb(activeGroup.firebaseConfig);
+        const startTime = Date.now();
+        console.log(`📡 [Firebase] 正在同步 store 至小隊「${activeGroup.name}」(${activeGroup.firebaseConfig.projectId})...`, {
+          lootsCount: Object.keys(payload.loots || {}).length,
+          teamsCount: Object.keys(payload.teams || {}).length,
+          recordsCount: Object.keys(payload.weeklyRecords || {}).length,
+        });
+
         await set(ref(db, 'store'), payload);
+        console.log(`✅ [Firebase] 成功同步 store 至雲端！(耗時: ${Date.now() - startTime}ms)`);
       } catch (e: any) {
-        console.error('saveStoreToCloud error:', e);
+        console.error('❌ [Firebase] saveStoreToCloud 寫入失敗:', e);
         if (e?.message?.includes('PERMISSION_DENIED') || e?.code === 'PERMISSION_DENIED') {
           alert(
             '【Firebase 雲端同步失敗】：寫入遭到權限拒絕 (PERMISSION_DENIED)！\n\n' +

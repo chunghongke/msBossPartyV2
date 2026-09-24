@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { StoreData, Team, WeeklyRecord } from '@/types/party';
 import { Player } from '@/types/player';
+import { useAppStore } from '@/store';
 
 export function getCurrentResetWeekKey(): string {
   const now = new Date();
@@ -51,16 +52,17 @@ export function useWeeklyReset(
     }
 
     // 若第一次套用（無 lastResetWeekKey），記錄當前基準週，不洗掉既有資料
-    if (!store.lastResetWeekKey) {
+    const currentLatest = useAppStore.getState().store;
+    if (!currentLatest.lastResetWeekKey) {
       await saveStore({
-        ...store,
+        ...currentLatest,
         lastResetWeekKey: currentWeekKey,
       });
       return;
     }
 
     const updatedRecords: Record<string, WeeklyRecord> = {};
-    Object.entries(store.weeklyRecords).forEach(([key, rec]) => {
+    Object.entries(currentLatest.weeklyRecords || {}).forEach(([key, rec]) => {
       updatedRecords[key] = {
         ...rec,
         isCompleted: false,
@@ -79,7 +81,7 @@ export function useWeeklyReset(
     });
 
     const updatedTeams: Record<string, Team> = {};
-    Object.entries(store.teams || {}).forEach(([tId, team]) => {
+    Object.entries(currentLatest.teams || {}).forEach(([tId, team]) => {
       if (team.schedule && team.schedule.tempOverride) {
         updatedTeams[tId] = {
           ...team,
@@ -94,7 +96,7 @@ export function useWeeklyReset(
     });
 
     const nextStore: StoreData = {
-      ...store,
+      ...currentLatest,
       weeklyRecords: updatedRecords,
       teams: updatedTeams,
       lastResetWeekKey: currentWeekKey,
@@ -202,8 +204,9 @@ export function useWeeklyReset(
     });
 
     if (hasChanges) {
+      const currentLatest = useAppStore.getState().store;
       await saveStore({
-        ...store,
+        ...currentLatest,
         teams: nextTeams,
         weeklyRecords: nextRecords,
       });

@@ -42,6 +42,26 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
       }
     };
 
+    // 0. 監聽 Firebase 實體 WebSocket 連線狀態
+    const connectedRef = ref(db, '.info/connected');
+    const unsubConnected = onValue(connectedRef, (snapshot) => {
+      const isConnected = Boolean(snapshot.val());
+      if (isConnected) {
+        console.log(
+          `🟢 [Firebase 連線成功] WebSocket 已與雲端即時連線！\n` +
+          `  - 當前小隊: ${activeGroup.name}\n` +
+          `  - 專案 ID: ${activeGroup.firebaseConfig.projectId}\n` +
+          `  - 資料庫網址: ${activeGroup.firebaseConfig.databaseURL}`
+        );
+      } else {
+        console.warn(
+          `🔴 [Firebase 離線中] 目前尚未連上 Firebase 伺服器 (Connected: false)！\n` +
+          `  若剛開啟頁面正在建立連線屬正常現象；若持續離線，請檢查網路、廣告攔截器或 Database URL 設定。\n` +
+          `  離線狀態下發出的資料寫入會處於等待排隊中，直到連線恢復才會上傳。`
+        );
+      }
+    });
+
     // 1. 獨立監聽 players 節點（不讀取根節點）
     const playersRef = ref(db, 'players');
     const unsubPlayers = onValue(
@@ -145,6 +165,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
     );
 
     return () => {
+      unsubConnected();
       unsubPlayers();
       unsubStore();
     };
