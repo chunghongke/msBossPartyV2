@@ -29,6 +29,63 @@ export function lockWritesDuringResync(durationMs: number = 1500): void {
   _suppressSyncUntil = Math.max(_suppressSyncUntil, Date.now() + durationMs);
 }
 
+let _pendingUpdates: Record<string, any> = {};
+
+/**
+ * 💡 計算新舊 Store 之間的精準差異路徑 (Delta Updates)
+ * 僅挑選真正發生變更/新增/刪除的特定節點，
+ * 絕對不夾帶未受影響的其他幾十支隊伍、上百筆打王紀錄或戰利品！
+ */
+function computeStoreDeltaUpdates(oldStore: StoreData, newStore: StoreData): Record<string, any> {
+  const updates: Record<string, any> = {};
+
+  // 1. Teams 差異比對
+  const oldTeams = oldStore.teams || {};
+  const newTeams = newStore.teams || {};
+  const allTeamIds = new Set([...Object.keys(oldTeams), ...Object.keys(newTeams)]);
+
+  allTeamIds.forEach((tId) => {
+    const oldT = oldTeams[tId];
+    const newT = newTeams[tId];
+    if (!newT) {
+      // 隊伍被解散或移除 -> 刪除該隊伍路徑
+      updates[`store/teams/${tId}`] = null;
+    } else if (!oldT || JSON.stringify(oldT) !== JSON.stringify(newT)) {
+      // 新增隊伍或隊員有變更 -> 只更新該隊伍路徑
+      updates[`store/teams/${tId}`] = newT;
+    }
+  });
+
+  // 2. WeeklyRecords 差異比對
+  const oldRecs = oldStore.weeklyRecords || {};
+  const newRecs = newStore.weeklyRecords || {};
+  const allRecKeys = new Set([...Object.keys(oldRecs), ...Object.keys(newRecs)]);
+
+  allRecKeys.forEach((rKey) => {
+    const oldR = oldRecs[rKey];
+    const newR = newRecs[rKey];
+    if (!newR) {
+      // 記錄被移除 -> 刪除該記錄路徑
+      updates[`store/weeklyRecords/${rKey}`] = null;
+    } else if (!oldR || JSON.stringify(oldR) !== JSON.stringify(newR)) {
+      // 打王狀態或隊伍關聯有變更 -> 只更新該筆記錄路徑
+      updates[`store/weeklyRecords/${rKey}`] = newR;
+    }
+  });
+
+  // 3. Guests 差異比對
+  if (JSON.stringify(oldStore.guests || []) !== JSON.stringify(newStore.guests || [])) {
+    updates['store/guests'] = newStore.guests || [];
+  }
+
+  // 4. LastResetWeekKey 差異比對
+  if (oldStore.lastResetWeekKey !== newStore.lastResetWeekKey && newStore.lastResetWeekKey) {
+    updates['store/lastResetWeekKey'] = newStore.lastResetWeekKey;
+  }
+
+  return updates;
+}
+
 export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
   store: DEFAULT_STORE,
   isLoading: true,
@@ -41,9 +98,14 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
   setIsLoading: (isLoading) => setSlice({ isLoading }),
 
   saveStoreToCloud: async (newStore: StoreData) => {
-    const { activeGroup } = get();
+    const { activeGroup, store: oldStore } = get();
     // 💡 深層序列化過濾所有 undefined 欄位，確保 Firebase RTDB 寫入純淨合法 JSON
     const cleanStore = JSON.parse(JSON.stringify(newStore));
+
+    // 計算與現有 Zustand store 之間的精準差異路徑 (Delta)
+    const delta = computeStoreDeltaUpdates(oldStore, cleanStore);
+    Object.assign(_pendingUpdates, delta);
+
     // ① 樂觀更新：立即更新 Zustand，讓 UI 即時回饋
     setSlice({ store: cleanStore });
     if (!activeGroup?.firebaseConfig) {
@@ -51,46 +113,35 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
       return;
     }
 
-    // ② 防抖寫入：合併 150ms 內的快速連續操作，僅發送最終狀態
+    // ② 防抖寫入：合併 150ms 內的快速連續操作，僅發送最終累積的差異路徑
     if (_saveTimer) clearTimeout(_saveTimer);
     _saveTimer = setTimeout(async () => {
       _saveTimer = null;
       _isWriting = true;
       try {
-        // 讀取「此刻」最新的 Zustand store，而非呼叫時的快照
-        const currentStore = JSON.parse(JSON.stringify(get().store));
-        // 💡 嚴格白名單過濾：只送出 Firebase 安全性規則允許的合法欄位，防止 $other: false 誤殺
-        const payload: Record<string, any> = {
-          teams: currentStore.teams || {},
-          weeklyRecords: currentStore.weeklyRecords || {},
-          guests: currentStore.guests || [],
-        };
-        if (currentStore.lastResetWeekKey) {
-          payload.lastResetWeekKey = currentStore.lastResetWeekKey;
-        }
-        if (currentStore.loots) {
-          payload.loots = currentStore.loots;
-        }
+        const updatesToSend = { ..._pendingUpdates };
+        _pendingUpdates = {};
+
+        if (Object.keys(updatesToSend).length === 0) return;
 
         const db = getRtdb(activeGroup.firebaseConfig);
         const startTime = Date.now();
-        console.log(`📡 [Firebase] 正在同步 store 至小隊「${activeGroup.name}」(${activeGroup.firebaseConfig.projectId})...`, {
-          teamsCount: Object.keys(payload.teams).length,
-          recordsCount: Object.keys(payload.weeklyRecords).length,
-        });
+        console.log(
+          `📡 [Firebase 多路徑原子更新] 正在同步 ${Object.keys(updatesToSend).length} 個變更節點至「${activeGroup.name}」...`,
+          Object.keys(updatesToSend)
+        );
 
-        // 💡 關鍵修復：使用 update 取代 set！
-        // update 僅更新指定頂層節點 (teams, weeklyRecords, guests)，
-        // 絕對不會將由 lootSlice 獨立單點維護的 store/loots 節點沖刷覆蓋！
-        await update(ref(db, 'store'), payload);
-        console.log(`✅ [Firebase] 成功同步 store 至雲端！(耗時: ${Date.now() - startTime}ms)`);
+        // 💡 關鍵架構升級：使用 update(ref(db), updatesToSend)！
+        // 僅發送真正發生增減或修改的特定隊伍/紀錄路徑，
+        // 未變動的幾十支隊伍與上百隻王 100% 保持伺服器原樣，戰利品更是 100% 物理隔離！
+        await update(ref(db), updatesToSend);
+        console.log(`✅ [Firebase 多路徑原子更新] 成功同步變更至雲端！(耗時: ${Date.now() - startTime}ms)`);
       } catch (e: any) {
-        console.error('❌ [Firebase] saveStoreToCloud 寫入失敗:', e);
+        console.error('❌ [Firebase 多路徑更新失敗]:', e);
         if (e?.message?.includes('PERMISSION_DENIED') || e?.code === 'PERMISSION_DENIED') {
           alert(
             '【Firebase 雲端同步失敗】：寫入遭到權限拒絕 (PERMISSION_DENIED)！\n\n' +
-            '原因通常為 Firebase 控制台的「安全性規則」未包含 loots 節點，或是修改後「尚未點擊發布 (Publish)」！\n' +
-            '請至 Firebase 控制台確認規則已成功發布，否則新增的戰利品將會被伺服器拒絕並回滾消失。'
+            '請至 Firebase 控制台確認安全性規則設定。'
           );
         }
       } finally {
