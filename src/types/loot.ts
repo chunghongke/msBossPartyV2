@@ -1,6 +1,6 @@
 export type LootStatus = 'selling' | 'distributing' | 'done';
 
-export type LootSaleCurrency = 'meso' | 'twd';
+export type LootSaleCurrency = 'meso' | 'twd' | 'internal';
 
 export type LootCategory =
   | 'pitched'          // 漆黑飾品
@@ -35,7 +35,7 @@ export interface LootItem {
 
   // 拍賣與金額設定
   status: LootStatus;              // 'selling' (待售) | 'distributing' (分配中) | 'done' (已結清)
-  saleCurrency?: LootSaleCurrency; // 交易幣別: 'meso' (楓幣，預設) | 'twd' (新台幣)
+  saleCurrency?: LootSaleCurrency; // 交易幣別: 'meso' (楓幣拍賣，預設) | 'twd' (新台幣) | 'internal' (隊友內購)
   totalSalePrice: number;          // 拍賣售出總金額 (楓幣或台幣元)
   taxRatePercent: number;          // 拍賣/交易手續費 % (預設 3%)
   netSalePrice: number;            // 扣除手續費後淨額 (楓幣或台幣元)

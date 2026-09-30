@@ -128,15 +128,17 @@ export function LootEditModal({
       const curr = lootToEdit.saleCurrency || 'meso';
       setSaleCurrency(curr);
       const wasSelling = !lootToEdit.status || lootToEdit.status === 'selling';
-      const isEnteringDistribution = autoFocusPrice || (!wasSelling && lootToEdit.totalSalePrice > 0);
+      const isEnteringDistribution = autoFocusPrice || curr === 'internal' || (!wasSelling && lootToEdit.totalSalePrice > 0);
       setIsSold(isEnteringDistribution);
       setTotalSalePrice(lootToEdit.totalSalePrice);
       setPriceInputStr(lootToEdit.totalSalePrice > 0 ? String(lootToEdit.totalSalePrice) : '');
-      const initTax = curr === 'twd'
-        ? (lootToEdit.taxRatePercent ?? 0)
-        : (wasSelling && (lootToEdit.taxRatePercent === 5 || lootToEdit.taxRatePercent === undefined)
-            ? 3
-            : (lootToEdit.taxRatePercent ?? 3));
+      const initTax = curr === 'internal'
+        ? 0
+        : curr === 'twd'
+          ? (lootToEdit.taxRatePercent ?? 0)
+          : (wasSelling && (lootToEdit.taxRatePercent === 5 || lootToEdit.taxRatePercent === undefined)
+              ? 3
+              : (lootToEdit.taxRatePercent ?? 3));
       setTaxRatePercent(initTax);
       
       const editMembers: LootMemberPayout[] = (lootToEdit.members || []).map((m) => {
@@ -274,41 +276,6 @@ export function LootEditModal({
     setIsCapsuleView(false);
   };
 
-  // ── 幣別切換 ──
-  const handleCurrencyChange = (newCurrency: LootSaleCurrency) => {
-    if (newCurrency === saleCurrency) return;
-    setSaleCurrency(newCurrency);
-    // 自動根據新幣別設定合理的手續費率預設值
-    if (newCurrency === 'twd') {
-      if (taxRatePercent === 3 || taxRatePercent === 5) {
-        setTaxRatePercent(0); // 台幣交易預設 0% (轉帳實拿)
-      }
-    } else {
-      if (taxRatePercent === 0) {
-        setTaxRatePercent(3); // 楓幣拍賣預設 3% (拍賣特權)
-      }
-    }
-    // 重新解析當前輸入字串以套用新幣別規則
-    if (priceInputStr.trim()) {
-      const parsed = newCurrency === 'twd' ? parseTwdInput(priceInputStr) : parseMapleMesoInput(priceInputStr);
-      setTotalSalePrice(parsed);
-    }
-  };
-
-  // ── 售出金額與快速按鈕 ──
-  const handlePriceChange = (val: string) => {
-    setPriceInputStr(val);
-    const parsed = saleCurrency === 'twd' ? parseTwdInput(val) : parseMapleMesoInput(val);
-    setTotalSalePrice(parsed);
-  };
-
-  const handleQuickAddPrice = (addAmount: number) => {
-    const current = saleCurrency === 'twd' ? parseTwdInput(priceInputStr) : parseMapleMesoInput(priceInputStr);
-    const next = current + addAmount;
-    setTotalSalePrice(next);
-    setPriceInputStr(String(next));
-  };
-
   // ── 售出狀態切換 (待售中 vs 已售出開始分配) ──
   const handleToggleIsSold = (sold: boolean) => {
     setIsSold(sold);
@@ -336,6 +303,44 @@ export function LootEditModal({
         }
       }, 50);
     }
+  };
+
+  // ── 幣別切換 ──
+  const handleCurrencyChange = (newCurrency: LootSaleCurrency) => {
+    if (newCurrency === saleCurrency) return;
+    setSaleCurrency(newCurrency);
+    // 自動根據新幣別設定合理的手續費率預設值與分配狀態
+    if (newCurrency === 'internal') {
+      setTaxRatePercent(0); // 隊友內購免手續費 (0%)
+      handleToggleIsSold(true); // 選擇隊友內購時，右上預設選取開始分配收益
+    } else if (newCurrency === 'twd') {
+      if (taxRatePercent === 3 || taxRatePercent === 5) {
+        setTaxRatePercent(0); // 台幣交易預設 0% (轉帳實拿)
+      }
+    } else {
+      if (taxRatePercent === 0) {
+        setTaxRatePercent(3); // 楓幣拍賣預設 3% (拍賣特權)
+      }
+    }
+    // 重新解析當前輸入字串以套用新幣別規則
+    if (priceInputStr.trim()) {
+      const parsed = newCurrency === 'twd' ? parseTwdInput(priceInputStr) : parseMapleMesoInput(priceInputStr);
+      setTotalSalePrice(parsed);
+    }
+  };
+
+  // ── 售出金額與快速按鈕 ──
+  const handlePriceChange = (val: string) => {
+    setPriceInputStr(val);
+    const parsed = saleCurrency === 'twd' ? parseTwdInput(val) : parseMapleMesoInput(val);
+    setTotalSalePrice(parsed);
+  };
+
+  const handleQuickAddPrice = (addAmount: number) => {
+    const current = saleCurrency === 'twd' ? parseTwdInput(priceInputStr) : parseMapleMesoInput(priceInputStr);
+    const next = current + addAmount;
+    setTotalSalePrice(next);
+    setPriceInputStr(String(next));
   };
 
   // ── 更換保管人 ──
@@ -366,10 +371,10 @@ export function LootEditModal({
   const splitCalc = useMemo(() => {
     return calculateNetAndSplit(
       isSold ? totalSalePrice : 0,
-      taxRatePercent,
+      saleCurrency === 'internal' ? 0 : taxRatePercent,
       members.length
     );
-  }, [isSold, totalSalePrice, taxRatePercent, members.length]);
+  }, [isSold, totalSalePrice, saleCurrency, taxRatePercent, members.length]);
 
   // 尋找當前 BOSS 隊伍 (僅當有明確的小隊 ID 時才具備「本團」上下文)
   const currentBossTeam = useMemo(() => {
@@ -604,7 +609,7 @@ export function LootEditModal({
       status: finalStatus,
       saleCurrency,
       totalSalePrice: isSold ? totalSalePrice : 0,
-      taxRatePercent,
+      taxRatePercent: saleCurrency === 'internal' ? 0 : taxRatePercent,
       netSalePrice: isSold ? splitCalc.netSalePrice : 0,
       splitAmountPerMember: isSold ? splitCalc.splitAmountPerMember : 0,
       members,
@@ -888,11 +893,13 @@ export function LootEditModal({
                   className={cn(
                     'px-2.5 py-1 rounded-lg text-xs font-black transition-all disabled:opacity-60 disabled:cursor-not-allowed',
                     !isSold
-                      ? 'bg-amber-400 text-slate-950 shadow-xs'
+                      ? saleCurrency === 'internal'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-amber-400 text-slate-950 shadow-xs'
                       : 'text-stone-600 dark:text-slate-400 hover:text-stone-900'
                   )}
                 >
-                  🟡 上架待售中
+                  {saleCurrency === 'internal' ? '🤝 洽談內購中' : '🟡 上架待售中'}
                 </button>
                 <button
                   type="button"
@@ -905,53 +912,78 @@ export function LootEditModal({
                       : 'text-stone-600 dark:text-slate-400 hover:text-stone-900'
                   )}
                 >
-                  🔵 已售出，開始分配收益
+                  {saleCurrency === 'internal' ? '🔵 已內購，開始分配收益' : '🔵 已售出，開始分配收益'}
                 </button>
               </div>
             </div>
 
-            {/* 交易幣別切換分頁 (🪙 楓幣拍賣 vs 💵 台幣交易) */}
-            <div className="flex items-center gap-1 p-1 bg-black/5 dark:bg-slate-800/80 rounded-xl border border-kerning-stroke/30">
+            {/* 交易幣別切換分頁 (🪙 楓幣拍賣 vs 🤝 隊友內購 vs 💵 台幣交易) */}
+            <div className="grid grid-cols-3 gap-1 p-1 bg-black/5 dark:bg-slate-800/80 rounded-xl border border-kerning-stroke/30">
               <button
                 type="button"
                 disabled={!canManage}
                 onClick={() => handleCurrencyChange('meso')}
                 className={cn(
-                  'flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed select-none',
+                  'py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed select-none',
                   saleCurrency === 'meso'
                     ? 'bg-amber-400 text-slate-950 shadow-xs'
                     : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-200'
                 )}
               >
                 <span>🪙</span>
-                <span>楓幣拍賣 (Meso)</span>
+                <span className="truncate">楓幣拍賣</span>
+              </button>
+              <button
+                type="button"
+                disabled={!canManage}
+                onClick={() => handleCurrencyChange('internal')}
+                className={cn(
+                  'py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed select-none',
+                  saleCurrency === 'internal'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-200'
+                )}
+              >
+                <span>🤝</span>
+                <span className="truncate">隊友內購</span>
               </button>
               <button
                 type="button"
                 disabled={!canManage}
                 onClick={() => handleCurrencyChange('twd')}
                 className={cn(
-                  'flex-1 py-1.5 px-3 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed select-none',
+                  'py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed select-none',
                   saleCurrency === 'twd'
                     ? 'bg-emerald-500 text-white shadow-xs'
                     : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-200'
                 )}
               >
                 <Banknote className="w-3.5 h-3.5" />
-                <span>台幣交易 (TWD)</span>
+                <span className="truncate">台幣交易</span>
               </button>
             </div>
 
             {isSold ? (
               <div className="space-y-3 pt-1">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* 總售價輸入 */}
+                  {/* 總售價 / 參考價格輸入 */}
                   <div className="sm:col-span-2">
                     <label className="text-[11px] font-bold text-stone-700 dark:text-slate-300 mb-1 flex items-center justify-between">
                       <span>
-                        {saleCurrency === 'twd' ? '售出成交金額 (新台幣 NT$)' : '拍賣總售價 (楓幣)'}
+                        {saleCurrency === 'internal'
+                          ? '拍賣參考價格 (楓幣)'
+                          : saleCurrency === 'twd'
+                          ? '售出成交金額 (新台幣 NT$)'
+                          : '拍賣總售價 (楓幣)'}
                       </span>
-                      <span className={cn('font-black', saleCurrency === 'twd' ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300')}>
+                      <span className={cn(
+                        'font-black',
+                        saleCurrency === 'internal'
+                          ? 'text-purple-700 dark:text-purple-300'
+                          : saleCurrency === 'twd'
+                          ? 'text-emerald-700 dark:text-emerald-300'
+                          : 'text-amber-800 dark:text-amber-300'
+                      )}>
                         {saleCurrency === 'twd' ? formatTwd(totalSalePrice) : formatMapleMeso(totalSalePrice)}
                       </span>
                     </label>
@@ -961,8 +993,21 @@ export function LootEditModal({
                       disabled={!canManage}
                       value={priceInputStr}
                       onChange={(e) => handlePriceChange(e.target.value)}
-                      placeholder={saleCurrency === 'twd' ? '輸入金額或例如：15000、1.5萬' : '輸入數字或例如：120億、50.5億'}
-                      className={cn('text-sm font-black', saleCurrency === 'twd' ? 'text-emerald-950 dark:text-emerald-100' : 'text-amber-950 dark:text-amber-100')}
+                      placeholder={
+                        saleCurrency === 'internal'
+                          ? '輸入拍賣場參考市價，例如：120億、50.5億'
+                          : saleCurrency === 'twd'
+                          ? '輸入金額或例如：15000、1.5萬'
+                          : '輸入數字或例如：120億、50.5億'
+                      }
+                      className={cn(
+                        'text-sm font-black',
+                        saleCurrency === 'internal'
+                          ? 'text-purple-950 dark:text-purple-100 border-purple-400/50 focus-visible:ring-purple-400'
+                          : saleCurrency === 'twd'
+                          ? 'text-emerald-950 dark:text-emerald-100'
+                          : 'text-amber-950 dark:text-amber-100'
+                      )}
                     />
 
                     {/* 快捷增額按鈕 */}
@@ -985,7 +1030,12 @@ export function LootEditModal({
                               type="button"
                               disabled={!canManage}
                               onClick={() => handleQuickAddPrice(amt)}
-                              className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/20 text-amber-900 dark:text-amber-200 hover:bg-amber-500/30 transition-all border border-amber-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                              className={cn(
+                                'px-2 py-0.5 rounded-md text-[10px] font-black transition-all border disabled:opacity-60 disabled:cursor-not-allowed',
+                                saleCurrency === 'internal'
+                                  ? 'bg-purple-500/15 text-purple-800 dark:text-purple-200 hover:bg-purple-500/25 border-purple-500/30'
+                                  : 'bg-amber-500/20 text-amber-900 dark:text-amber-200 hover:bg-amber-500/30 border-amber-500/30'
+                              )}
                             >
                               +{formatMapleMesoShort(amt)}
                             </button>
@@ -1004,55 +1054,69 @@ export function LootEditModal({
                     </div>
                   </div>
 
-                  {/* 手續費率 */}
+                  {/* 手續費率 (內購模式免手續費，其餘顯示輸入與預設按鈕) */}
                   <div>
-                    <label className="text-[11px] font-bold text-stone-700 dark:text-slate-300 mb-1 block">
-                      {saleCurrency === 'twd' ? '交易/平台手續費 (%)' : '拍賣手續費率 (%)'}
-                    </label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      disabled={!canManage}
-                      value={taxRatePercent}
-                      onChange={(e) => setTaxRatePercent(Number(e.target.value) || 0)}
-                      className="text-xs h-9 font-bold"
-                    />
-                    <div className="flex gap-1 mt-1.5 flex-wrap">
-                      {saleCurrency === 'twd'
-                        ? [0, 6, 3].map((rate) => (
-                            <button
-                              key={rate}
-                              type="button"
-                              disabled={!canManage}
-                              onClick={() => setTaxRatePercent(rate)}
-                              className={cn(
-                                'px-2 py-0.5 rounded-md text-[10px] font-black transition-all border disabled:opacity-60 disabled:cursor-not-allowed',
-                                taxRatePercent === rate
-                                  ? 'bg-emerald-500 text-white border-emerald-600'
-                                  : 'bg-black/5 dark:bg-slate-800 text-stone-600 dark:text-slate-400 border-transparent'
-                              )}
-                            >
-                              {rate === 0 ? '0% (轉帳實拿)' : rate === 6 ? '6% (8591)' : `${rate}%`}
-                            </button>
-                          ))
-                        : [3, 5, 0].map((rate) => (
-                            <button
-                              key={rate}
-                              type="button"
-                              disabled={!canManage}
-                              onClick={() => setTaxRatePercent(rate)}
-                              className={cn(
-                                'px-2 py-0.5 rounded-md text-[10px] font-black transition-all border disabled:opacity-60 disabled:cursor-not-allowed',
-                                taxRatePercent === rate
-                                  ? 'bg-amber-400 text-slate-950 border-amber-500'
-                                  : 'bg-black/5 dark:bg-slate-800 text-stone-600 dark:text-slate-400 border-transparent'
-                              )}
-                            >
-                              {rate === 3 ? '3% (特權)' : rate === 5 ? '5% (標準)' : '0% (實拿)'}
-                            </button>
-                          ))}
-                    </div>
+                    {saleCurrency === 'internal' ? (
+                      <div className="h-full flex flex-col justify-center rounded-xl p-3 bg-purple-500/10 dark:bg-purple-950/30 border border-purple-500/30 text-xs">
+                        <div className="flex items-center gap-1.5 font-black text-purple-900 dark:text-purple-200">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                          <span>免扣手續費 (0%)</span>
+                        </div>
+                        <p className="text-[11px] text-purple-800/80 dark:text-purple-300/80 mt-1 leading-snug">
+                          由隊友直接內購承接，不透過拍賣場，依參考市價全額均分。
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="text-[11px] font-bold text-stone-700 dark:text-slate-300 mb-1 block">
+                          {saleCurrency === 'twd' ? '交易/平台手續費 (%)' : '拍賣手續費率 (%)'}
+                        </label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          disabled={!canManage}
+                          value={taxRatePercent}
+                          onChange={(e) => setTaxRatePercent(Number(e.target.value) || 0)}
+                          className="text-xs h-9 font-bold"
+                        />
+                        <div className="flex gap-1 mt-1.5 flex-wrap">
+                          {saleCurrency === 'twd'
+                            ? [0, 6, 3].map((rate) => (
+                                <button
+                                  key={rate}
+                                  type="button"
+                                  disabled={!canManage}
+                                  onClick={() => setTaxRatePercent(rate)}
+                                  className={cn(
+                                    'px-2 py-0.5 rounded-md text-[10px] font-black transition-all border disabled:opacity-60 disabled:cursor-not-allowed',
+                                    taxRatePercent === rate
+                                      ? 'bg-emerald-500 text-white border-emerald-600'
+                                      : 'bg-black/5 dark:bg-slate-800 text-stone-600 dark:text-slate-400 border-transparent'
+                                  )}
+                                >
+                                  {rate === 0 ? '0% (轉帳實拿)' : rate === 6 ? '6% (8591)' : `${rate}%`}
+                                </button>
+                              ))
+                            : [3, 5, 0].map((rate) => (
+                                <button
+                                  key={rate}
+                                  type="button"
+                                  disabled={!canManage}
+                                  onClick={() => setTaxRatePercent(rate)}
+                                  className={cn(
+                                    'px-2 py-0.5 rounded-md text-[10px] font-black transition-all border disabled:opacity-60 disabled:cursor-not-allowed',
+                                    taxRatePercent === rate
+                                      ? 'bg-amber-400 text-slate-950 border-amber-500'
+                                      : 'bg-black/5 dark:bg-slate-800 text-stone-600 dark:text-slate-400 border-transparent'
+                                  )}
+                                >
+                                  {rate === 3 ? '3% (特權)' : rate === 5 ? '5% (標準)' : '0% (實拿)'}
+                                </button>
+                              ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1060,9 +1124,16 @@ export function LootEditModal({
                 <div className="bg-white/80 dark:bg-slate-900/80 rounded-xl p-3 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3 text-xs">
                   <div>
                     <span className="text-stone-500 dark:text-slate-400 block text-[10px]">
-                      {saleCurrency === 'twd' ? '扣手續費後淨收益' : '扣稅後總淨收益'}
+                      {saleCurrency === 'internal'
+                        ? '拍賣參考總金額 (免手續費)'
+                        : saleCurrency === 'twd'
+                        ? '扣手續費後淨收益'
+                        : '扣稅後總淨收益'}
                     </span>
-                    <span className="font-black text-sm text-stone-900 dark:text-slate-100">
+                    <span className={cn(
+                      'font-black text-sm',
+                      saleCurrency === 'internal' ? 'text-purple-900 dark:text-purple-100' : 'text-stone-900 dark:text-slate-100'
+                    )}>
                       {formatLootPrice(splitCalc.netSalePrice, saleCurrency)}
                     </span>
                     {splitCalc.taxAmount > 0 && (
@@ -1076,12 +1147,17 @@ export function LootEditModal({
                     <span className="text-stone-500 dark:text-slate-400 block text-[10px]">
                       每人應得 ({members.length} 人均分)
                     </span>
-                    <span className="font-black text-base text-emerald-600 dark:text-emerald-400">
+                    <span className={cn(
+                      'font-black text-base',
+                      saleCurrency === 'internal'
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                    )}>
                       {formatLootPrice(splitCalc.splitAmountPerMember, saleCurrency)}
                     </span>
                     {splitCalc.remainder > 0 && (
                       <span className="text-[10px] text-stone-400 dark:text-slate-500 block">
-                        (餘數 {saleCurrency === 'twd' ? `NT$ ${splitCalc.remainder}` : `${splitCalc.remainder.toLocaleString()} 楓幣`} 由保管人吸收)
+                        (餘數 {formatLootPrice(splitCalc.remainder, saleCurrency)} 由保管人吸收)
                       </span>
                     )}
                   </div>
@@ -1089,7 +1165,9 @@ export function LootEditModal({
               </div>
             ) : (
               <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed font-bold">
-                {saleCurrency === 'twd'
+                {saleCurrency === 'internal'
+                  ? '物品設定為隊友直接內購。雙方確認參考市價後，隨時切換為「已內購，開始分配收益」並填入參考金額，系統將以 0% 手續費直接均分給全隊。'
+                  : saleCurrency === 'twd'
                   ? '物品預計以台幣交易出售中。買家交易完成後，隨時切換為「已售出，開始分配收益」並填入成交金額，系統將自動精算每人應分配份額。'
                   : '物品仍在拍賣場上架中。售出後可隨時切換為「已售出，開始分配收益」並填入成交金額，系統將自動精算每人應分配數額。'}
               </p>

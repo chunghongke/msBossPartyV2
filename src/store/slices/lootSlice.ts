@@ -51,10 +51,12 @@ export const createLootSlice: AppSlice<LootSlice> = (setSlice, get) => ({
     const id = `loot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = new Date().toISOString();
 
-    const defaultTaxRate = lootData.saleCurrency === 'twd' ? 0 : 3;
+    const isInternal = lootData.saleCurrency === 'internal';
+    const defaultTaxRate = lootData.saleCurrency === 'twd' || isInternal ? 0 : 3;
+    const taxRatePercent = isInternal ? 0 : (lootData.taxRatePercent ?? defaultTaxRate);
     const { netSalePrice, splitAmountPerMember } = calculateNetAndSplit(
       lootData.totalSalePrice,
-      lootData.taxRatePercent ?? defaultTaxRate,
+      taxRatePercent,
       (lootData.members || []).length
     );
 
@@ -70,6 +72,7 @@ export const createLootSlice: AppSlice<LootSlice> = (setSlice, get) => ({
     const newLoot: LootItem = {
       ...lootData,
       saleCurrency: lootData.saleCurrency || 'meso',
+      taxRatePercent,
       id,
       netSalePrice,
       splitAmountPerMember,
@@ -106,10 +109,14 @@ export const createLootSlice: AppSlice<LootSlice> = (setSlice, get) => ({
     };
 
     // 重新試算扣稅淨額與每人均分
-    const defaultTaxRate = merged.saleCurrency === 'twd' ? 0 : 3;
+    const isInternal = merged.saleCurrency === 'internal';
+    const defaultTaxRate = merged.saleCurrency === 'twd' || isInternal ? 0 : 3;
+    const taxRatePercent = isInternal ? 0 : (merged.taxRatePercent ?? defaultTaxRate);
+    merged.taxRatePercent = taxRatePercent;
+
     const { netSalePrice, splitAmountPerMember } = calculateNetAndSplit(
       merged.totalSalePrice,
-      merged.taxRatePercent ?? defaultTaxRate,
+      taxRatePercent,
       (merged.members || []).length
     );
     merged.netSalePrice = netSalePrice;

@@ -343,6 +343,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                   const isDone = loot.status === 'done';
                   const isSelling = loot.status === 'selling';
                   const isTwd = loot.saleCurrency === 'twd';
+                  const isInternal = loot.saleCurrency === 'internal';
 
                   // 判斷權限：管理員、此戰利品保管人、或未指定保管人時的登入者
                   const isHandler = Boolean(
@@ -402,7 +403,12 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                               >
                                 {categoryMeta.icon} {categoryMeta.label}
                               </span>
-                              {isTwd ? (
+                              {isInternal ? (
+                                <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/40 text-[10px] font-black shrink-0 flex items-center gap-1">
+                                  <span>🤝</span>
+                                  <span>隊友內購</span>
+                                </span>
+                              ) : isTwd ? (
                                 <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-500/40 text-[10px] font-black shrink-0 flex items-center gap-1">
                                   <Banknote className="w-3 h-3" />
                                   <span>台幣交易</span>
@@ -455,10 +461,10 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                           ) : isSelling ? (
                             <span className={cn(
                               "px-2.5 py-1 rounded-xl text-slate-950 font-black text-xs flex items-center gap-1 shadow-xs",
-                              isTwd ? "bg-cyan-400" : "bg-amber-400"
+                              isInternal ? "bg-purple-300" : isTwd ? "bg-cyan-400" : "bg-amber-400"
                             )}>
                               <Clock className="w-3.5 h-3.5" />
-                              <span>{isTwd ? '台幣待成交' : '拍賣待售中'}</span>
+                              <span>{isInternal ? '內購洽談中' : isTwd ? '台幣待成交' : '拍賣待售中'}</span>
                             </span>
                           ) : (
                             <span className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center gap-1 shadow-xs">
@@ -499,18 +505,26 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                           <div className="flex items-center gap-4 flex-wrap">
                             <div>
                               <span className="text-stone-500 dark:text-slate-400 text-[10px] block">
-                                {isTwd ? '台幣總售價' : '拍賣總售價'}
+                                {isInternal ? '拍賣參考價' : isTwd ? '台幣總售價' : '拍賣總售價'}
                               </span>
-                              <span className={cn("font-black", isTwd ? "text-cyan-700 dark:text-cyan-300" : "text-stone-900 dark:text-slate-100")}>
+                              <span className={cn(
+                                "font-black",
+                                isInternal ? "text-purple-700 dark:text-purple-300" : isTwd ? "text-cyan-700 dark:text-cyan-300" : "text-stone-900 dark:text-slate-100"
+                              )}>
                                 {formatLootPrice(loot.totalSalePrice, loot.saleCurrency)}
                               </span>
                             </div>
 
                             <div className="border-l border-kerning-stroke/30 pl-4">
                               <span className="text-stone-500 dark:text-slate-400 text-[10px] block">
-                                扣稅淨額 (手續費 {loot.taxRatePercent ?? (isTwd ? 0 : 3)}%)
+                                {isInternal
+                                  ? '實拿淨額 (免手續費 0%)'
+                                  : `扣稅淨額 (手續費 ${loot.taxRatePercent ?? (isTwd ? 0 : 3)}%)`}
                               </span>
-                              <span className={cn("font-black", isTwd ? "text-cyan-700 dark:text-cyan-300" : "text-stone-900 dark:text-slate-100")}>
+                              <span className={cn(
+                                "font-black",
+                                isInternal ? "text-purple-700 dark:text-purple-300" : isTwd ? "text-cyan-700 dark:text-cyan-300" : "text-stone-900 dark:text-slate-100"
+                              )}>
                                 {formatLootPrice(loot.netSalePrice, loot.saleCurrency)}
                               </span>
                             </div>
@@ -522,7 +536,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                             </span>
                             <span className={cn(
                               "font-black text-base",
-                              isTwd ? "text-cyan-600 dark:text-cyan-400" : "text-emerald-600 dark:text-emerald-400"
+                              isInternal ? "text-purple-600 dark:text-purple-400" : isTwd ? "text-cyan-600 dark:text-cyan-400" : "text-emerald-600 dark:text-emerald-400"
                             )}>
                               {formatLootPrice(loot.splitAmountPerMember, loot.saleCurrency)}
                             </span>
@@ -531,16 +545,22 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                       ) : (
                         <div className={cn(
                           "py-2 px-3 rounded-xl border border-dashed text-xs flex items-center justify-between gap-2",
-                          isTwd
+                          isInternal
+                            ? "bg-purple-500/10 border-purple-500/40 text-purple-900 dark:text-purple-200"
+                            : isTwd
                             ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-900 dark:text-cyan-200"
                             : "bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-amber-200"
                         )}>
                           <span>
                             {canManage
-                              ? (isTwd
+                              ? (isInternal
+                                  ? '🤝 此戰利品為隊友內購，確認拍賣參考價後點擊右方「填寫內購金額」。'
+                                  : isTwd
                                   ? '💵 此戰利品設定為台幣交易，待買家成交付款後點擊右方「填寫售出金額」。'
                                   : '📦 此戰利品目前仍在拍賣場上架中，待售出後點擊右方「填寫售出金額」。')
-                              : (isTwd
+                              : (isInternal
+                                  ? `🤝 此戰利品為隊友內購，等待保管人（${loot.handlerPlayerName || '未指定'}）結算金額。`
+                                  : isTwd
                                   ? `💵 此戰利品設定為台幣交易，等待保管人（${loot.handlerPlayerName || '未指定'}）結算金額。`
                                   : `📦 此戰利品目前仍在拍賣場上架中，等待保管人（${loot.handlerPlayerName || '未指定'}）結算金額。`)}
                           </span>
@@ -551,17 +571,21 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                               onClick={() => handleOpenEdit(loot, true)}
                               className={cn(
                                 "text-xs h-6 shrink-0",
-                                isTwd
+                                isInternal
+                                  ? "text-purple-900 dark:text-purple-200 border-purple-500/40"
+                                  : isTwd
                                   ? "text-cyan-900 dark:text-cyan-200 border-cyan-500/40"
                                   : "text-amber-900 dark:text-amber-200 border-amber-500/40"
                               )}
                             >
-                              填寫售出金額
+                              {isInternal ? '填寫內購金額' : '填寫售出金額'}
                             </Button>
                           ) : (
                             <span className={cn(
                               "text-[11px] px-2 py-0.5 rounded font-bold shrink-0",
-                              isTwd
+                              isInternal
+                                ? "bg-purple-500/20 text-purple-800 dark:text-purple-300"
+                                : isTwd
                                 ? "bg-cyan-500/20 text-cyan-800 dark:text-cyan-300"
                                 : "bg-amber-500/20 text-amber-800 dark:text-amber-300"
                             )}>
@@ -645,7 +669,7 @@ export function LootManagementModal({ isOpen, onClose }: LootManagementModalProp
                                     {!isSelling && loot.splitAmountPerMember > 0 && (
                                       <span className={cn(
                                         "font-bold",
-                                        isTwd ? "text-cyan-700 dark:text-cyan-400" : "text-emerald-700 dark:text-emerald-400"
+                                        isInternal ? "text-purple-700 dark:text-purple-400" : isTwd ? "text-cyan-700 dark:text-cyan-400" : "text-emerald-700 dark:text-emerald-400"
                                       )}>
                                         ({formatLootPriceShort(loot.splitAmountPerMember, loot.saleCurrency)})
                                       </span>

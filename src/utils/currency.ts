@@ -1,3 +1,5 @@
+import { LootSaleCurrency } from '../types/loot';
+
 /**
  * 楓之谷大額楓幣格式化與計算輔助函式
  * 1 億 = 100,000,000 (10^8)
@@ -164,7 +166,7 @@ export function parseTwdInput(input: string | number): number {
 /** 通用多幣別格式化 (完整長格式) */
 export function formatLootPrice(
   amount: number | null | undefined,
-  currency: 'meso' | 'twd' = 'meso'
+  currency: LootSaleCurrency = 'meso'
 ): string {
   if (currency === 'twd') {
     return formatTwd(amount);
@@ -175,7 +177,7 @@ export function formatLootPrice(
 /** 通用多幣別格式化 (精簡短格式) */
 export function formatLootPriceShort(
   amount: number | null | undefined,
-  currency: 'meso' | 'twd' = 'meso'
+  currency: LootSaleCurrency = 'meso'
 ): string {
   if (currency === 'twd') {
     return formatTwdShort(amount);
