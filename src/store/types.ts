@@ -2,6 +2,7 @@ import { Player, Character } from '@/types/player';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
 import { LootItem } from '@/types/loot';
 import { GroupConfig } from '@/types/group';
+import { TeamFilterMode } from '@/utils/teamFilter';
 import { StateCreator } from 'zustand';
 
 export interface PlayerSlice {
@@ -33,7 +34,7 @@ export interface StoreSlice {
   setStore: (store: StoreData) => void;
   setIsLoading: (isLoading: boolean) => void;
   saveStoreToCloud: (store: StoreData) => Promise<void>;
-  toggleAllCharacterBosses: (character: Character) => Promise<void>;
+  toggleAllCharacterBosses: (character: Character, filterMode?: TeamFilterMode) => Promise<void>;
   toggleBossStatus: (
     recordKey: string,
     onRequireShardModal?: (recordKey: string, boss: any, team: any, pendingComplete?: boolean) => void

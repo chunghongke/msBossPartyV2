@@ -26,7 +26,7 @@ interface CharacterCardProps {
   onOpenRenameModal: (character: Character, playerName: string) => void;
   onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
-  onToggleAllBosses?: (character: Character) => void;
+  onToggleAllBosses?: (character: Character, filterMode?: TeamFilterMode) => void;
   completedSort?: 'fixed' | 'to-end';
   teamFilter?: TeamFilterMode;
 }
@@ -121,6 +121,15 @@ export function CharacterCard({
     if (teamFilter === 'party') return partyBossEntries;
     return orderedBossEntries;
   }, [orderedBossEntries, soloBossEntries, partyBossEntries, teamFilter]);
+
+  // 檢查當前過濾模式下的所有 BOSS 是否皆已完成
+  const isFilteredAllDone = useMemo(() => {
+    if (filteredBossEntries.length === 0) return false;
+    return filteredBossEntries.every(({ boss, entryIndex }) => {
+      const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
+      return Boolean(store.weeklyRecords[recKey]?.isCompleted);
+    });
+  }, [filteredBossEntries, character.id, store.weeklyRecords]);
 
   // FLIP 滑動動畫：記錄卡片位置，在排序改變後平滑流暢過渡 (無 scale，徹底杜絕 scrollbar 閃爍)
   const gridRef = useRef<HTMLDivElement>(null);
@@ -370,38 +379,48 @@ export function CharacterCard({
                   </div>
                 )}
 
-                {/* 💡 一鍵全部完成 / 全部取消完成按鈕 */}
-                {isOwnerOrAdmin && hasBosses && onToggleAllBosses && (
+                {/* 💡 根據隊伍過濾模式 (全部 / 個人 / 團打) 個別一鍵完成 / 取消完成按鈕 */}
+                {isOwnerOrAdmin && filteredBossEntries.length > 0 && onToggleAllBosses && (
                   <Button
                     size="sm"
-                    variant={
-                      progressStats.completed === progressStats.total &&
-                      progressStats.seasonalCompleted === progressStats.seasonalTotal &&
-                      progressStats.total + progressStats.seasonalTotal > 0
-                        ? "parchment"
-                        : "green"
-                    }
-                    onClick={() => onToggleAllBosses(character)}
+                    variant={isFilteredAllDone ? "parchment" : "green"}
+                    onClick={() => onToggleAllBosses(character, teamFilter)}
                     className="w-full text-xs font-black h-7 mt-2 shadow-xs"
                     title={
-                      progressStats.completed === progressStats.total &&
-                      progressStats.seasonalCompleted === progressStats.seasonalTotal &&
-                      progressStats.total + progressStats.seasonalTotal > 0
-                        ? "一鍵全部取消完成"
+                      isFilteredAllDone
+                        ? teamFilter === 'solo'
+                          ? "一鍵取消此角色的所有個人隊伍 BOSS 完成狀態"
+                          : teamFilter === 'party'
+                          ? "一鍵取消此角色的所有團打/多人隊伍 BOSS 完成狀態"
+                          : "一鍵全部取消完成"
+                        : teamFilter === 'solo'
+                        ? "一鍵將此角色的所有個人隊伍 BOSS 標記為已完成"
+                        : teamFilter === 'party'
+                        ? "一鍵將此角色的所有團打/多人隊伍 BOSS 標記為已完成"
                         : "一鍵將此角色清單上的所有 BOSS 標記為已完成 (常態上限 12 隻，賽季全過)"
                     }
                   >
-                    {progressStats.completed === progressStats.total &&
-                    progressStats.seasonalCompleted === progressStats.seasonalTotal &&
-                    progressStats.total + progressStats.seasonalTotal > 0 ? (
+                    {isFilteredAllDone ? (
                       <>
                         <RotateCcw className="w-3 h-3 mr-1" />
-                        <span>全部取消完成</span>
+                        <span>
+                          {teamFilter === 'solo'
+                            ? '取消個人隊伍完成'
+                            : teamFilter === 'party'
+                            ? '取消團打王完成'
+                            : '全部取消完成'}
+                        </span>
                       </>
                     ) : (
                       <>
                         <CheckCheck className="w-3.5 h-3.5 mr-1" />
-                        <span>一鍵全部完成</span>
+                        <span>
+                          {teamFilter === 'solo'
+                            ? '一鍵完成個人隊伍'
+                            : teamFilter === 'party'
+                            ? '一鍵完成團打王'
+                            : '一鍵全部完成'}
+                        </span>
                       </>
                     )}
                   </Button>

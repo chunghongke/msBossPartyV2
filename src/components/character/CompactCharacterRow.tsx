@@ -27,7 +27,7 @@ interface CompactCharacterRowProps {
   onOpenRenameModal: (character: Character, playerName: string) => void;
   onDeleteCharacter: (charId: string, playerName: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
-  onToggleAllBosses?: (character: Character) => void;
+  onToggleAllBosses?: (character: Character, filterMode?: TeamFilterMode) => void;
   completedSort?: 'fixed' | 'to-end';
   teamFilter?: TeamFilterMode;
 }
@@ -423,6 +423,15 @@ export function CompactCharacterRow({
     return orderedBossEntries;
   }, [orderedBossEntries, teamFilter, soloBossEntries, partyBossEntries]);
 
+  // 檢查當前過濾模式下的所有 BOSS 是否皆已完成
+  const isFilteredAllDone = useMemo(() => {
+    if (filteredBossEntries.length === 0) return false;
+    return filteredBossEntries.every(({ boss, entryIndex }) => {
+      const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
+      return Boolean(store.weeklyRecords[recKey]?.isCompleted);
+    });
+  }, [filteredBossEntries, character.id, store.weeklyRecords]);
+
   // FLIP 滑動動畫：記錄條列卡片位置，在排序改變後平滑流暢過渡 (無 scale，杜絕捲軸閃爍)
   const gridRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Map<string, DOMRect>>(new Map());
@@ -649,43 +658,55 @@ export function CompactCharacterRow({
             </div>
           </div>
 
-          {/* 💡 一鍵全部完成 / 全部取消完成快捷按鈕 */}
-          {isOwnerOrAdmin && hasBosses && onToggleAllBosses && (
-            (() => {
-              const isAllDone =
-                progressStats.completed === progressStats.total &&
-                progressStats.seasonalCompleted === progressStats.seasonalTotal &&
-                progressStats.total + progressStats.seasonalTotal > 0;
-              return (
-                <button
-                  type="button"
-                  onClick={() => onToggleAllBosses(character)}
-                  className={cn(
-                    "px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center gap-1 border transition-all cursor-pointer select-none active:scale-95 shadow-2xs",
-                    isAllDone
-                      ? "bg-stone-200/90 hover:bg-stone-300 text-stone-700 dark:bg-slate-700 dark:hover:bg-slate-650 dark:text-slate-200 border-stone-300 dark:border-slate-600"
-                      : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-emerald-600 shadow-xs"
-                  )}
-                  title={
-                    isAllDone
-                      ? "一鍵全部取消完成"
-                      : "一鍵將此角色清單上的所有 BOSS 標記為完成 (常態上限 12 隻，賽季全過)"
-                  }
-                >
-                  {isAllDone ? (
-                    <>
-                      <RotateCcw className="w-2.5 h-2.5" />
-                      <span>全部重設</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCheck className="w-3 h-3" />
-                      <span>一鍵全過</span>
-                    </>
-                  )}
-                </button>
-              );
-            })()
+          {/* 💡 根據隊伍過濾模式 (全部 / 個人 / 團打) 個別一鍵完成 / 取消完成快捷按鈕 */}
+          {isOwnerOrAdmin && filteredBossEntries.length > 0 && onToggleAllBosses && (
+            <button
+              type="button"
+              onClick={() => onToggleAllBosses(character, teamFilter)}
+              className={cn(
+                "px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center gap-1 border transition-all cursor-pointer select-none active:scale-95 shadow-2xs",
+                isFilteredAllDone
+                  ? "bg-stone-200/90 hover:bg-stone-300 text-stone-700 dark:bg-slate-700 dark:hover:bg-slate-650 dark:text-slate-200 border-stone-300 dark:border-slate-600"
+                  : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-emerald-600 shadow-xs"
+              )}
+              title={
+                isFilteredAllDone
+                  ? teamFilter === 'solo'
+                    ? "一鍵取消此角色的所有個人隊伍 BOSS 完成狀態"
+                    : teamFilter === 'party'
+                    ? "一鍵取消此角色的所有團打/多人隊伍 BOSS 完成狀態"
+                    : "一鍵全部取消完成"
+                  : teamFilter === 'solo'
+                  ? "一鍵將此角色的所有個人隊伍 BOSS 標記為已完成"
+                  : teamFilter === 'party'
+                  ? "一鍵將此角色的所有團打/多人隊伍 BOSS 標記為已完成"
+                  : "一鍵將此角色清單上的所有 BOSS 標記為完成 (常態上限 12 隻，賽季全過)"
+              }
+            >
+              {isFilteredAllDone ? (
+                <>
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  <span>
+                    {teamFilter === 'solo'
+                      ? '重設個人'
+                      : teamFilter === 'party'
+                      ? '重設團打'
+                      : '全部重設'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <CheckCheck className="w-3 h-3" />
+                  <span>
+                    {teamFilter === 'solo'
+                      ? '個人全過'
+                      : teamFilter === 'party'
+                      ? '團打全過'
+                      : '一鍵全過'}
+                  </span>
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>

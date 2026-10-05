@@ -3,6 +3,7 @@ import { ref, update } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
 import { getBoss, BOSSES } from '@/data/bosses';
+import { checkIsSoloTeam, checkIsPartyTeam, TeamFilterMode } from '@/utils/teamFilter';
 import { AppSlice, StoreSlice, SaveTeamOptions } from '../types';
 import { sanitizeStoreAndTeams, parseRecordKey } from '../sanitize';
 
@@ -152,17 +153,32 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     }, 150);
   },
 
-    toggleAllCharacterBosses: async (character: Character) => {
+  toggleAllCharacterBosses: async (character: Character, filterMode: TeamFilterMode = 'all') => {
     const { store, saveStoreToCloud } = get();
 
     // 收集該角色的所有 boss entries
-    const entries: { bossId: string; entryIndex: 1 | 2 }[] = [];
+    let entries: { bossId: string; entryIndex: 1 | 2 }[] = [];
     (character.bossIds || []).forEach((bId: string) => entries.push({ bossId: bId, entryIndex: 1 }));
     (character.resetBossIds || []).forEach((bId: string) => entries.push({ bossId: bId, entryIndex: 2 }));
 
+    // 依據隊伍模式過濾 (個人隊伍 / 團打隊伍 / 全部)
+    if (filterMode === 'solo') {
+      entries = entries.filter(({ bossId, entryIndex }) => {
+        const boss = getBoss(bossId);
+        if (!boss) return false;
+        return checkIsSoloTeam(character.id, boss, entryIndex, store);
+      });
+    } else if (filterMode === 'party') {
+      entries = entries.filter(({ bossId, entryIndex }) => {
+        const boss = getBoss(bossId);
+        if (!boss) return false;
+        return checkIsPartyTeam(character.id, boss, entryIndex, store);
+      });
+    }
+
     if (entries.length === 0) return;
 
-    // 檢查目前是否全部皆已完成
+    // 檢查目前篩選範圍內是否全部皆已完成
     const allCompleted = entries.every(({ bossId, entryIndex }) => {
       const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
       return Boolean(store.weeklyRecords[recKey]?.isCompleted);
