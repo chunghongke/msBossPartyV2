@@ -5,6 +5,7 @@ import { StoreData, Team } from '@/types/party';
 import { getBoss, getBossGroupKey, BOSSES } from '@/data/bosses';
 import { useCalculator } from '@/hooks/useCalculator';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { BossCell } from './BossCell';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
@@ -48,6 +49,7 @@ export function CharacterCard({
   teamFilter = 'all',
 }: CharacterCardProps) {
   const { currentPlayer, canManageChar } = useAuth();
+  const { showConfirm } = useAlert();
   const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
 
   const isSelf = currentPlayer?.name === playerName;
@@ -130,6 +132,39 @@ export function CharacterCard({
       return Boolean(store.weeklyRecords[recKey]?.isCompleted);
     });
   }, [filteredBossEntries, character.id, store.weeklyRecords]);
+
+  const handleToggleAll = async () => {
+    if (!onToggleAllBosses) return;
+
+    const modeText = teamFilter === 'solo' ? '個人隊伍' : teamFilter === 'party' ? '團打王' : '全部';
+    const title = isFilteredAllDone
+      ? teamFilter === 'solo'
+        ? '確認取消個人隊伍完成'
+        : teamFilter === 'party'
+        ? '確認取消團打王完成'
+        : '確認全部取消完成'
+      : teamFilter === 'solo'
+      ? '確認一鍵完成個人隊伍'
+      : teamFilter === 'party'
+      ? '確認一鍵完成團打王'
+      : '確認一鍵全部完成';
+
+    const message = isFilteredAllDone
+      ? `確定要將「${character.name}」的${modeText === '全部' ? '所有' : modeText} BOSS 重設為未完成嗎？`
+      : `確定要將「${character.name}」的${modeText === '全部' ? '所有' : modeText} BOSS 標記為已完成嗎？${modeText === '全部' ? '（常態 BOSS 最多標記至每週 12 隻上限）' : ''}`;
+
+    const confirmed = await showConfirm({
+      title,
+      message,
+      confirmText: isFilteredAllDone ? '確認重設' : '確認完成',
+      cancelText: '取消',
+      isDanger: isFilteredAllDone,
+    });
+
+    if (confirmed) {
+      onToggleAllBosses(character, teamFilter);
+    }
+  };
 
   // FLIP 滑動動畫：記錄卡片位置，在排序改變後平滑流暢過渡 (無 scale，徹底杜絕 scrollbar 閃爍)
   const gridRef = useRef<HTMLDivElement>(null);
@@ -384,7 +419,7 @@ export function CharacterCard({
                   <Button
                     size="sm"
                     variant={isFilteredAllDone ? "parchment" : "green"}
-                    onClick={() => onToggleAllBosses(character, teamFilter)}
+                    onClick={handleToggleAll}
                     className="w-full text-xs font-black h-7 mt-2 shadow-xs"
                     title={
                       isFilteredAllDone
