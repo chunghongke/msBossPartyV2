@@ -204,14 +204,16 @@ export function useWeeklyReset(
     });
 
     if (hasChanges) {
+      // 🔒 防禦改進：只在本地 Zustand 記憶體中補齊預設單人隊伍，防止畫面渲染缺漏或報錯。
+      // ⚠️ 嚴禁在背景自動回寫至雲端，徹底防止網路延遲時把雲端上既有的多人組隊覆蓋拆散為單人隊！
       const currentLatest = useAppStore.getState().store;
-      await saveStore({
+      useAppStore.getState().setStore({
         ...currentLatest,
         teams: nextTeams,
         weeklyRecords: nextRecords,
       });
     }
-  }, [players, store, saveStore, isStoreLoading]);
+  }, [players, store, isStoreLoading]);
 
   const lastRunRef = useRef(0);
 

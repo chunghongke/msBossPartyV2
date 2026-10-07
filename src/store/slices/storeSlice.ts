@@ -25,6 +25,11 @@ export function hasPendingStoreWrites(): boolean {
   return _saveTimer !== null || _isWriting || Date.now() < _suppressSyncUntil;
 }
 
+/** 取得抑制期剩餘毫秒數 */
+export function getSuppressSyncRemainingMs(): number {
+  return Math.max(0, _suppressSyncUntil - Date.now());
+}
+
 /** 供視窗喚醒/重新連線時鎖定本地寫入，防止手持過期記憶體快照覆蓋雲端最新狀態 */
 export function lockWritesDuringResync(durationMs: number = 1500): void {
   _suppressSyncUntil = Math.max(_suppressSyncUntil, Date.now() + durationMs);

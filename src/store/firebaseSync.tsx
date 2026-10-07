@@ -1,15 +1,11 @@
 import React, { useEffect } from 'react';
-import { ref, onValue, get, update } from 'firebase/database';
+import { ref, onValue, get } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { useGroup } from '@/contexts/GroupContext';
 import { useAppStore } from './index';
-import { DEFAULT_STORE, hasPendingStoreWrites, lockWritesDuringResync } from './slices/storeSlice';
+import { DEFAULT_STORE, hasPendingStoreWrites, lockWritesDuringResync, getSuppressSyncRemainingMs } from './slices/storeSlice';
 import { sanitizeStoreAndTeams } from './sanitize';
 import { Player } from '@/types/player';
-
-// 模組層級熔斷器：防止多次自動回寫遭遇錯誤時引發無窮重試流量黑洞
-let _lastSanitizeWriteTime = 0;
-let _sanitizeFailCount = 0;
 
 export function FirebaseSyncProvider({ children }: { children: React.ReactNode }) {
   const { activeGroup, isLoading: isGroupLoading } = useGroup();
@@ -90,6 +86,9 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
 
     // 2. 獨立監聽 store 節點（不讀取根節點）
     const storeRef = ref(db, 'store');
+    let stashedStoreSnapshot: any = null;
+    let stashedFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
     const unsubStore = onValue(
       storeRef,
       (snapshot) => {
@@ -108,48 +107,41 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
             loots: rawStore.loots || {},
           };
 
-          // 執行自我修復與幽靈隊伍 GC (Self-Healing)
-          // 🔒 防呆保護：若玩家資料尚未讀取完成 (currentPlayers 為空)，絕不執行破壞性隊伍解散
+          // 🔒 本地防禦校驗：僅在本地記憶體修復幽靈指標與防呆，供畫面正常渲染
+          // ⚠️ 嚴禁在背景監聽中主動回寫雲端，徹底杜絕非同步載入時誤殺解散多人隊伍或覆寫戰利品！
           const currentPlayers = useAppStore.getState().players;
-          const changed = currentPlayers.length > 0
-            ? sanitizeStoreAndTeams(currentPlayers, normalizedStore)
-            : false;
+          if (currentPlayers.length > 0) {
+            sanitizeStoreAndTeams(currentPlayers, normalizedStore);
+          }
 
-          // 🔒 防競爭保護：若有正在進行中的本地寫入（防抖尚未發送或剛發送），
-          //    則跳過此次 onValue 覆蓋與自動修復回寫，避免舊快照把本地樂觀更新的狀態回滾。
-          if (!hasPendingStoreWrites()) {
-            store.setStore(normalizedStore);
-
-            if (changed && activeGroup?.firebaseConfig) {
-              const now = Date.now();
-              // 熔斷防禦：若先前曾發生寫入錯誤（如權限被拒），冷卻 60 秒；平時修復回寫間隔至少 10 秒
-              const cooldownMs = _sanitizeFailCount > 0 ? 60000 : 10000;
-              if (now - _lastSanitizeWriteTime >= cooldownMs) {
-                _lastSanitizeWriteTime = now;
-                const currentDb = getRtdb(activeGroup.firebaseConfig);
-                const payload: Record<string, any> = {
-                  teams: normalizedStore.teams || {},
-                  weeklyRecords: normalizedStore.weeklyRecords || {},
-                  guests: normalizedStore.guests || [],
-                };
-                if (normalizedStore.lastResetWeekKey) {
-                  payload.lastResetWeekKey = normalizedStore.lastResetWeekKey;
+          // 🔒 防競爭保護：若有正在進行中的本地寫入（防抖尚未發送或剛發送）
+          if (hasPendingStoreWrites()) {
+            // 💡 抑制期快照暫存補償 (Stashed Snapshot Flush)：
+            // 不直接丟棄雲端快照，而是暫存於記憶體中；待抑制期結束後自動補償刷新，確保本地永不落後！
+            stashedStoreSnapshot = normalizedStore;
+            if (stashedFlushTimer) clearTimeout(stashedFlushTimer);
+            const remaining = getSuppressSyncRemainingMs();
+            stashedFlushTimer = setTimeout(() => {
+              stashedFlushTimer = null;
+              if (!hasPendingStoreWrites() && stashedStoreSnapshot) {
+                const toApply = stashedStoreSnapshot;
+                stashedStoreSnapshot = null;
+                const latestPlayers = useAppStore.getState().players;
+                if (latestPlayers.length > 0) {
+                  sanitizeStoreAndTeams(latestPlayers, toApply);
                 }
-                if (normalizedStore.loots) {
-                  payload.loots = normalizedStore.loots;
-                }
-
-                // 💡 關鍵修復：改用 update 避免覆蓋其他獨立節點
-                update(ref(currentDb, 'store'), payload)
-                  .then(() => {
-                    _sanitizeFailCount = 0;
-                  })
-                  .catch((e) => {
-                    _sanitizeFailCount++;
-                    console.warn('Auto-sanitize sync error (熔斷保護中，冷卻 60 秒避免流量迴圈):', e);
-                  });
+                store.setStore(toApply);
+                console.log('🔄 [Firebase 補償刷新] 已自動同步抑制期間隊友推送的最新雲端狀態！');
               }
+            }, Math.max(remaining + 50, 200));
+          } else {
+            // 無本地寫入排隊，直接應用雲端最新狀態
+            stashedStoreSnapshot = null;
+            if (stashedFlushTimer) {
+              clearTimeout(stashedFlushTimer);
+              stashedFlushTimer = null;
             }
+            store.setStore(normalizedStore);
           }
         } else {
           store.setStore(DEFAULT_STORE);
@@ -224,6 +216,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
     window.addEventListener('online', handleOnline);
 
     return () => {
+      if (stashedFlushTimer) clearTimeout(stashedFlushTimer);
       unsubConnected();
       unsubPlayers();
       unsubStore();

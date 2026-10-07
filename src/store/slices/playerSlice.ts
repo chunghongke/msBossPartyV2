@@ -1,9 +1,58 @@
 import { getBoss, BOSSES } from '@/data/bosses';
-import { ref, set } from 'firebase/database';
+import { ref, set, update } from 'firebase/database';
 import { getRtdb } from '@/services/firebase';
 import { Player, Character } from '@/types/player';
 import { AppSlice, PlayerSlice } from '../types';
 import { sanitizeStoreAndTeams } from '../sanitize';
+
+/**
+ * 💡 計算新舊 Players 之間的精準差異節點 (Delta Updates)
+ * 若僅修改特定玩家 (如新增/編輯/改名角色、換頭像) 或單純新增玩家，
+ * 僅發送該特定玩家索引路徑 `players/${index}`，
+ * 絕對不以全量 set 覆蓋沖刷其他隊友剛更新的角色資料！
+ */
+function computePlayersDeltaUpdates(
+  oldPlayers: Player[],
+  newPlayers: Player[]
+): { updates: Record<string, any>; fullSetRequired: boolean } {
+  // 若舊玩家為空，或新玩家數量變少 (刪除玩家)，執行全量 set
+  if (!oldPlayers || oldPlayers.length === 0 || newPlayers.length < oldPlayers.length) {
+    return { updates: {}, fullSetRequired: true };
+  }
+
+  const updates: Record<string, any> = {};
+
+  // 若只是新增玩家 (長度增加且原有玩家皆未變動)
+  if (newPlayers.length > oldPlayers.length) {
+    let originalUnchanged = true;
+    for (let i = 0; i < oldPlayers.length; i++) {
+      if (JSON.stringify(oldPlayers[i]) !== JSON.stringify(newPlayers[i])) {
+        originalUnchanged = false;
+        break;
+      }
+    }
+    if (originalUnchanged) {
+      for (let i = oldPlayers.length; i < newPlayers.length; i++) {
+        updates[`players/${i}`] = newPlayers[i];
+      }
+      return { updates, fullSetRequired: false };
+    }
+  }
+
+  // 長度相同：逐一比對每個玩家節點
+  if (oldPlayers.length === newPlayers.length) {
+    for (let i = 0; i < newPlayers.length; i++) {
+      if (JSON.stringify(oldPlayers[i]) !== JSON.stringify(newPlayers[i])) {
+        updates[`players/${i}`] = newPlayers[i];
+      }
+    }
+    if (Object.keys(updates).length > 0) {
+      return { updates, fullSetRequired: false };
+    }
+  }
+
+  return { updates: {}, fullSetRequired: true };
+}
 
 export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
   players: [],
@@ -11,7 +60,7 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
   setPlayers: (players) => setSlice({ players }),
 
   savePlayersToCloud: async (newPlayers: Player[]) => {
-    const { activeGroup } = get();
+    const { activeGroup, players: oldPlayers } = get();
     // 💡 關鍵修復：深層序列化過濾所有 undefined 欄位，徹底防止 Firebase RTDB 拋出 Error: set failed: value contains undefined
     const cleanPlayers = JSON.parse(JSON.stringify(newPlayers));
     setSlice({ players: cleanPlayers });
@@ -21,10 +70,20 @@ export const createPlayerSlice: AppSlice<PlayerSlice> = (setSlice, get) => ({
     }
     const db = getRtdb(activeGroup.firebaseConfig);
     const startTime = Date.now();
-    console.log(`📡 [Firebase] 正在同步 players (${cleanPlayers.length} 位玩家) 至小隊「${activeGroup.name}」...`);
+
+    // 💡 計算精準差異：若僅修改特定玩家或單純新增玩家，改用 update 局部路徑
+    const { updates, fullSetRequired } = computePlayersDeltaUpdates(oldPlayers, cleanPlayers);
+
     try {
-      await set(ref(db, 'players'), cleanPlayers);
-      console.log(`✅ [Firebase] 成功同步 players 至雲端！(耗時: ${Date.now() - startTime}ms)`);
+      if (!fullSetRequired && Object.keys(updates).length > 0) {
+        console.log(`📡 [Firebase 局部路徑更新] 正在同步玩家節點 (${Object.keys(updates).join(', ')}) 至「${activeGroup.name}」...`);
+        await update(ref(db), updates);
+        console.log(`✅ [Firebase 局部路徑更新] 成功同步玩家至雲端！(耗時: ${Date.now() - startTime}ms)`);
+      } else {
+        console.log(`📡 [Firebase 全量更新] 正在全量同步 players (${cleanPlayers.length} 位玩家) 至「${activeGroup.name}」...`);
+        await set(ref(db, 'players'), cleanPlayers);
+        console.log(`✅ [Firebase 全量更新] 成功同步 players 至雲端！(耗時: ${Date.now() - startTime}ms)`);
+      }
     } catch (e: any) {
       console.error('❌ [Firebase] savePlayersToCloud 寫入失敗:', e);
     }
