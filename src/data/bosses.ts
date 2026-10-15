@@ -24,7 +24,7 @@ export const BOSSES: Boss[] = [
   // 露希妲
   { id: 'lucid_easy', name: '(簡)露希妲', groupKey: 'lucid', maxPartySize: 6, difficulty: 'easy', allowReset: true, crystalValue: 53800000, erionVestiges: 0, image: './images/bosses/lucid.png' },
   { id: 'lucid_normal', name: '(普)露希妲', groupKey: 'lucid', maxPartySize: 6, difficulty: 'normal', allowReset: true, crystalValue: 64300000, erionVestiges: 0, image: './images/bosses/lucid.png' },
-  { id: 'lucid_hard', name: '(困)露希妲', groupKey: 'lucid', maxPartySize: 6, difficulty: 'hard', allowReset: true, crystalValue: 124000000, erionVestiges: 0, image: './images/bosses/lucid.png' },
+  { id: 'lucid_hard', name: '(困)露希妲', groupKey: 'lucid', maxPartySize: 6, difficulty: 'hard', allowReset: true, crystalValue: 102400000, erionVestiges: 0, image: './images/bosses/lucid.png' },
 
   // 威爾
   { id: 'will_easy', name: '(簡)威爾', groupKey: 'will', maxPartySize: 6, difficulty: 'easy', allowReset: true, crystalValue: 57400000, erionVestiges: 0, image: './images/bosses/will.png' },
