@@ -50,12 +50,13 @@ export function CharacterCard({
 }: CharacterCardProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { showConfirm } = useAlert();
-  const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
+  const { calculateCrystal, calculateCrystalCount, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
 
   const isSelf = currentPlayer?.name === playerName;
   const isOwnerOrAdmin = canManageChar(playerName);
 
   const crystalStats = calculateCrystal(character);
+  const crystalCountStats = calculateCrystalCount(character);
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
   const removedCompletedList = getRemovedCompletedBosses(character);
@@ -337,7 +338,7 @@ export function CharacterCard({
             )}
           </div>
 
-          {/* 下方 3 個立體收益與進度膠囊 (Capsules) */}
+          {/* 下方立體收益與進度膠囊 (Capsules) */}
           <div className="space-y-2 pt-1">
             {/* 1. 金幣收益膠囊 */}
             <div className="flex items-center gap-2.5 px-3 py-2 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-2 border-[#D4B982] dark:border-slate-700 shadow-sm">
@@ -354,7 +355,42 @@ export function CharacterCard({
               </div>
             </div>
 
-            {/* 2. 艾里溫碎片膠囊 */}
+            {/* 2. 販售結晶數量膠囊 (每週上限 12 顆) */}
+            <div
+              className={cn(
+                'flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 shadow-sm transition-colors',
+                crystalCountStats.sold > 12 || crystalCountStats.expected > 12
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700'
+                  : crystalCountStats.sold === 12
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700'
+                  : 'bg-[#F0F7FF] dark:bg-slate-800 border-[#BAE6FD] dark:border-slate-700'
+              )}
+            >
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 border-1.5 border-blue-700 flex items-center justify-center text-sm text-white shadow-xs shrink-0 font-bold">
+                💎
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between text-[10px] font-black text-sky-900 dark:text-sky-300 leading-none mb-0.5">
+                  <span>販售結晶數量</span>
+                  {crystalCountStats.expected > 12 && (
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">⚠️ 超過 12 顆上限</span>
+                  )}
+                  {crystalCountStats.sold === 12 && crystalCountStats.expected <= 12 && (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">✨ 已達上限</span>
+                  )}
+                </div>
+                <div className="font-fredoka font-black text-sm text-[#0369A1] dark:text-sky-200 truncate">
+                  {crystalCountStats.sold} / 12
+                  {crystalCountStats.expected > crystalCountStats.sold && (
+                    <span className="text-xs font-medium text-stone-500 dark:text-slate-400 ml-1">
+                      (預計 {crystalCountStats.expected})
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. 艾里溫碎片膠囊 */}
             <div className="flex items-center gap-2.5 px-3 py-2 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-2 border-[#D4B982] dark:border-slate-700 shadow-sm">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 border-1.5 border-amber-700 flex items-center justify-center text-white shadow-xs shrink-0">
                 <Sparkles className="w-3.5 h-3.5 text-white" />

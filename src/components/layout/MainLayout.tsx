@@ -64,7 +64,7 @@ export function MainLayout({
   const { players, store, isLoading: isStoreLoading, toggleBossStatus,
     toggleAllCharacterBosses, addGuest, deleteGuest, saveStoreToCloud, savePlayersToCloud, updatePlayer } = useStore();
   const { countdown } = useWeeklyReset(store, players, saveStoreToCloud, isStoreLoading);
-  const { calculateCrystal, formatCrystal } = useCalculator(store);
+  const { calculateCrystal, calculatePlayerCrystalCount, formatCrystal } = useCalculator(store);
 
   const { showAlert } = useAlert();
   const [isSyncingPlayer, setIsSyncingPlayer] = useState<string | null>(null);
@@ -396,6 +396,8 @@ export function MainLayout({
           { earned: 0, expected: 0 }
         );
 
+        const activePlayerCrystalCount = calculatePlayerCrystalCount(activeCharacters);
+
         return (
           <PlayerNavBar
             key={`navbar-${effectiveSelectedPlayerName}-${orderVersion}`}
@@ -419,6 +421,7 @@ export function MainLayout({
             crystalEarned={activePlayerCrystalStats.earned}
             crystalExpected={activePlayerCrystalStats.expected}
             formatCrystal={formatCrystal}
+            playerCrystalCount={activePlayerCrystalCount}
             onSyncAllCharImages={handleSyncAllCharImages}
             isSyncingPlayer={isSyncingPlayer}
             onSelectPlayer={handleSelectPlayer}

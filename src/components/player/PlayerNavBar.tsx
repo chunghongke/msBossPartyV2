@@ -10,6 +10,7 @@ import { User, UserPlus, Users, Swords, Crown, UserX, PlusCircle, LayoutList, La
 import { Button } from '@/components/ui/Button';
 import { ReorderPlayersModal } from '@/components/modals/ReorderPlayersModal';
 import { TeamFilterMode } from '@/utils/teamFilter';
+import { PlayerCrystalCountStats } from '@/hooks/useCalculator';
 
 interface PlayerNavBarProps {
   players: Player[];
@@ -24,6 +25,7 @@ interface PlayerNavBarProps {
   crystalEarned?: number;
   crystalExpected?: number;
   formatCrystal?: (num: number) => string;
+  playerCrystalCount?: PlayerCrystalCountStats;
   onSyncAllCharImages?: (player: Player) => void;
   isSyncingPlayer?: string | null;
   onSelectPlayer: (playerName: string) => void;
@@ -48,6 +50,7 @@ export function PlayerNavBar({
   crystalEarned = 0,
   crystalExpected = 0,
   formatCrystal,
+  playerCrystalCount,
   onSyncAllCharImages,
   isSyncingPlayer,
   onSelectPlayer,
@@ -879,8 +882,49 @@ export function PlayerNavBar({
                 )}
               </div>
 
-              {/* 右側常駐控制群：結晶楓幣統計 ＋ 同步立繪 ＋ 新增角色按鈕 (永不被推擠出畫面) */}
+              {/* 右側常駐控制群：結晶數量 ＋ 結晶楓幣統計 ＋ 同步立繪 ＋ 新增角色按鈕 (永不被推擠出畫面) */}
               <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                {/* 全部角色的結晶販售數量總和膠囊 (伺服器每週上限 90 顆) */}
+                {playerCrystalCount && (playerCrystalCount.totalExpected > 0 || playerCrystalCount.totalSold > 0) && (
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 rounded-xl border-1.5 shadow-2xs text-xs select-none shrink-0 transition-colors',
+                      playerCrystalCount.totalSold > 90 || playerCrystalCount.totalExpected > 90
+                        ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-200'
+                        : playerCrystalCount.totalSold === 90
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
+                        : 'bg-[#F0F7FF] dark:bg-slate-800 border-[#BAE6FD] dark:border-slate-700 text-[#0369A1] dark:text-sky-300'
+                    )}
+                    title={`本週結晶販售數量：已賣出 ${playerCrystalCount.totalSold} 顆 / 伺服器每週上限 90 顆${
+                      playerCrystalCount.totalExpected > playerCrystalCount.totalSold
+                        ? ` (預計共 ${playerCrystalCount.totalExpected} 顆)`
+                        : ''
+                    }${
+                      playerCrystalCount.totalExpected > 90
+                        ? ' ⚠️ 注意：預計總數超過 90 顆每週上限！'
+                        : playerCrystalCount.totalSold >= 90
+                        ? ' ✨ 已達伺服器 90 顆販售上限'
+                        : ''
+                    }`}
+                  >
+                    <span className="text-sm">💎</span>
+                    <span className="font-bold text-stone-500 dark:text-slate-400 hidden lg:inline">結晶數量：</span>
+                    <span className="font-fredoka font-black text-xs sm:text-sm">
+                      {playerCrystalCount.totalSold} / 90
+                    </span>
+                    {playerCrystalCount.totalExpected > playerCrystalCount.totalSold && (
+                      <span className="text-[10px] opacity-75 font-fredoka font-bold hidden xl:inline">
+                        (預計 {playerCrystalCount.totalExpected})
+                      </span>
+                    )}
+                    {playerCrystalCount.totalExpected > 90 && (
+                      <span className="text-xs" title="注意：預計販售數量超過 90 顆每週上限！">
+                        ⚠️
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* 全部角色的結晶楓幣總和膠囊 */}
                 {formatCrystal && crystalExpected > 0 && (
                   <div className="flex items-center gap-1 px-2.5 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-1.5 border-[#D4B982] dark:border-slate-700 shadow-2xs text-xs select-none shrink-0">

@@ -3,6 +3,22 @@ import { Character } from '@/types/player';
 import { StoreData } from '@/types/party';
 import { getBoss } from '@/data/bosses';
 
+export interface CrystalCountStats {
+  sold: number;
+  expected: number;
+  max: number;
+  isOverLimit: boolean;
+  isExpectedOverLimit: boolean;
+}
+
+export interface PlayerCrystalCountStats {
+  totalSold: number;
+  totalExpected: number;
+  max: number;
+  isOverLimit: boolean;
+  isExpectedOverLimit: boolean;
+}
+
 /**
  * 把原始結晶錢數值格式化成「億萬」（例：10368510000 -> "103億6,851萬", 27207040 -> "2720.7萬"）
  */
@@ -69,6 +85,67 @@ export function useCalculator(store: StoreData) {
       return { earned, expected };
     },
     [store]
+  );
+
+  /**
+   * 計算角色本週販售結晶數量：已獲得 (完成的)、預計總數 (排定的全部有結晶 BOSS)
+   * 單一角色每週上限 12 顆 (包含每週常態、重置 2 刷與黑魔法師，只要 crystalValue > 0)
+   */
+  const calculateCrystalCount = useCallback(
+    (character: Character): CrystalCountStats => {
+      let sold = 0;
+      let expected = 0;
+
+      const processEntry = (bossId: string, entryIndex: number) => {
+        const boss = getBoss(bossId);
+        if (!boss || !boss.crystalValue) return;
+
+        expected += 1;
+        const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
+        const rec = store.weeklyRecords[recKey];
+        if (rec?.isCompleted) {
+          sold += 1;
+        }
+      };
+
+      (character.bossIds || []).forEach((bId) => processEntry(bId, 1));
+      (character.resetBossIds || []).forEach((bId) => processEntry(bId, 2));
+
+      return {
+        sold,
+        expected,
+        max: 12,
+        isOverLimit: sold > 12,
+        isExpectedOverLimit: expected > 12,
+      };
+    },
+    [store]
+  );
+
+  /**
+   * 計算玩家（同伺服器名下所有角色）本週販售結晶數量總和
+   * 同伺服器每週上限 90 顆 (包含每週常態、重置 2 刷與黑魔法師，只要 crystalValue > 0)
+   */
+  const calculatePlayerCrystalCount = useCallback(
+    (characters: Character[]): PlayerCrystalCountStats => {
+      let totalSold = 0;
+      let totalExpected = 0;
+
+      (characters || []).forEach((char) => {
+        const stats = calculateCrystalCount(char);
+        totalSold += stats.sold;
+        totalExpected += stats.expected;
+      });
+
+      return {
+        totalSold,
+        totalExpected,
+        max: 90,
+        isOverLimit: totalSold > 90,
+        isExpectedOverLimit: totalExpected > 90,
+      };
+    },
+    [calculateCrystalCount]
   );
 
   /**
@@ -205,6 +282,8 @@ export function useCalculator(store: StoreData) {
 
   return {
     calculateCrystal,
+    calculateCrystalCount,
+    calculatePlayerCrystalCount,
     getRemovedCompletedBosses,
     calculateShard,
     getProgress,

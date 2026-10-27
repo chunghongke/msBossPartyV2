@@ -592,12 +592,13 @@ export function CompactCharacterRow({
 }: CompactCharacterRowProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { showConfirm } = useAlert();
-  const { calculateCrystal, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
+  const { calculateCrystal, calculateCrystalCount, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
 
   const isSelf = currentPlayer?.name === playerName;
   const isOwnerOrAdmin = canManageChar(playerName);
 
   const crystalStats = calculateCrystal(character);
+  const crystalCountStats = calculateCrystalCount(character);
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
   const removedCompletedList = getRemovedCompletedBosses(character);
@@ -879,6 +880,46 @@ export function CompactCharacterRow({
               {formatCrystal(crystalStats.earned)} / {formatCrystal(crystalStats.expected)}
             </span>
           </div>
+
+          {/* 💎 販售結晶數量膠囊 (單一角色每週上限 12 顆) */}
+          {(crystalCountStats.expected > 0 || crystalCountStats.sold > 0) && (
+            <div
+              className={cn(
+                'flex items-center gap-1 px-2 py-0.2 rounded border text-[10.5px] select-none transition-colors',
+                crystalCountStats.sold > 12 || crystalCountStats.expected > 12
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-200'
+                  : crystalCountStats.sold === 12
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
+                  : 'bg-[#F0F7FF] dark:bg-slate-800 border-[#BAE6FD] dark:border-slate-700 text-[#0369A1] dark:text-sky-300'
+              )}
+              title={`本週結晶販售數量：已賣出 ${crystalCountStats.sold} / 每週上限 12 顆${
+                crystalCountStats.expected > crystalCountStats.sold
+                  ? ` (預計排定 ${crystalCountStats.expected} 顆)`
+                  : ''
+              }${
+                crystalCountStats.expected > 12
+                  ? ' ⚠️ 注意：排定數量超過 12 顆每週上限！'
+                  : crystalCountStats.sold === 12
+                  ? ' ✨ 已達角色 12 顆販售上限'
+                  : ''
+              }`}
+            >
+              <span className="text-[11px]">💎</span>
+              <span className="font-fredoka font-black">
+                {crystalCountStats.sold} / 12
+              </span>
+              {crystalCountStats.expected > crystalCountStats.sold && (
+                <span className="text-[9.5px] opacity-75 font-fredoka font-bold hidden sm:inline">
+                  ({crystalCountStats.expected})
+                </span>
+              )}
+              {crystalCountStats.expected > 12 && (
+                <span className="text-[10px]" title="注意：排定數量超過 12 顆每週上限！">
+                  ⚠️
+                </span>
+              )}
+            </div>
+          )}
 
           {/* ✨ 艾里溫碎片膠囊 (V1 經典放置在左側) */}
           {shardStats.expected > 0 && (
