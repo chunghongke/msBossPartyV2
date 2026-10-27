@@ -145,6 +145,7 @@ export function sanitizeStoreAndTeams(
     }
 
     team.memberTargets.forEach((m: any) => {
+      if (m.charId.startsWith('guest_')) return;
       const recKey = `rec_${m.charId}_${teamBossId}_${m.entryIndex}`;
       if (rawStore.weeklyRecords[recKey] && rawStore.weeklyRecords[recKey].teamId !== teamId) {
         rawStore.weeklyRecords[recKey].teamId = teamId;
@@ -172,6 +173,7 @@ export function sanitizeStoreAndTeams(
   // 4. 檢查所有 weeklyRecords 的隊伍指標有效性 (Orphaned Record & Missing Member Repair)
   Object.values(rawStore.weeklyRecords).forEach((rec) => {
     if (!rec || !rec.teamId) return;
+    if (rec.charId && rec.charId.startsWith('guest_')) return;
 
     const team = rawStore.teams[rec.teamId];
 
@@ -220,14 +222,11 @@ export function sanitizeStoreAndTeams(
     }
   });
 
-  // 6. 徹底清理指向不存在隊伍或單人隊伍的 Guest 孤立紀錄
+  // 6. 徹底清理所有殘留的 Guest weeklyRecords (Guest 僅作為成員存在於 teams.memberTargets 中，不占用每週紀錄避免多隊衝突)
   Object.keys(rawStore.weeklyRecords).forEach((key) => {
     if (key.startsWith('rec_guest_')) {
-      const rec = rawStore.weeklyRecords[key];
-      if (!rec?.teamId || rec.teamId.startsWith('single_') || !rawStore.teams[rec.teamId]) {
-        delete rawStore.weeklyRecords[key];
-        hasChanged = true;
-      }
+      delete rawStore.weeklyRecords[key];
+      hasChanged = true;
     }
   });
   // 7. 檢查並修復可能因為先前切字串錯誤而損壞的 weeklyRecords (例如 charId 為 'char' 或 bossId 不在 BOSSES 中)

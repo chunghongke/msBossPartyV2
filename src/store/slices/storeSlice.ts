@@ -216,6 +216,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           const team = store.teams[targetTeamId];
           const rawMembers = team.memberTargets || (team.memberCharIds || []).map((id: any) => ({ charId: id, entryIndex }));
           rawMembers.forEach((m: any) => {
+            if (m.charId.startsWith('guest_')) return;
             const mKey = `rec_${m.charId}_${bossId}_${m.entryIndex || 1}`;
             const existing = nextRecords[mKey] || store.weeklyRecords[mKey] || {
               charId: m.charId,
@@ -278,6 +279,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
           const currentWeekKey = getCurrentResetWeekKey();
           rawMembers.forEach((m: any) => {
+            if (m.charId.startsWith('guest_')) return;
             const mKey = `rec_${m.charId}_${bossId}_${m.entryIndex || 1}`;
             const existing = nextRecords[mKey] || store.weeklyRecords[mKey] || {
               charId: m.charId,
@@ -406,6 +408,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
       const currentWeekKey = getCurrentResetWeekKey();
       rawMembers.forEach((member: any) => {
+        if (member.charId.startsWith('guest_')) return;
         const mKey = `rec_${member.charId}_${bossId}_${member.entryIndex}`;
         const existing = nextRecords[mKey] || {
           charId: member.charId,
@@ -566,7 +569,9 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     const currentTargets = team.memberTargets || [];
 
     // 5. 針對加入本隊伍的所有成員，檢查並退出他們原本參與的【同 BOSS】其他隊伍 (避免同一個 BOSS 雙重組隊)
+    // 💡 關鍵修復：Guest (臨時隊友) 允許各隊伍共用（例如外援打手），不進行跨隊互斥剔除；僅正式角色需強制退出其他隊伍
     currentTargets.forEach((t) => {
+      if (t.charId.startsWith('guest_')) return;
       Object.entries(nextTeams).forEach(([tId, existingTeam]) => {
         if (tId === team.id) return;
         if (tId.startsWith('single_')) return;

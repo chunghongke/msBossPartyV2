@@ -423,6 +423,8 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
 
       const updatedRecords: Record<string, any> = {};
       memberTargets.forEach((t) => {
+        // 💡 Guest 僅作為隊伍成員存在於 teams.memberTargets 中，不建立獨立且衝突的 weeklyRecords
+        if (t.charId.startsWith('guest_')) return;
         const key = `rec_${t.charId}_${selectedBossId}_${t.entryIndex}`;
         const existing = store.weeklyRecords[key] || {
           charId: t.charId,
