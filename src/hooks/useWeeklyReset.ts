@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { StoreData, Team, WeeklyRecord } from '@/types/party';
 import { Player } from '@/types/player';
 import { useAppStore } from '@/store';
+import { getBoss } from '@/data/bosses';
 
 export function getCurrentResetWeekKey(): string {
   const now = new Date();
@@ -12,6 +13,13 @@ export function getCurrentResetWeekKey(): string {
   const m = String(thursday.getMonth() + 1).padStart(2, '0');
   const d = String(thursday.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+export function getCurrentResetMonthKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 }
 
 export function getNextResetCountdown(): { days: number; hours: number; minutes: number; text: string } {
@@ -47,42 +55,75 @@ export function useWeeklyReset(
     if (isStoreLoading || !store || Object.keys(store.weeklyRecords || {}).length === 0) return;
 
     const currentWeekKey = getCurrentResetWeekKey();
-    if (store.lastResetWeekKey && store.lastResetWeekKey === currentWeekKey) {
+    const currentMonthKey = getCurrentResetMonthKey();
+    const currentLatest = useAppStore.getState().store;
+
+    const isWeekResetNeeded = !currentLatest.lastResetWeekKey || currentLatest.lastResetWeekKey !== currentWeekKey;
+    const isMonthResetNeeded = !currentLatest.lastResetMonthKey || currentLatest.lastResetMonthKey !== currentMonthKey;
+
+    if (!isWeekResetNeeded && !isMonthResetNeeded) {
       return;
     }
 
-    // 若第一次套用（無 lastResetWeekKey），記錄當前基準週，不洗掉既有資料
-    const currentLatest = useAppStore.getState().store;
-    if (!currentLatest.lastResetWeekKey) {
+    // 若第一次套用（無 lastResetWeekKey 或無 lastResetMonthKey），記錄當前基準週期，不洗掉既有資料
+    const isFirstWeekSetup = !currentLatest.lastResetWeekKey;
+    const isFirstMonthSetup = !currentLatest.lastResetMonthKey;
+
+    if (isFirstWeekSetup || isFirstMonthSetup) {
       await saveStore({
         ...currentLatest,
-        lastResetWeekKey: currentWeekKey,
+        lastResetWeekKey: currentLatest.lastResetWeekKey || currentWeekKey,
+        lastResetMonthKey: currentLatest.lastResetMonthKey || currentMonthKey,
       });
       return;
     }
 
     const updatedRecords: Record<string, WeeklyRecord> = {};
     Object.entries(currentLatest.weeklyRecords || {}).forEach(([key, rec]) => {
-      updatedRecords[key] = {
-        ...rec,
-        isCompleted: false,
-        // 艾里溫碎片：若上週有完成且有紀錄，存入 lastWeek 作為本週提示
-        lastWeekShardShares:
-          rec.isCompleted && rec.shardShares !== null && rec.shardShares !== undefined
-            ? rec.shardShares
-            : (rec.lastWeekShardShares ?? null),
-        lastWeekShardQuantity:
-          rec.isCompleted && rec.shardQuantity !== null && rec.shardQuantity !== undefined
-            ? rec.shardQuantity
-            : (rec.lastWeekShardQuantity ?? null),
-        shardShares: null,
-        shardQuantity: null,
-      };
+      const boss = getBoss(rec.bossId);
+      const isMonthlyBoss = Boolean(boss?.isMonthly);
+
+      if (isMonthlyBoss) {
+        if (isMonthResetNeeded) {
+          // 跨月重置每月 BOSS 完成狀態
+          updatedRecords[key] = {
+            ...rec,
+            isCompleted: false,
+            shardShares: null,
+            shardQuantity: null,
+          };
+        } else {
+          // 僅跨週，完整保留每月 BOSS 完成狀態與資料
+          updatedRecords[key] = rec;
+        }
+      } else {
+        if (isWeekResetNeeded) {
+          // 跨週重置每週常態與賽季 BOSS
+          updatedRecords[key] = {
+            ...rec,
+            isCompleted: false,
+            // 艾里溫碎片：若上週有完成且有紀錄，存入 lastWeek 作為本週提示
+            lastWeekShardShares:
+              rec.isCompleted && rec.shardShares !== null && rec.shardShares !== undefined
+                ? rec.shardShares
+                : (rec.lastWeekShardShares ?? null),
+            lastWeekShardQuantity:
+              rec.isCompleted && rec.shardQuantity !== null && rec.shardQuantity !== undefined
+                ? rec.shardQuantity
+                : (rec.lastWeekShardQuantity ?? null),
+            shardShares: null,
+            shardQuantity: null,
+          };
+        } else {
+          // 僅跨月，完整保留每週 BOSS 完成狀態
+          updatedRecords[key] = rec;
+        }
+      }
     });
 
     const updatedTeams: Record<string, Team> = {};
     Object.entries(currentLatest.teams || {}).forEach(([tId, team]) => {
-      if (team.schedule && team.schedule.tempOverride) {
+      if (isWeekResetNeeded && team.schedule && team.schedule.tempOverride) {
         updatedTeams[tId] = {
           ...team,
           schedule: {
@@ -99,20 +140,28 @@ export function useWeeklyReset(
       ...currentLatest,
       weeklyRecords: updatedRecords,
       teams: updatedTeams,
-      lastResetWeekKey: currentWeekKey,
+      lastResetWeekKey: isWeekResetNeeded ? currentWeekKey : currentLatest.lastResetWeekKey,
+      lastResetMonthKey: isMonthResetNeeded ? currentMonthKey : currentLatest.lastResetMonthKey,
     };
 
-    console.log(`🗓️ 偵測到新的一週（${currentWeekKey}），已重置每週 BOSS 完成狀態與臨時時間`);
+    const resetLabels: string[] = [];
+    if (isWeekResetNeeded) resetLabels.push(`每週（${currentWeekKey}）`);
+    if (isMonthResetNeeded) resetLabels.push(`每月（${currentMonthKey}）`);
+    console.log(`🗓️ 偵測到新週期【${resetLabels.join(' & ')}】，已重置對應 BOSS 完成狀態`);
     await saveStore(nextStore);
   }, [store, saveStore, isStoreLoading]);
 
-  // 定期每 30 秒更新倒數計時器，並自動檢測是否跨週四 00:00 自動觸發重置
+  // 定期每 30 秒更新倒數計時器，並自動檢測是否跨週四 00:00 或每月 1 號 00:00 自動觸發重置
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(getNextResetCountdown());
       if (!isStoreLoading && store) {
         const currentWeekKey = getCurrentResetWeekKey();
-        if (!store.lastResetWeekKey || store.lastResetWeekKey !== currentWeekKey) {
+        const currentMonthKey = getCurrentResetMonthKey();
+        if (
+          !store.lastResetWeekKey || store.lastResetWeekKey !== currentWeekKey ||
+          !store.lastResetMonthKey || store.lastResetMonthKey !== currentMonthKey
+        ) {
           checkAndPerformWeeklyReset();
         }
       }
@@ -227,7 +276,7 @@ export function useWeeklyReset(
         ensureDefaultSingleTeams();
       });
     }
-  }, [isStoreLoading, store.lastResetWeekKey, players.length]);
+  }, [isStoreLoading, store.lastResetWeekKey, store.lastResetMonthKey, players.length]);
 
   return {
     countdown,

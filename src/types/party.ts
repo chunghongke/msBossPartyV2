@@ -47,5 +47,6 @@ export interface StoreData {
   weeklyRecords: Record<string, WeeklyRecord>;
   guests: Guest[];
   lastResetWeekKey?: string;
+  lastResetMonthKey?: string;
   loots?: Record<string, LootItem>;
 }

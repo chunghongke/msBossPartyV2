@@ -32,6 +32,7 @@ const BOSS_EN_NAMES: Record<string, string> = {
   verus_hilla: 'Hilla',
   dunkel: 'Dunkel',
   gloom: 'Gloom',
+  black_mage: 'Black Mage',
   seren: 'Seren',
   kalos: 'Kalos',
   kaling: 'Kaling',
@@ -218,8 +219,18 @@ export function BossCell({
         {/* 漸層陰影遮罩：調亮遮罩，保持頂部文字清晰同時突顯立繪明亮度 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/35 pointer-events-none" />
 
-        {/* 頂部左側：BOSS 名稱 (英文/中文) ＋ 賽季銀色膠囊徽章 */}
+        {/* 頂部左側：BOSS 名稱 (英文/中文) ＋ 賽季銀色膠囊徽章 ＋ 每月星空金紫徽章 */}
         <div className="absolute top-2 left-2.5 z-10 flex items-center gap-1.5 pointer-events-none">
+          {boss.isMonthly && (
+            <span
+              className={cn(
+                'px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white font-black text-[9px] uppercase tracking-wider shadow-[0_1px_4px_rgba(0,0,0,0.35)] border border-amber-300/60 shrink-0',
+                isCompleted && 'opacity-60 grayscale'
+              )}
+            >
+              每月
+            </span>
+          )}
           {boss.isSeasonal && (
             <span
               className={cn(

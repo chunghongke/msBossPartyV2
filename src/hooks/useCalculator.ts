@@ -127,7 +127,7 @@ export function useCalculator(store: StoreData) {
   );
 
   /**
-   * 計算角色本週已完成擊破數量與總排定數量 (分開常態與賽季)
+   * 計算角色本週已完成擊破數量與總排定數量 (分開常態、賽季與每月)
    */
   const getProgress = useCallback(
     (character: Character): {
@@ -135,19 +135,25 @@ export function useCalculator(store: StoreData) {
       total: number;
       seasonalCompleted: number;
       seasonalTotal: number;
+      monthlyCompleted: number;
+      monthlyTotal: number;
     } => {
       let completed = 0;
       let total = 0;
       let seasonalCompleted = 0;
       let seasonalTotal = 0;
+      let monthlyCompleted = 0;
+      let monthlyTotal = 0;
 
       const checkEntry = (bossId: string, entryIndex: number) => {
         const boss = getBoss(bossId);
-        const isSeasonal = Boolean(boss?.isSeasonal || boss?.excludeFromWeeklyLimit);
         const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
         const isDone = Boolean(store.weeklyRecords[recKey]?.isCompleted);
 
-        if (isSeasonal) {
+        if (boss?.isMonthly) {
+          monthlyTotal += 1;
+          if (isDone) monthlyCompleted += 1;
+        } else if (boss?.isSeasonal || boss?.excludeFromWeeklyLimit) {
           seasonalTotal += 1;
           if (isDone) seasonalCompleted += 1;
         } else {
@@ -159,7 +165,7 @@ export function useCalculator(store: StoreData) {
       (character.bossIds || []).forEach((bId) => checkEntry(bId, 1));
       (character.resetBossIds || []).forEach((bId) => checkEntry(bId, 2));
 
-      return { completed, total, seasonalCompleted, seasonalTotal };
+      return { completed, total, seasonalCompleted, seasonalTotal, monthlyCompleted, monthlyTotal };
     },
     [store]
   );

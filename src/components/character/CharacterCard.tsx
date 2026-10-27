@@ -124,10 +124,11 @@ export function CharacterCard({
     return orderedBossEntries;
   }, [orderedBossEntries, soloBossEntries, partyBossEntries, teamFilter]);
 
-  // 檢查當前過濾模式下的所有 BOSS 是否皆已完成
+  // 檢查當前過濾模式下的所有 BOSS 是否皆已完成 (排除每月 BOSS 黑魔法師)
   const isFilteredAllDone = useMemo(() => {
-    if (filteredBossEntries.length === 0) return false;
-    return filteredBossEntries.every(({ boss, entryIndex }) => {
+    const targetEntries = filteredBossEntries.filter(({ boss }) => !boss.isMonthly);
+    if (targetEntries.length === 0) return false;
+    return targetEntries.every(({ boss, entryIndex }) => {
       const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
       return Boolean(store.weeklyRecords[recKey]?.isCompleted);
     });
@@ -150,8 +151,8 @@ export function CharacterCard({
       : '確認一鍵全部完成';
 
     const message = isFilteredAllDone
-      ? `確定要將「${character.name}」的${modeText === '全部' ? '所有' : modeText} BOSS 重設為未完成嗎？`
-      : `確定要將「${character.name}」的${modeText === '全部' ? '所有' : modeText} BOSS 標記為已完成嗎？${modeText === '全部' ? '（常態 BOSS 最多標記至每週 12 隻上限）' : ''}`;
+      ? `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 重設為未完成嗎？（不影響每月黑魔法師）`
+      : `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 標記為已完成嗎？（常態 BOSS 最多標記至每週 12 隻上限，不包含每月黑魔法師）`;
 
     const confirmed = await showConfirm({
       title,
@@ -375,8 +376,13 @@ export function CharacterCard({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between text-[10px] font-black text-emerald-800 dark:text-emerald-300 mb-1">
-                  <span>每週討伐進度</span>
-                  <div className="flex items-center gap-1.5">
+                  <span>討伐進度</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {progressStats.monthlyTotal > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white font-black text-[9px] border border-amber-300/60 shadow-2xs">
+                        🌙 每月 {progressStats.monthlyCompleted}/{progressStats.monthlyTotal}
+                      </span>
+                    )}
                     {progressStats.seasonalTotal > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] border border-white/80 shadow-2xs">
                         🏆 賽季 {progressStats.seasonalCompleted}/{progressStats.seasonalTotal}

@@ -2,7 +2,7 @@ import { cn } from '@/utils/cn';
 import { useState, useEffect, FormEvent, useCallback, memo } from 'react';
 import { useStore } from '@/store';
 import { Character } from '@/types/player';
-import { BOSS_GROUPS, getBossGroupKey } from '@/data/bosses';
+import { BOSS_GROUPS, getBossGroupKey, getBoss } from '@/data/bosses';
 import { BossGroup } from '@/types/boss';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -61,6 +61,11 @@ const ResetBossGroupCard = memo(function ResetBossGroupCard({
           : 'bg-white/80 dark:bg-slate-850 border-slate-200 dark:border-slate-800 opacity-60'
       )}>
       <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+        {group.bosses[0]?.isMonthly && (
+          <span className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white font-black text-[9px] uppercase tracking-wider shadow-sm border border-amber-300/60 pointer-events-none">
+            每月
+          </span>
+        )}
         <img
           src={'./images/bosses/' + group.groupKey + '.png'}
           alt={group.displayName}
@@ -122,10 +127,23 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
     }
   }, [character]);
 
-  const normalCount = character?.bossIds ? character.bossIds.length : 0;
-  const resetCount = selectedResetBossIds.length;
-  const totalCount = normalCount + resetCount;
-  const isFull = totalCount >= 12;
+  const normalWeeklyCount = (character?.bossIds || []).filter((id) => {
+    const b = getBoss(id);
+    return !b?.isSeasonal && !b?.isMonthly && !b?.excludeFromWeeklyLimit;
+  }).length;
+
+  const resetWeeklyCount = selectedResetBossIds.filter((id) => {
+    const b = getBoss(id);
+    return !b?.isSeasonal && !b?.isMonthly && !b?.excludeFromWeeklyLimit;
+  }).length;
+
+  const resetMonthlyCount = selectedResetBossIds.filter((id) => {
+    const b = getBoss(id);
+    return Boolean(b?.isMonthly);
+  }).length;
+
+  const totalWeeklyCount = normalWeeklyCount + resetWeeklyCount;
+  const isFull = totalWeeklyCount >= 12;
 
   // 篩選出該角色原本常態有攻略 (bossIds) 且支援重置券 (allowReset) 的 BOSS 組別
   const normalGroupKeys = new Set((character?.bossIds || []).map((id) => getBossGroupKey(id)));
@@ -140,18 +158,29 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
         setErrorMsg('');
         return prev.filter((id) => id !== bossId);
       } else {
+        const targetBoss = getBoss(bossId);
+        const isExcluded = Boolean(targetBoss?.isSeasonal || targetBoss?.isMonthly || targetBoss?.excludeFromWeeklyLimit);
+
         const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
         const withoutGroup = prev.filter((id) => !otherBossIdsInGroup.includes(id));
 
-        if (normalCount + withoutGroup.length >= 12) {
-          setErrorMsg('攻略總額度（常態 + 重置券）已達 12 隻上限！');
-          return prev;
+        if (!isExcluded) {
+          const weeklyWithoutGroup = withoutGroup.filter((id) => {
+            const b = getBoss(id);
+            return !b?.isSeasonal && !b?.isMonthly && !b?.excludeFromWeeklyLimit;
+          }).length;
+
+          if (normalWeeklyCount + weeklyWithoutGroup + 1 > 12) {
+            setErrorMsg('每週常態攻略總額度（常態 + 重置券）已達 12 隻上限！');
+            return prev;
+          }
         }
+
         setErrorMsg('');
         return [...withoutGroup, bossId];
       }
     });
-  }, [normalCount]);
+  }, [normalWeeklyCount]);
 
   if (!character) return null;
 
@@ -193,7 +222,8 @@ export function ResetConfigModal({ isOpen, onClose, character, playerName }: Res
                 <span>角色：{character.name} ({playerName})</span>
               </div>
               <div className={'font-black text-xs ' + (isFull ? 'text-red-500' : 'text-purple-700 dark:text-purple-300')}>
-                📊 攻略額度：常態 {normalCount} 隻 ＋ 重置券 {resetCount} 隻 ＝ 總計 {totalCount} / 12 隻 {isFull ? '(已達上限)' : ''}
+                📊 每週常態額度：常態 {normalWeeklyCount} 隻 ＋ 重置券 {resetWeeklyCount} 隻 ＝ 總計 {totalWeeklyCount} / 12 隻 {isFull ? '(已達上限)' : ''}
+                {resetMonthlyCount > 0 && ` ｜ 🌙 每月重置券 ${resetMonthlyCount} 隻 (不佔每週上限)`}
               </div>
             </div>
 

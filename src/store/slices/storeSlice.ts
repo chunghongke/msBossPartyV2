@@ -89,6 +89,11 @@ function computeStoreDeltaUpdates(oldStore: StoreData, newStore: StoreData): Rec
     updates['store/lastResetWeekKey'] = newStore.lastResetWeekKey;
   }
 
+  // 5. LastResetMonthKey 差異比對
+  if (oldStore.lastResetMonthKey !== newStore.lastResetMonthKey && newStore.lastResetMonthKey) {
+    updates['store/lastResetMonthKey'] = newStore.lastResetMonthKey;
+  }
+
   return updates;
 }
 
@@ -161,10 +166,16 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
   toggleAllCharacterBosses: async (character: Character, filterMode: TeamFilterMode = 'all') => {
     const { store, saveStoreToCloud } = get();
 
-    // 收集該角色的所有 boss entries
+    // 收集該角色的所有每週/賽季 boss entries (一鍵全通一律排除每月 BOSS 黑魔法師)
     let entries: { bossId: string; entryIndex: 1 | 2 }[] = [];
-    (character.bossIds || []).forEach((bId: string) => entries.push({ bossId: bId, entryIndex: 1 }));
-    (character.resetBossIds || []).forEach((bId: string) => entries.push({ bossId: bId, entryIndex: 2 }));
+    (character.bossIds || []).forEach((bId: string) => {
+      const b = getBoss(bId);
+      if (!b?.isMonthly) entries.push({ bossId: bId, entryIndex: 1 });
+    });
+    (character.resetBossIds || []).forEach((bId: string) => {
+      const b = getBoss(bId);
+      if (!b?.isMonthly) entries.push({ bossId: bId, entryIndex: 2 });
+    });
 
     // 依據隊伍模式過濾 (個人隊伍 / 團打隊伍 / 全部)
     if (filterMode === 'solo') {
@@ -228,11 +239,11 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         }
       });
     } else {
-      // 全部標記完成 (常態 BOSS 尊重 12 隻上限，最多勾選至 12 隻；賽季 BOSS 獨立全數標記完成)
+      // 全部標記完成 (常態 BOSS 尊重 12 隻上限，最多勾選至 12 隻；賽季與每月 BOSS 獨立全數標記完成)
       let currentCompletedCount = Object.entries(nextRecords).filter(([k, r]) => {
         if (!k.startsWith(`rec_${character.id}_`) || !r || !r.isCompleted) return false;
         const b = getBoss(r.bossId);
-        return !b?.excludeFromWeeklyLimit && !b?.isSeasonal;
+        return !b?.excludeFromWeeklyLimit && !b?.isSeasonal && !b?.isMonthly;
       }).length;
 
       for (const { bossId, entryIndex } of entries) {
@@ -243,10 +254,10 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         if (targetRecord?.isCompleted) continue;
 
         const boss = getBoss(bossId);
-        const isSeasonal = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal);
+        const isExcluded = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal || boss?.isMonthly);
 
         // 若為常態 BOSS 且已達 12 隻上限，不再新增常態 BOSS
-        if (!isSeasonal && currentCompletedCount >= 12) continue;
+        if (!isExcluded && currentCompletedCount >= 12) continue;
 
         const targetTeamId = targetRecord?.teamId;
 
@@ -289,7 +300,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           };
         }
 
-        if (!isSeasonal) {
+        if (!isExcluded) {
           currentCompletedCount += 1;
         }
       }
@@ -317,9 +328,9 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     const entryIndex = targetRecord?.entryIndex || parsedKey?.entryIndex || 1;
     const boss = getBoss(bossId);
 
-    // 💡 12 隻 BOSS 上限檢查 (僅針對常態每週 BOSS 檢查，賽季制 BOSS 不受此限制)
-    const isSeasonal = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal);
-    if (nextCompleted && !isSeasonal) {
+    // 💡 12 隻 BOSS 上限檢查 (僅針對常態每週 BOSS 檢查，賽季制與每月 BOSS 不受此限制)
+    const isExcluded = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal || boss?.isMonthly);
+    if (nextCompleted && !isExcluded) {
       const rawMembers =
         targetTeamId && store.teams[targetTeamId]
           ? store.teams[targetTeamId].memberTargets ||
@@ -334,7 +345,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           const rCharId = r.charId || parseRecordKey(k)?.charId;
           if (rCharId === m.charId) {
             const b = getBoss(r.bossId);
-            if (b && !b.excludeFromWeeklyLimit && !b.isSeasonal) {
+            if (b && !b.excludeFromWeeklyLimit && !b.isSeasonal && !b.isMonthly) {
               completedCount += 1;
             }
           }
@@ -342,7 +353,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
         if (completedCount >= 12) {
           const charName = getCharName(m.charId);
-          alert(`⚠️ 角色【${charName}】本週 BOSS 攻略數量已達 12 隻上限！無法再增加擊破紀錄。`);
+          alert(`⚠️ 角色【${charName}】本週常態 BOSS 攻略數量已達 12 隻上限！無法再增加擊破紀錄。`);
           return;
         }
       }

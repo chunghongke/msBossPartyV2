@@ -198,6 +198,16 @@ function SingleRowBossPill({
       {/* 中間：BOSS 名稱、難度標籤與隊伍簡稱 */}
       <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.2">
         <div className="flex items-center gap-0.5 leading-tight truncate">
+          {boss.isMonthly && (
+            <span
+              className={cn(
+                'px-1 py-0.2 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-amber-300/60 shadow-2xs',
+                isCompleted && 'opacity-60 grayscale'
+              )}
+            >
+              每月
+            </span>
+          )}
           {boss.isSeasonal && (
             <span
               className={cn(
@@ -335,6 +345,235 @@ function SingleRowBossPill({
   );
 }
 
+/** 位於上方資訊列（艾里溫碎片右側）的專屬每月 BOSS 小卡片 */
+function TopRowMonthlyBossCard({
+  boss,
+  entryIndex,
+  charId,
+  record,
+  team,
+  guestList = [],
+  canManage = true,
+  onToggleStatus,
+  onOpenPartyModal,
+  onOpenShardModal,
+  onShowScheduleInfo,
+}: {
+  boss: Boss;
+  entryIndex: number;
+  charId: string;
+  record?: WeeklyRecord;
+  team?: Team | null;
+  guestList?: Array<{ id: string; name: string }>;
+  canManage?: boolean;
+  onToggleStatus: (
+    recordKey: string,
+    onRequireShardModal?: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void
+  ) => void;
+  onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
+  onOpenShardModal?: (recordKey: string, boss: Boss, team: Team | null) => void;
+  onShowScheduleInfo?: (team: Team) => void;
+}) {
+  const { getCharName } = useStore();
+  const recordKey = `rec_${charId}_${boss.id}_${entryIndex}`;
+  const isCompleted = Boolean(record?.isCompleted);
+
+  // 解析成員
+  const rawMembers = team ? team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex })) : [];
+  const validMembers = rawMembers.filter((m: any) => {
+    if (!m.charId.startsWith('guest_')) return true;
+    return guestList.some((g) => g.id === m.charId);
+  });
+  const teamSize = validMembers.length > 0 ? validMembers.length : 1;
+  const isMultiParty = teamSize > 1;
+
+  const otherTeammates = validMembers.filter(
+    (m: any) => !(m.charId === charId && m.entryIndex === entryIndex)
+  );
+
+  const teamText = isMultiParty
+    ? (otherTeammates.map((m: any) => getCharName(m.charId)).join('、') || `${teamSize}人`)
+    : '單人';
+
+  const hasSchedule = Boolean(team?.schedule?.tempOverride || team?.schedule?.recurring);
+
+  const cleanZhName = getBossCleanName(boss.name);
+  const diffConf = DIFFICULTY_BADGES[boss.difficulty] || DIFFICULTY_BADGES.hard;
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
+
+  const handleTouchStart = () => {
+    if (!canManage) return;
+    isLongPress.current = false;
+    timerRef.current = setTimeout(() => {
+      isLongPress.current = true;
+      onOpenPartyModal(charId, boss.id, entryIndex);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleClick = () => {
+    if (isLongPress.current) {
+      isLongPress.current = false;
+      return;
+    }
+    if (!canManage) return;
+    onToggleStatus(recordKey, onOpenShardModal);
+  };
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    if (!canManage) return;
+    onOpenPartyModal(charId, boss.id, entryIndex);
+  };
+
+  return (
+    <HoverCard.Root openDelay={250} closeDelay={200}>
+      <HoverCard.Trigger asChild>
+        <div
+          onClick={canManage ? handleClick : undefined}
+          onContextMenu={canManage ? handleContextMenu : undefined}
+          onTouchStart={canManage ? handleTouchStart : undefined}
+          onTouchEnd={canManage ? handleTouchEnd : undefined}
+          className={cn(
+            'group relative flex items-center gap-1.5 px-2 py-0.5 rounded-lg border-2 transition-all duration-150 select-none overflow-hidden h-[24px] sm:h-[25px] shrink-0 shadow-sm',
+            canManage ? 'cursor-pointer' : 'cursor-default',
+            isCompleted
+              ? 'bg-[#EAE2D2]/60 dark:bg-slate-900/40 border-slate-400/50 opacity-40 grayscale contrast-75 brightness-90 shadow-none hover:opacity-75'
+              : 'bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-indigo-500/20 dark:from-purple-950/80 dark:via-slate-900/90 dark:to-indigo-950/80 border-amber-500 dark:border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/50 hover:shadow-[0_0_12px_rgba(245,158,11,0.5)] active:translate-y-[0.5px]'
+          )}
+          title={`【每月 BOSS】${boss.name} (點擊切換擊破狀態，右鍵設定組隊)`}
+        >
+          {/* BOSS 微型頭像 */}
+          <div className="w-4 h-4 rounded overflow-hidden bg-slate-900 shrink-0 relative flex items-center justify-center border border-amber-400/60 shadow-2xs">
+            <img
+              src={boss.image}
+              alt={boss.name}
+              loading="lazy"
+              className={cn(
+                'w-full h-full object-cover object-center',
+                isCompleted && 'grayscale brightness-60'
+              )}
+              onError={(e: any) => {
+                e.target.style.display = 'none';
+              }}
+            />
+            {entryIndex === 2 && (
+              <span className="absolute bottom-0 right-0 px-0.5 bg-purple-700 text-white text-[6.5px] font-black leading-none rounded-tl">
+                2刷
+              </span>
+            )}
+          </div>
+
+          {/* 每月專屬金紫漸層膠囊 */}
+          <span
+            className={cn(
+              'px-1 py-0.2 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-amber-300/60 shadow-2xs leading-none',
+              isCompleted && 'opacity-60 grayscale'
+            )}
+          >
+            每月
+          </span>
+
+          {/* 難度標籤 */}
+          <span
+            className={cn(
+              'px-0.5 rounded text-[8px] font-black uppercase tracking-tight shrink-0 leading-none',
+              diffConf.tagClass,
+              isCompleted && 'opacity-60 grayscale'
+            )}
+          >
+            {diffConf.label}
+          </span>
+
+          {/* BOSS 名稱 */}
+          <span
+            className={cn(
+              'font-black text-[10.5px] truncate transition-colors leading-none',
+              isCompleted ? 'text-stone-400 dark:text-slate-500 line-through/70' : 'text-[#3E2F20] dark:text-slate-100'
+            )}
+          >
+            {cleanZhName}
+          </span>
+
+          {/* 組隊標籤按鈕 */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
+            }}
+            className={cn(
+              'px-1 py-0.2 rounded text-[8.5px] font-black shrink-0 transition-colors flex items-center gap-0.5 leading-none',
+              isMultiParty
+                ? 'bg-amber-500/25 text-amber-900 dark:text-amber-300 border border-amber-500/40 hover:bg-amber-500/35'
+                : 'bg-black/5 dark:bg-white/10 text-stone-600 dark:text-slate-300 border border-black/10 dark:border-white/10 hover:bg-black/10'
+            )}
+            title={canManage ? '點擊設定組隊成員' : '組隊成員'}
+          >
+            <Users className="w-2.5 h-2.5 shrink-0" />
+            <span className="truncate max-w-[65px]">{teamText}</span>
+          </button>
+
+          {/* 約戰時間圖示 */}
+          {hasSchedule && onShowScheduleInfo && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (team) onShowScheduleInfo(team);
+              }}
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-500 shrink-0"
+              title="查看約戰時間"
+            >
+              <Clock className="w-2.5 h-2.5" />
+            </button>
+          )}
+
+          {/* 完成打勾標記 */}
+          {isCompleted && (
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black shrink-0 leading-none" title="已擊破">
+              ✓
+            </span>
+          )}
+        </div>
+      </HoverCard.Trigger>
+
+      {/* HoverCard 懸浮詳細卡片 (比照其他卡片完整彈出 BossCell) */}
+      <HoverCard.Portal>
+        <HoverCard.Content
+          side="top"
+          align="center"
+          sideOffset={8}
+          collisionPadding={16}
+          className="z-50 w-[300px] sm:w-[340px] bg-[#FFFDF9] dark:bg-slate-900 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 duration-150 drop-shadow-2xl outline-none overflow-hidden"
+        >
+          <BossCell
+            boss={boss}
+            entryIndex={entryIndex}
+            charId={charId}
+            record={record}
+            team={team}
+            guestList={guestList}
+            canManage={canManage}
+            onToggleStatus={onToggleStatus}
+            onOpenPartyModal={onOpenPartyModal}
+            onOpenShardModal={onOpenShardModal}
+            onShowScheduleInfo={onShowScheduleInfo}
+          />
+        </HoverCard.Content>
+      </HoverCard.Portal>
+    </HoverCard.Root>
+  );
+}
+
 export function CompactCharacterRow({
   character,
   playerName,
@@ -425,14 +664,24 @@ export function CompactCharacterRow({
     return orderedBossEntries;
   }, [orderedBossEntries, teamFilter, soloBossEntries, partyBossEntries]);
 
-  // 檢查當前過濾模式下的所有 BOSS 是否皆已完成
+  // 獨立抽離每月 BOSS (如黑魔法師，將常駐顯示於上方艾里溫碎片右側，永不佔用下方網格)
+  const monthlyBossEntries = useMemo(() => {
+    return orderedBossEntries.filter(({ boss }) => boss.isMonthly);
+  }, [orderedBossEntries]);
+
+  // 下方網格專用 BOSS (排除每月 BOSS，固定 12 隻以內單行不換行)
+  const regularFilteredBossEntries = useMemo(() => {
+    return filteredBossEntries.filter(({ boss }) => !boss.isMonthly);
+  }, [filteredBossEntries]);
+
+  // 檢查當前過濾模式下的所有每週 BOSS 是否皆已完成 (排除每月 BOSS 黑魔法師)
   const isFilteredAllDone = useMemo(() => {
-    if (filteredBossEntries.length === 0) return false;
-    return filteredBossEntries.every(({ boss, entryIndex }) => {
+    if (regularFilteredBossEntries.length === 0) return false;
+    return regularFilteredBossEntries.every(({ boss, entryIndex }) => {
       const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
       return Boolean(store.weeklyRecords[recKey]?.isCompleted);
     });
-  }, [filteredBossEntries, character.id, store.weeklyRecords]);
+  }, [regularFilteredBossEntries, character.id, store.weeklyRecords]);
 
   const handleToggleAll = async () => {
     if (!onToggleAllBosses) return;
@@ -451,8 +700,8 @@ export function CompactCharacterRow({
       : '確認一鍵全部完成';
 
     const message = isFilteredAllDone
-      ? `確定要將「${character.name}」的${modeText === '全部' ? '所有' : modeText} BOSS 重設為未完成嗎？`
-      : `確定要將「${character.name}」的${modeText === '全部' ? '所有' : modeText} BOSS 標記為已完成嗎？${modeText === '全部' ? '（常態 BOSS 最多標記至每週 12 隻上限）' : ''}`;
+      ? `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 重設為未完成嗎？（不影響每月黑魔法師）`
+      : `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 標記為已完成嗎？（常態 BOSS 最多標記至每週 12 隻上限，不包含每月黑魔法師）`;
 
     const confirmed = await showConfirm({
       title,
@@ -471,8 +720,8 @@ export function CompactCharacterRow({
   const gridRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Map<string, DOMRect>>(new Map());
 
-  const prevEntriesRef = useRef(filteredBossEntries);
-  if (prevEntriesRef.current !== filteredBossEntries) {
+  const prevEntriesRef = useRef(regularFilteredBossEntries);
+  if (prevEntriesRef.current !== regularFilteredBossEntries) {
     if (gridRef.current) {
       const map = new Map<string, DOMRect>();
       gridRef.current.querySelectorAll<HTMLElement>('[data-boss-key]').forEach((el) => {
@@ -481,7 +730,7 @@ export function CompactCharacterRow({
       });
       positionsRef.current = map;
     }
-    prevEntriesRef.current = filteredBossEntries;
+    prevEntriesRef.current = regularFilteredBossEntries;
   }
 
   useLayoutEffect(() => {
@@ -528,9 +777,9 @@ export function CompactCharacterRow({
         });
       });
     }
-  }, [filteredBossEntries]);
+  }, [regularFilteredBossEntries]);
 
-  const hasBosses = orderedBossEntries.length > 0;
+  const hasBosses = orderedBossEntries.some(({ boss }) => !boss.isMonthly);
   const progressPercent = progressStats.total > 0
     ? Math.min(100, Math.round((progressStats.completed / progressStats.total) * 100))
     : 0;
@@ -640,6 +889,30 @@ export function CompactCharacterRow({
               </span>
             </div>
           )}
+
+          {/* 🌙 每月 BOSS 獨立專屬小卡片 (放在艾里溫碎片右側，高度與上方一致，顯眼邊框包覆) */}
+          {monthlyBossEntries.map(({ boss, entryIndex }) => {
+            const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
+            const rec = store.weeklyRecords[recKey];
+            const team = rec?.teamId ? store.teams[rec.teamId] : null;
+
+            return (
+              <TopRowMonthlyBossCard
+                key={recKey}
+                boss={boss}
+                entryIndex={entryIndex}
+                charId={character.id}
+                record={rec}
+                team={team}
+                guestList={store.guests || []}
+                canManage={isOwnerOrAdmin}
+                onToggleStatus={onToggleStatus}
+                onOpenPartyModal={onOpenPartyModal}
+                onOpenShardModal={onOpenShardModal}
+                onShowScheduleInfo={onShowScheduleInfo}
+              />
+            );
+          })}
         </div>
 
         {/* 右側：隊伍過濾提示 ＋ 賽季進度標籤 ＋ 綠色擊破進度徽章 ＋ 一鍵全部完成快捷按鈕 */}
@@ -670,6 +943,15 @@ export function CompactCharacterRow({
               <span>👤 {soloBossEntries.length}</span>
               <span className="opacity-40">/</span>
               <span>⚔️ {partyBossEntries.length}</span>
+            </span>
+          )}
+
+          {progressStats.monthlyTotal > 0 && (
+            <span
+              className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white font-black text-[9px] border border-amber-300/60 shadow-2xs select-none shrink-0"
+              title="每月 BOSS 進度 (每月 1 號重置，不佔每週 12 隻上限)"
+            >
+              🌙 每月 {progressStats.monthlyCompleted}/{progressStats.monthlyTotal}
             </span>
           )}
 
@@ -763,10 +1045,10 @@ export function CompactCharacterRow({
 
       {/* 單列 12 格 BOSS 排版 (Single Row: 12 Columns Grid) */}
       {hasBosses ? (
-        filteredBossEntries.length > 0 ? (
+        regularFilteredBossEntries.length > 0 ? (
           <div className="overflow-x-auto lg:overflow-x-hidden pb-0.5">
             <div ref={gridRef} className="grid grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 min-w-[960px] lg:min-w-0">
-              {filteredBossEntries.map(({ boss, entryIndex }) => {
+              {regularFilteredBossEntries.map(({ boss, entryIndex }) => {
                 const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
                 const rec = store.weeklyRecords[recKey];
                 const team = rec?.teamId ? store.teams[rec.teamId] : null;
@@ -794,11 +1076,11 @@ export function CompactCharacterRow({
         ) : (
           <div className="py-2.5 px-3 text-center text-xs text-stone-500 dark:text-slate-400 font-bold bg-black/5 dark:bg-black/20 rounded-xl border border-dashed border-stone-300 dark:border-slate-700">
             {teamFilter === 'solo'
-              ? `此角色目前無個人隊伍 BOSS（所有 ${orderedBossEntries.length} 隻配置皆為多人組隊）`
-              : `此角色目前無多人隊伍 BOSS（所有 ${orderedBossEntries.length} 隻配置皆為個人單挑）`}
+              ? `此角色目前無個人隊伍每週 BOSS`
+              : `此角色目前無多人隊伍每週 BOSS`}
           </div>
         )
-      ) : (
+      ) : monthlyBossEntries.length > 0 ? null : (
         <div className="py-2 text-center text-xs text-slate-400">
           尚未設定 BOSS 清單，
           {isOwnerOrAdmin && (

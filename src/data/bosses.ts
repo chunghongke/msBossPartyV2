@@ -47,6 +47,10 @@ export const BOSSES: Boss[] = [
   { id: 'gloom_normal', name: '(普)戴斯克', groupKey: 'gloom', maxPartySize: 6, difficulty: 'normal', allowReset: true, crystalValue: 79500000, erionVestiges: 0, image: './images/bosses/gloom.png' },
   { id: 'gloom_hard', name: '(困)戴斯克', groupKey: 'gloom', maxPartySize: 6, difficulty: 'hard', allowReset: true, crystalValue: 111200000, erionVestiges: 0, image: './images/bosses/gloom.png' },
 
+  // 黑魔法師 (每月刷新 BOSS，不佔每週 12 隻上限)
+  { id: 'black_mage_hard', name: '(困)黑魔法師', groupKey: 'black_mage', maxPartySize: 6, difficulty: 'hard', allowReset: true, crystalValue: 1000000000, erionVestiges: 0, image: './images/bosses/black_mage.png', isMonthly: true, excludeFromWeeklyLimit: true },
+  { id: 'black_mage_extreme', name: '(極)黑魔法師', groupKey: 'black_mage', maxPartySize: 6, difficulty: 'extreme', allowReset: true, crystalValue: 3000000000, erionVestiges: 0, image: './images/bosses/black_mage.png', isMonthly: true, excludeFromWeeklyLimit: true },
+
   // 賽蓮
   { id: 'seren_normal', name: '(普)賽蓮', groupKey: 'seren', maxPartySize: 6, difficulty: 'normal', allowReset: true, crystalValue: 149800000, erionVestiges: 0, image: './images/bosses/seren.png' },
   { id: 'seren_hard', name: '(困)賽蓮', groupKey: 'seren', maxPartySize: 6, difficulty: 'hard', allowReset: true, crystalValue: 271600000, erionVestiges: 0, image: './images/bosses/seren.png' },

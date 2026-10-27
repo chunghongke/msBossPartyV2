@@ -65,6 +65,11 @@ const AddBossGroupCard = memo(function AddBossGroupCard({
           : 'bg-white/80 dark:bg-slate-850 border-slate-200 dark:border-slate-800 opacity-60'
       )}>
       <div className="w-full h-20 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center border border-black/20">
+        {group.bosses[0]?.isMonthly && (
+          <span className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white font-black text-[9px] uppercase tracking-wider shadow-sm border border-amber-300/60 pointer-events-none">
+            每月
+          </span>
+        )}
         {group.bosses[0]?.isSeasonal && (
           <span className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[9px] uppercase tracking-wider shadow-sm border border-white/80 pointer-events-none">
             {group.bosses[0].seasonBadge || 'SEASON'}
@@ -179,16 +184,16 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
         return prev.filter((id) => id !== bossId);
       } else {
         const targetBoss = getBoss(bossId);
-        const isSeasonal = Boolean(targetBoss?.isSeasonal || targetBoss?.excludeFromWeeklyLimit);
+        const isExcluded = Boolean(targetBoss?.isSeasonal || targetBoss?.isMonthly || targetBoss?.excludeFromWeeklyLimit);
 
         const otherBossIdsInGroup = BOSS_GROUPS.find((g) => g.groupKey === groupKey)?.bosses.map((b) => b.id) || [];
         const withoutGroup = prev.filter((id) => !otherBossIdsInGroup.includes(id));
 
         // 僅常態每週 BOSS 受 12 隻上限限制
-        if (!isSeasonal) {
+        if (!isExcluded) {
           const normalWithoutGroup = withoutGroup.filter((id) => {
             const b = getBoss(id);
-            return !b?.isSeasonal && !b?.excludeFromWeeklyLimit;
+            return !b?.isSeasonal && !b?.isMonthly && !b?.excludeFromWeeklyLimit;
           });
 
           if (normalWithoutGroup.length >= 12) {
@@ -240,17 +245,22 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
 
   const hasNexonKey = Boolean(getNexonApiKey());
 
-  // 賽季制 BOSS 不計入 12 隻每週上限
+  // 賽季制與每月 BOSS 不計入 12 隻每週常態上限
   const normalBossIds = selectedBossIds.filter((id) => {
     const b = getBoss(id);
-    return !b?.isSeasonal && !b?.excludeFromWeeklyLimit;
+    return !b?.isSeasonal && !b?.isMonthly && !b?.excludeFromWeeklyLimit;
+  });
+  const monthlyBossIds = selectedBossIds.filter((id) => {
+    const b = getBoss(id);
+    return Boolean(b?.isMonthly);
   });
   const seasonalBossIds = selectedBossIds.filter((id) => {
     const b = getBoss(id);
-    return Boolean(b?.isSeasonal || b?.excludeFromWeeklyLimit);
+    return Boolean(b?.isSeasonal || (b?.excludeFromWeeklyLimit && !b?.isMonthly));
   });
 
   const normalCount = normalBossIds.length;
+  const monthlyCount = monthlyBossIds.length;
   const seasonalCount = seasonalBossIds.length;
   const isFull = normalCount >= 12;
 
@@ -351,6 +361,11 @@ export function AddCharacterModal({ isOpen, onClose, playerName, onOpenNexonKeyM
               <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <div className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 flex-wrap">
                   <span>選擇每週常態 BOSS ({normalCount} / 12)</span>
+                  {monthlyCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white font-black text-[10px] border border-amber-300/60 shadow-xs">
+                      🌙 每月 {monthlyCount} 隻 (不佔上限)
+                    </span>
+                  )}
                   {seasonalCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] font-black text-[10px] border border-white/80 shadow-xs">
                       🏆 賽季 {seasonalCount} 隻 (不佔上限)

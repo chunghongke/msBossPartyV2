@@ -11,6 +11,7 @@ export interface Boss {
   erionVestiges: number;
   image: string;
   isSeasonal?: boolean;
+  isMonthly?: boolean;
   excludeFromWeeklyLimit?: boolean;
   seasonBadge?: string;
 }
