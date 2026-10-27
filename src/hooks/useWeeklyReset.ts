@@ -89,12 +89,16 @@ export function useWeeklyReset(
           updatedRecords[key] = {
             ...rec,
             isCompleted: false,
+            completedWeekKey: null,
             shardShares: null,
             shardQuantity: null,
           };
         } else {
-          // 僅跨週，完整保留每月 BOSS 完成狀態與資料
-          updatedRecords[key] = rec;
+          // 僅跨週，完整保留每月 BOSS 完成狀態與資料 (保留完成之週次標記)
+          updatedRecords[key] = {
+            ...rec,
+            completedWeekKey: rec.completedWeekKey || (rec.isCompleted ? (currentLatest.lastResetWeekKey || 'previous') : null),
+          };
         }
       } else {
         if (isWeekResetNeeded) {
@@ -102,6 +106,7 @@ export function useWeeklyReset(
           updatedRecords[key] = {
             ...rec,
             isCompleted: false,
+            completedWeekKey: null,
             // 艾里溫碎片：若上週有完成且有紀錄，存入 lastWeek 作為本週提示
             lastWeekShardShares:
               rec.isCompleted && rec.shardShares !== null && rec.shardShares !== undefined

@@ -24,6 +24,10 @@ interface PlayerNavBarProps {
   onSetTeamFilter?: (mode: TeamFilterMode) => void;
   crystalEarned?: number;
   crystalExpected?: number;
+  weeklyCrystalEarned?: number;
+  weeklyCrystalExpected?: number;
+  monthlyCrystalEarned?: number;
+  monthlyCrystalExpected?: number;
   formatCrystal?: (num: number) => string;
   playerCrystalCount?: PlayerCrystalCountStats;
   onSyncAllCharImages?: (player: Player) => void;
@@ -49,6 +53,10 @@ export function PlayerNavBar({
   onSetTeamFilter,
   crystalEarned = 0,
   crystalExpected = 0,
+  weeklyCrystalEarned = 0,
+  weeklyCrystalExpected = 0,
+  monthlyCrystalEarned = 0,
+  monthlyCrystalExpected = 0,
   formatCrystal,
   playerCrystalCount,
   onSyncAllCharImages,
@@ -908,13 +916,12 @@ export function PlayerNavBar({
                     }`}
                   >
                     <span className="text-sm">💎</span>
-                    <span className="font-bold text-stone-500 dark:text-slate-400 hidden lg:inline">結晶數量：</span>
                     <span className="font-fredoka font-black text-xs sm:text-sm">
                       {playerCrystalCount.totalSold} / 90
                     </span>
                     {playerCrystalCount.totalExpected > playerCrystalCount.totalSold && (
                       <span className="text-[10px] opacity-75 font-fredoka font-bold hidden xl:inline">
-                        (預計 {playerCrystalCount.totalExpected})
+                        ({playerCrystalCount.totalExpected})
                       </span>
                     )}
                     {playerCrystalCount.totalExpected > 90 && (
@@ -925,16 +932,43 @@ export function PlayerNavBar({
                   </div>
                 )}
 
-                {/* 全部角色的結晶楓幣總和膠囊 */}
-                {formatCrystal && crystalExpected > 0 && (
-                  <div className="flex items-center gap-1 px-2.5 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-1.5 border-[#D4B982] dark:border-slate-700 shadow-2xs text-xs select-none shrink-0">
+                {/* 全部角色的每週常態結晶楓幣總和膠囊 */}
+                {formatCrystal && (weeklyCrystalExpected > 0 || (crystalExpected > 0 && monthlyCrystalExpected === 0)) && (
+                  <div
+                    className="flex items-center gap-1 px-2.5 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-1.5 border-[#D4B982] dark:border-slate-700 shadow-2xs text-xs select-none shrink-0"
+                    title={`每週常態 BOSS 結晶收益：已獲得 ${formatCrystal(
+                      weeklyCrystalExpected > 0 ? weeklyCrystalEarned : crystalEarned
+                    )} / 預計 ${formatCrystal(
+                      weeklyCrystalExpected > 0 ? weeklyCrystalExpected : crystalExpected
+                    )}`}
+                  >
                     <span className="text-sm">🪙</span>
-                    <span className="font-bold text-stone-500 dark:text-slate-400 hidden lg:inline">結晶總計：</span>
                     <span className="font-fredoka font-black text-amber-700 dark:text-amber-300 text-xs sm:text-sm">
-                    {formatCrystal(crystalEarned)} / {formatCrystal(crystalExpected)}
-                  </span>
-                </div>
-              )}
+                      {formatCrystal(weeklyCrystalExpected > 0 ? weeklyCrystalEarned : crystalEarned)} /{' '}
+                      {formatCrystal(weeklyCrystalExpected > 0 ? weeklyCrystalExpected : crystalExpected)}
+                    </span>
+                  </div>
+                )}
+
+                {/* 黑魔法師每月結晶楓幣總和膠囊 (當有排定或獲得黑魔法師時獨立拆開顯示) */}
+                {formatCrystal && (monthlyCrystalExpected > 0 || monthlyCrystalEarned > 0) && (
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 rounded-xl border-1.5 shadow-2xs text-xs select-none shrink-0 transition-colors',
+                      monthlyCrystalEarned >= monthlyCrystalExpected && monthlyCrystalEarned > 0
+                        ? 'bg-purple-100/90 dark:bg-purple-950/60 border-purple-400 dark:border-purple-700 text-purple-900 dark:text-purple-200'
+                        : 'bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 dark:bg-slate-800 border-amber-400/70 dark:border-purple-800 text-indigo-950 dark:text-purple-200'
+                    )}
+                    title={`黑魔法師（每月 BOSS）結晶收益：已獲得 ${formatCrystal(monthlyCrystalEarned)} / 預計 ${formatCrystal(
+                      monthlyCrystalExpected
+                    )}`}
+                  >
+                    <span className="text-xs">🌙</span>
+                    <span className="font-fredoka font-black text-xs sm:text-sm">
+                      {formatCrystal(monthlyCrystalEarned)} / {formatCrystal(monthlyCrystalExpected)}
+                    </span>
+                  </div>
+                )}
 
               {/* 同步官方立繪按鈕 */}
               {onSyncAllCharImages && selectedCharacters.length > 0 && (

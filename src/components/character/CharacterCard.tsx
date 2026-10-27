@@ -355,13 +355,13 @@ export function CharacterCard({
               </div>
             </div>
 
-            {/* 2. 販售結晶數量膠囊 (每週上限 12 顆) */}
+            {/* 2. 販售結晶數量膠囊 (每週常態 12 顆；若當週攻略每月黑魔可賣 12+1 顆) */}
             <div
               className={cn(
                 'flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 shadow-sm transition-colors',
-                crystalCountStats.sold > 12 || crystalCountStats.expected > 12
+                crystalCountStats.isOverLimit || crystalCountStats.isExpectedOverLimit
                   ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700'
-                  : crystalCountStats.sold === 12
+                  : crystalCountStats.sold === crystalCountStats.max
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700'
                   : 'bg-[#F0F7FF] dark:bg-slate-800 border-[#BAE6FD] dark:border-slate-700'
               )}
@@ -372,15 +372,18 @@ export function CharacterCard({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between text-[10px] font-black text-sky-900 dark:text-sky-300 leading-none mb-0.5">
                   <span>販售結晶數量</span>
-                  {crystalCountStats.expected > 12 && (
-                    <span className="text-rose-600 dark:text-rose-400 font-bold">⚠️ 超過 12 顆上限</span>
+                  {crystalCountStats.isExpectedOverLimit && (
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">⚠️ 超過 {crystalCountStats.maxLabel} 顆上限</span>
                   )}
-                  {crystalCountStats.sold === 12 && crystalCountStats.expected <= 12 && (
+                  {crystalCountStats.sold === crystalCountStats.max && !crystalCountStats.isExpectedOverLimit && (
                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">✨ 已達上限</span>
+                  )}
+                  {crystalCountStats.isMonthlySoldInPastWeek && (
+                    <span className="text-stone-400 text-[9px]">黑魔本月已售</span>
                   )}
                 </div>
                 <div className="font-fredoka font-black text-sm text-[#0369A1] dark:text-sky-200 truncate">
-                  {crystalCountStats.sold} / 12
+                  {crystalCountStats.sold} / {crystalCountStats.maxLabel}
                   {crystalCountStats.expected > crystalCountStats.sold && (
                     <span className="text-xs font-medium text-stone-500 dark:text-slate-400 ml-1">
                       (預計 {crystalCountStats.expected})

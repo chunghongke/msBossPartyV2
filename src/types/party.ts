@@ -30,6 +30,7 @@ export interface WeeklyRecord {
   entryIndex: number;
   teamId: string;
   isCompleted: boolean;
+  completedWeekKey?: string | null; // 記錄是在哪一週 (getCurrentResetWeekKey) 完成的
   shardMode?: ShardMode;
   shardShares?: number | null;
   lastWeekShardShares?: number | null;

@@ -4,6 +4,7 @@ import { getRtdb } from '@/services/firebase';
 import { StoreData, Team, WeeklyRecord, Guest } from '@/types/party';
 import { getBoss, BOSSES } from '@/data/bosses';
 import { checkIsSoloTeam, checkIsPartyTeam, TeamFilterMode } from '@/utils/teamFilter';
+import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
 import { AppSlice, StoreSlice, SaveTeamOptions } from '../types';
 import { sanitizeStoreAndTeams, parseRecordKey } from '../sanitize';
 
@@ -275,6 +276,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           const dividesEvenly = Boolean(boss && boss.erionVestiges > 0 && isMulti && maxPartySize % actualTeamSize === 0);
           const fairShare = dividesEvenly ? maxPartySize / actualTeamSize : null;
 
+          const currentWeekKey = getCurrentResetWeekKey();
           rawMembers.forEach((m: any) => {
             const mKey = `rec_${m.charId}_${bossId}_${m.entryIndex || 1}`;
             const existing = nextRecords[mKey] || store.weeklyRecords[mKey] || {
@@ -286,6 +288,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
             nextRecords[mKey] = {
               ...existing,
               isCompleted: true,
+              completedWeekKey: currentWeekKey,
               ...(dividesEvenly && fairShare !== null ? { shardShares: fairShare } : {}),
             };
           });
@@ -297,6 +300,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
               entryIndex,
             }),
             isCompleted: true,
+            completedWeekKey: getCurrentResetWeekKey(),
           };
         }
 
@@ -400,6 +404,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
       const dividesEvenly = Boolean(boss && boss.erionVestiges > 0 && isMulti && maxPartySize % actualTeamSize === 0);
       const fairShare = dividesEvenly ? maxPartySize / actualTeamSize : null;
 
+      const currentWeekKey = getCurrentResetWeekKey();
       rawMembers.forEach((member: any) => {
         const mKey = `rec_${member.charId}_${bossId}_${member.entryIndex}`;
         const existing = nextRecords[mKey] || {
@@ -412,6 +417,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         nextRecords[mKey] = {
           ...existing,
           isCompleted: nextCompleted,
+          completedWeekKey: nextCompleted ? currentWeekKey : null,
           // 若為整除且剛剛打勾完成，自動均分份數
           ...(nextCompleted && dividesEvenly && fairShare !== null ? { shardShares: fairShare } : {}),
         };
@@ -426,6 +432,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
           teamId: defaultSingleId,
         }),
         isCompleted: nextCompleted,
+        completedWeekKey: nextCompleted ? getCurrentResetWeekKey() : null,
       };
 
       if (!nextTeams[defaultSingleId]) {

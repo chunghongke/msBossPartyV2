@@ -391,9 +391,20 @@ export function MainLayout({
             return {
               earned: acc.earned + stats.earned,
               expected: acc.expected + stats.expected,
+              weeklyEarned: acc.weeklyEarned + stats.weeklyEarned,
+              weeklyExpected: acc.weeklyExpected + stats.weeklyExpected,
+              monthlyEarned: acc.monthlyEarned + stats.monthlyEarned,
+              monthlyExpected: acc.monthlyExpected + stats.monthlyExpected,
             };
           },
-          { earned: 0, expected: 0 }
+          {
+            earned: 0,
+            expected: 0,
+            weeklyEarned: 0,
+            weeklyExpected: 0,
+            monthlyEarned: 0,
+            monthlyExpected: 0,
+          }
         );
 
         const activePlayerCrystalCount = calculatePlayerCrystalCount(activeCharacters);
@@ -420,6 +431,10 @@ export function MainLayout({
             }}
             crystalEarned={activePlayerCrystalStats.earned}
             crystalExpected={activePlayerCrystalStats.expected}
+            weeklyCrystalEarned={activePlayerCrystalStats.weeklyEarned}
+            weeklyCrystalExpected={activePlayerCrystalStats.weeklyExpected}
+            monthlyCrystalEarned={activePlayerCrystalStats.monthlyEarned}
+            monthlyCrystalExpected={activePlayerCrystalStats.monthlyExpected}
             formatCrystal={formatCrystal}
             playerCrystalCount={activePlayerCrystalCount}
             onSyncAllCharImages={handleSyncAllCharImages}

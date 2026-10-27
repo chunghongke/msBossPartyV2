@@ -2,11 +2,15 @@ import { useCallback } from 'react';
 import { Character } from '@/types/player';
 import { StoreData } from '@/types/party';
 import { getBoss } from '@/data/bosses';
+import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
 
 export interface CrystalCountStats {
   sold: number;
   expected: number;
-  max: number;
+  max: number; // 12 或 13 (當週有黑魔法師可賣時為 13)
+  maxLabel: string; // '12' 或 '12+1'
+  hasMonthlyAvailable: boolean; // 當週是否有黑魔額度 (本週完成或本月待攻略)
+  isMonthlySoldInPastWeek: boolean; // 黑魔是否已在先前週次售出
   isOverLimit: boolean;
   isExpectedOverLimit: boolean;
 }
@@ -19,23 +23,26 @@ export interface PlayerCrystalCountStats {
   isExpectedOverLimit: boolean;
 }
 
+export interface CrystalMesoStats {
+  earned: number; // 總計 (每週 + 黑魔法師)
+  expected: number; // 總計 (每週 + 黑魔法師)
+  weeklyEarned: number; // 純每週常態 BOSS 已獲得
+  weeklyExpected: number; // 純每週常態 BOSS 預計
+  monthlyEarned: number; // 黑魔法師已獲得 (當週擊破)
+  monthlyExpected: number; // 黑魔法師預計 (當週待攻略或已攻略)
+}
+
 /**
- * 把原始結晶錢數值格式化成「億萬」（例：10368510000 -> "103億6,851萬", 27207040 -> "2720.7萬"）
+ * 把原始結晶錢數值格式化成「億」（四捨五入到億之後的第一位，例：18810990000 -> "188.1億"）
  */
 export function formatCrystal(rawValue: number): string {
-  if (!rawValue || rawValue <= 0) return '0萬';
-  const manValue = rawValue / 10000; // 換算成「萬」
-  const yi = Math.floor(manValue / 10000);
-  const remainderMan = manValue - yi * 10000;
-
-  if (yi > 0) {
-    if (remainderMan > 0) {
-      const manStr = remainderMan >= 1000 ? Math.round(remainderMan).toLocaleString() : remainderMan.toFixed(1);
-      return `${yi}億${manStr}萬`;
-    }
-    return `${yi}億`;
+  if (!rawValue || rawValue <= 0) return '0.0億';
+  if (rawValue >= 10000000) {
+    const yi = rawValue / 100000000;
+    return `${yi.toFixed(1)}億`;
   }
-  return `${manValue.toFixed(1)}萬`;
+  const manValue = Math.round(rawValue / 10000);
+  return `${manValue}萬`;
 }
 
 /**
@@ -48,12 +55,16 @@ export function formatShardNumber(num: number): string {
 
 export function useCalculator(store: StoreData) {
   /**
-   * 計算角色本週的結晶楓幣：已獲得 (完成的)、預計總值 (排定的全部)
+   * 計算角色本週的結晶楓幣：分開計算每週常態 BOSS 與黑魔法師（每月 BOSS）
+   * 黑魔法師若於本週擊破計入本週收益；若已於先前週次擊破，則不重複計入本週收益
    */
   const calculateCrystal = useCallback(
-    (character: Character): { earned: number; expected: number } => {
-      let earned = 0;
-      let expected = 0;
+    (character: Character): CrystalMesoStats => {
+      let weeklyEarned = 0;
+      let weeklyExpected = 0;
+      let monthlyEarned = 0;
+      let monthlyExpected = 0;
+      const currentWeekKey = getCurrentResetWeekKey();
 
       const processEntry = (bossId: string, entryIndex: number) => {
         const boss = getBoss(bossId);
@@ -73,38 +84,25 @@ export function useCalculator(store: StoreData) {
         const teamSize = validMembers.length > 0 ? validMembers.length : 1;
         const perPlayerValue = Math.floor(boss.crystalValue / teamSize);
 
-        expected += perPlayerValue;
-        if (rec?.isCompleted) {
-          earned += perPlayerValue;
-        }
-      };
-
-      (character.bossIds || []).forEach((bId) => processEntry(bId, 1));
-      (character.resetBossIds || []).forEach((bId) => processEntry(bId, 2));
-
-      return { earned, expected };
-    },
-    [store]
-  );
-
-  /**
-   * 計算角色本週販售結晶數量：已獲得 (完成的)、預計總數 (排定的全部有結晶 BOSS)
-   * 單一角色每週上限 12 顆 (包含每週常態、重置 2 刷與黑魔法師，只要 crystalValue > 0)
-   */
-  const calculateCrystalCount = useCallback(
-    (character: Character): CrystalCountStats => {
-      let sold = 0;
-      let expected = 0;
-
-      const processEntry = (bossId: string, entryIndex: number) => {
-        const boss = getBoss(bossId);
-        if (!boss || !boss.crystalValue) return;
-
-        expected += 1;
-        const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
-        const rec = store.weeklyRecords[recKey];
-        if (rec?.isCompleted) {
-          sold += 1;
+        if (boss.isMonthly) {
+          if (rec?.isCompleted) {
+            // 若為本週擊破（或無週次紀錄之舊資料），計入本週已獲得與預計
+            const isDoneThisWeek = !rec.completedWeekKey || rec.completedWeekKey === currentWeekKey;
+            if (isDoneThisWeek) {
+              monthlyEarned += perPlayerValue;
+              monthlyExpected += perPlayerValue;
+            }
+            // 若為先前週次擊破：結晶已在先前賣掉，本週不重複計入
+          } else {
+            // 本月尚未擊破：預期本週打完可領取
+            monthlyExpected += perPlayerValue;
+          }
+        } else {
+          // 常態每週 BOSS
+          weeklyExpected += perPlayerValue;
+          if (rec?.isCompleted) {
+            weeklyEarned += perPlayerValue;
+          }
         }
       };
 
@@ -112,11 +110,78 @@ export function useCalculator(store: StoreData) {
       (character.resetBossIds || []).forEach((bId) => processEntry(bId, 2));
 
       return {
+        earned: weeklyEarned + monthlyEarned,
+        expected: weeklyExpected + monthlyExpected,
+        weeklyEarned,
+        weeklyExpected,
+        monthlyEarned,
+        monthlyExpected,
+      };
+    },
+    [store]
+  );
+
+  /**
+   * 計算角色本週販售結晶數量：已獲得 (完成的)、預計總數 (排定的全部有結晶 BOSS)
+   * 單一角色每週常態上限 12 顆；若當週攻略黑魔法師（每月獨立結晶），該週可賣 12 + 1 = 13 顆
+   * 若黑魔法師已於本月先前週次擊破並售出，本週不再計入且恢復為 12 顆常態上限
+   */
+  const calculateCrystalCount = useCallback(
+    (character: Character): CrystalCountStats => {
+      let sold = 0;
+      let expected = 0;
+      let hasMonthlyAvailable = false;
+      let isMonthlySoldInPastWeek = false;
+      const currentWeekKey = getCurrentResetWeekKey();
+
+      const processEntry = (bossId: string, entryIndex: number) => {
+        const boss = getBoss(bossId);
+        if (!boss || !boss.crystalValue) return;
+
+        const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
+        const rec = store.weeklyRecords[recKey];
+
+        if (boss.isMonthly) {
+          if (rec?.isCompleted) {
+            const isDoneThisWeek = !rec.completedWeekKey || rec.completedWeekKey === currentWeekKey;
+            if (isDoneThisWeek) {
+              // 本週擊破黑魔法師：本週可賣 12 + 1 顆，本週 sold + 1, expected + 1
+              hasMonthlyAvailable = true;
+              sold += 1;
+              expected += 1;
+            } else {
+              // 已經在前幾週擊破並售出：本週無法再打，不計入本週，不佔本週額度
+              isMonthlySoldInPastWeek = true;
+            }
+          } else {
+            // 本月尚未擊破：當週若擊破可享 12 + 1 額度，expected + 1
+            hasMonthlyAvailable = true;
+            expected += 1;
+          }
+        } else {
+          // 每週常態 BOSS
+          expected += 1;
+          if (rec?.isCompleted) {
+            sold += 1;
+          }
+        }
+      };
+
+      (character.bossIds || []).forEach((bId) => processEntry(bId, 1));
+      (character.resetBossIds || []).forEach((bId) => processEntry(bId, 2));
+
+      const max = hasMonthlyAvailable ? 13 : 12;
+      const maxLabel = hasMonthlyAvailable ? '12+1' : '12';
+
+      return {
         sold,
         expected,
-        max: 12,
-        isOverLimit: sold > 12,
-        isExpectedOverLimit: expected > 12,
+        max,
+        maxLabel,
+        hasMonthlyAvailable,
+        isMonthlySoldInPastWeek,
+        isOverLimit: sold > max,
+        isExpectedOverLimit: expected > max,
       };
     },
     [store]

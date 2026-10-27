@@ -12,6 +12,7 @@ import * as HoverCard from '@radix-ui/react-hover-card';
 import { BossCell } from './BossCell';
 import { Edit2, Ticket, Sparkles, UserX, Users, Clock, CheckCheck, RotateCcw } from 'lucide-react';
 import { checkIsSoloTeam, TeamFilterMode } from '@/utils/teamFilter';
+import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
 
 interface CompactCharacterRowProps {
   character: Character;
@@ -375,8 +376,11 @@ function TopRowMonthlyBossCard({
   onShowScheduleInfo?: (team: Team) => void;
 }) {
   const { getCharName } = useStore();
+  const currentWeekKey = getCurrentResetWeekKey();
   const recordKey = `rec_${charId}_${boss.id}_${entryIndex}`;
   const isCompleted = Boolean(record?.isCompleted);
+  const isDoneThisWeek = isCompleted && (!record?.completedWeekKey || record.completedWeekKey === currentWeekKey);
+  const isDoneInPastWeek = isCompleted && record?.completedWeekKey && record.completedWeekKey !== currentWeekKey;
 
   // 解析成員
   const rawMembers = team ? team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex })) : [];
@@ -449,7 +453,13 @@ function TopRowMonthlyBossCard({
               ? 'bg-[#EAE2D2]/60 dark:bg-slate-900/40 border-slate-400/50 opacity-40 grayscale contrast-75 brightness-90 shadow-none hover:opacity-75'
               : 'bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-indigo-500/20 dark:from-purple-950/80 dark:via-slate-900/90 dark:to-indigo-950/80 border-amber-500 dark:border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/50 hover:shadow-[0_0_12px_rgba(245,158,11,0.5)] active:translate-y-[0.5px]'
           )}
-          title={`【每月 BOSS】${boss.name} (點擊切換擊破狀態，右鍵設定組隊)`}
+          title={
+            isDoneInPastWeek
+              ? `【每月 BOSS】${boss.name}（本月已於先前週次通關，結晶已售出，不佔本週 12 顆額度）`
+              : isDoneThisWeek
+              ? `【每月 BOSS】${boss.name}（本週已通關，結晶佔用本週 12+1 額度）`
+              : `【每月 BOSS】${boss.name} (點擊切換擊破狀態，右鍵設定組隊)`
+          }
         >
           {/* BOSS 微型頭像 */}
           <div className="w-4 h-4 rounded overflow-hidden bg-slate-900 shrink-0 relative flex items-center justify-center border border-amber-400/60 shadow-2xs">
@@ -475,11 +485,14 @@ function TopRowMonthlyBossCard({
           {/* 每月專屬金紫漸層膠囊 */}
           <span
             className={cn(
-              'px-1 py-0.2 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-amber-300/60 shadow-2xs leading-none',
-              isCompleted && 'opacity-60 grayscale'
+              'px-1 py-0.2 rounded-full text-white text-[7.5px] font-black uppercase tracking-tight shrink-0 border shadow-2xs leading-none',
+              isDoneInPastWeek
+                ? 'bg-slate-600 border-slate-500 opacity-60'
+                : 'bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 border-amber-300/60',
+              isCompleted && !isDoneInPastWeek && 'opacity-60 grayscale'
             )}
           >
-            每月
+            {isDoneInPastWeek ? '本月已過' : '每月'}
           </span>
 
           {/* 難度標籤 */}
@@ -881,40 +894,44 @@ export function CompactCharacterRow({
             </span>
           </div>
 
-          {/* 💎 販售結晶數量膠囊 (單一角色每週上限 12 顆) */}
+          {/* 💎 販售結晶數量膠囊 (每週常態 12 顆；若當週攻略每月黑魔可賣 12+1 顆) */}
           {(crystalCountStats.expected > 0 || crystalCountStats.sold > 0) && (
             <div
               className={cn(
                 'flex items-center gap-1 px-2 py-0.2 rounded border text-[10.5px] select-none transition-colors',
-                crystalCountStats.sold > 12 || crystalCountStats.expected > 12
+                crystalCountStats.isOverLimit || crystalCountStats.isExpectedOverLimit
                   ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-200'
-                  : crystalCountStats.sold === 12
+                  : crystalCountStats.sold === crystalCountStats.max
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
                   : 'bg-[#F0F7FF] dark:bg-slate-800 border-[#BAE6FD] dark:border-slate-700 text-[#0369A1] dark:text-sky-300'
               )}
-              title={`本週結晶販售數量：已賣出 ${crystalCountStats.sold} / 每週上限 12 顆${
+              title={`本週結晶販售數量：已賣出 ${crystalCountStats.sold} / 上限 ${crystalCountStats.maxLabel} 顆${
+                crystalCountStats.hasMonthlyAvailable ? '（每週 12 顆 ＋ 每月黑魔法師 1 顆）' : ''
+              }${
+                crystalCountStats.isMonthlySoldInPastWeek ? '（每月黑魔已於先前週次售出，不佔本週額度）' : ''
+              }${
                 crystalCountStats.expected > crystalCountStats.sold
                   ? ` (預計排定 ${crystalCountStats.expected} 顆)`
                   : ''
               }${
-                crystalCountStats.expected > 12
-                  ? ' ⚠️ 注意：排定數量超過 12 顆每週上限！'
-                  : crystalCountStats.sold === 12
-                  ? ' ✨ 已達角色 12 顆販售上限'
+                crystalCountStats.isExpectedOverLimit
+                  ? ` ⚠️ 注意：排定數量超過 ${crystalCountStats.maxLabel} 顆上限！`
+                  : crystalCountStats.sold === crystalCountStats.max
+                  ? ` ✨ 已達角色 ${crystalCountStats.maxLabel} 顆販售上限`
                   : ''
               }`}
             >
               <span className="text-[11px]">💎</span>
               <span className="font-fredoka font-black">
-                {crystalCountStats.sold} / 12
+                {crystalCountStats.sold} / {crystalCountStats.maxLabel}
               </span>
               {crystalCountStats.expected > crystalCountStats.sold && (
                 <span className="text-[9.5px] opacity-75 font-fredoka font-bold hidden sm:inline">
                   ({crystalCountStats.expected})
                 </span>
               )}
-              {crystalCountStats.expected > 12 && (
-                <span className="text-[10px]" title="注意：排定數量超過 12 顆每週上限！">
+              {crystalCountStats.isExpectedOverLimit && (
+                <span className="text-[10px]" title={`注意：排定數量超過 ${crystalCountStats.maxLabel} 顆上限！`}>
                   ⚠️
                 </span>
               )}
