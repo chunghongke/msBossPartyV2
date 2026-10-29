@@ -7,6 +7,7 @@ import { checkIsSoloTeam, checkIsPartyTeam, TeamFilterMode } from '@/utils/teamF
 import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
 import { AppSlice, StoreSlice, SaveTeamOptions } from '../types';
 import { sanitizeStoreAndTeams, parseRecordKey } from '../sanitize';
+import { globalShowAlert } from '@/contexts/AlertContext';
 
 export const DEFAULT_STORE: StoreData = {
   teams: {},
@@ -151,10 +152,12 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
       } catch (e: any) {
         console.error('❌ [Firebase 多路徑更新失敗]:', e);
         if (e?.message?.includes('PERMISSION_DENIED') || e?.code === 'PERMISSION_DENIED') {
-          alert(
-            '【Firebase 雲端同步失敗】：寫入遭到權限拒絕 (PERMISSION_DENIED)！\n\n' +
-            '請至 Firebase 控制台確認安全性規則設定。'
-          );
+          globalShowAlert({
+            title: 'Firebase 雲端同步失敗',
+            message: '【Firebase 雲端同步失敗】：寫入遭到權限拒絕 (PERMISSION_DENIED)！\n\n請至 Firebase 控制台確認安全性規則設定。',
+            type: 'error',
+            confirmText: '我知道了',
+          });
         }
       } finally {
         _isWriting = false;
@@ -165,7 +168,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
   },
 
   toggleAllCharacterBosses: async (character: Character, filterMode: TeamFilterMode = 'all') => {
-    const { store, saveStoreToCloud } = get();
+    const { store, players, saveStoreToCloud } = get();
 
     // 收集該角色的所有每週/賽季 boss entries (一鍵全通一律排除每月 BOSS 黑魔法師)
     let entries: { bossId: string; entryIndex: 1 | 2 }[] = [];
@@ -241,11 +244,28 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         }
       });
     } else {
-      // 全部標記完成 (常態 BOSS 尊重 12 隻上限，最多勾選至 12 隻；賽季與每月 BOSS 獨立全數標記完成)
+      // 全部標記完成 (常態 BOSS 尊重單角色 12 隻上限與玩家 90 顆結晶上限，最多勾選至上限；賽季與每月 BOSS 獨立全數標記完成)
+      const player = (players || []).find((p) => (p.characters || []).some((c) => c.id === character.id));
+      const playerCharIds = player ? new Set(player.characters.map((c) => c.id)) : new Set([character.id]);
+      const currentWeekKey = getCurrentResetWeekKey();
+
       let currentCompletedCount = Object.entries(nextRecords).filter(([k, r]) => {
         if (!k.startsWith(`rec_${character.id}_`) || !r || !r.isCompleted) return false;
         const b = getBoss(r.bossId);
         return !b?.excludeFromWeeklyLimit && !b?.isSeasonal && !b?.isMonthly;
+      }).length;
+
+      let currentPlayerSoldThisWeek = Object.entries(nextRecords).filter(([k, r]) => {
+        if (!r || !r.isCompleted) return false;
+        const rCharId = r.charId || parseRecordKey(k)?.charId;
+        if (!rCharId || !playerCharIds.has(rCharId)) return false;
+        const b = getBoss(r.bossId);
+        if (!b || !b.crystalValue || b.isSeasonal) return false;
+        if (b.isMonthly) {
+          const isDoneThisWeek = !r.completedWeekKey || r.completedWeekKey === currentWeekKey;
+          return isDoneThisWeek;
+        }
+        return !b.excludeFromWeeklyLimit;
       }).length;
 
       for (const { bossId, entryIndex } of entries) {
@@ -258,8 +278,8 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
         const boss = getBoss(bossId);
         const isExcluded = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal || boss?.isMonthly);
 
-        // 若為常態 BOSS 且已達 12 隻上限，不再新增常態 BOSS
-        if (!isExcluded && currentCompletedCount >= 12) continue;
+        // 若為常態 BOSS 且已達角色 12 隻上限或玩家 90 顆結晶上限，不再新增常態 BOSS
+        if (!isExcluded && (currentCompletedCount >= 12 || currentPlayerSoldThisWeek >= 90)) continue;
 
         const targetTeamId = targetRecord?.teamId;
 
@@ -308,6 +328,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
         if (!isExcluded) {
           currentCompletedCount += 1;
+          currentPlayerSoldThisWeek += 1;
         }
       }
     }
@@ -322,7 +343,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     recordKey: string,
     onRequireShardModal?: (recordKey: string, boss: any, team: any, pendingComplete?: boolean) => void
   ) => {
-    const { store, getCharName, saveStoreToCloud } = get();
+    const { store, players, getCharName, saveStoreToCloud } = get();
     const targetRecord = store.weeklyRecords[recordKey];
     const targetTeamId = targetRecord?.teamId;
     const nextCompleted = !targetRecord?.isCompleted;
@@ -334,9 +355,9 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     const entryIndex = targetRecord?.entryIndex || parsedKey?.entryIndex || 1;
     const boss = getBoss(bossId);
 
-    // 💡 12 隻 BOSS 上限檢查 (僅針對常態每週 BOSS 檢查，賽季制與每月 BOSS 不受此限制)
-    const isExcluded = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal || boss?.isMonthly);
-    if (nextCompleted && !isExcluded) {
+    // 💡 1. 單角色 12 隻常態 BOSS 上限檢核 (僅針對常態每週 BOSS，黑魔法師每月獨立結晶為 12+1 不受此限)
+    const isExcludedFrom12Limit = Boolean(boss?.excludeFromWeeklyLimit || boss?.isSeasonal || boss?.isMonthly);
+    if (nextCompleted && !isExcludedFrom12Limit) {
       const rawMembers =
         targetTeamId && store.teams[targetTeamId]
           ? store.teams[targetTeamId].memberTargets ||
@@ -359,7 +380,61 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
         if (completedCount >= 12) {
           const charName = getCharName(m.charId);
-          alert(`⚠️ 角色【${charName}】本週常態 BOSS 攻略數量已達 12 隻上限！無法再增加擊破紀錄。`);
+          await globalShowAlert({
+            title: '已達角色攻略上限',
+            message: `角色【${charName}】本週常態 BOSS 攻略數量已達 12 隻上限！\n無法再增加擊破紀錄。`,
+            type: 'warning',
+            confirmText: '我知道了',
+          });
+          return;
+        }
+      }
+    }
+
+    // 💡 2. 玩家名下全角色每週 90 顆結晶販售上限檢核 (常態周王 + 黑魔法師皆受此 90 顆週上限限制)
+    const hasCrystalValue = Boolean(boss && (boss.crystalValue || 0) > 0 && !boss.isSeasonal);
+    if (nextCompleted && hasCrystalValue) {
+      const rawMembers =
+        targetTeamId && store.teams[targetTeamId]
+          ? store.teams[targetTeamId].memberTargets ||
+            (store.teams[targetTeamId].memberCharIds || []).map((id: any) => ({ charId: id, entryIndex: 1 }))
+          : [{ charId, entryIndex }];
+
+      const currentWeekKey = getCurrentResetWeekKey();
+      for (const m of rawMembers) {
+        if (!m.charId || m.charId.startsWith('guest_')) continue;
+        const player = (players || []).find((p) => (p.characters || []).some((c) => c.id === m.charId));
+        if (!player) continue;
+
+        const playerCharIds = new Set((player.characters || []).map((c) => c.id));
+        let playerTotalSoldThisWeek = 0;
+        Object.entries(store.weeklyRecords).forEach(([k, r]) => {
+          if (!r || !r.isCompleted) return;
+          const rCharId = r.charId || parseRecordKey(k)?.charId;
+          if (rCharId && playerCharIds.has(rCharId)) {
+            const b = getBoss(r.bossId);
+            if (!b || !b.crystalValue || b.isSeasonal) return;
+            if (b.isMonthly) {
+              // 黑魔法師：檢查是否於「本週」售出
+              const isDoneThisWeek = !r.completedWeekKey || r.completedWeekKey === currentWeekKey;
+              if (isDoneThisWeek) {
+                playerTotalSoldThisWeek += 1;
+              }
+            } else if (!b.excludeFromWeeklyLimit) {
+              // 常態每週 BOSS
+              playerTotalSoldThisWeek += 1;
+            }
+          }
+        });
+
+        if (playerTotalSoldThisWeek >= 90) {
+          const charName = getCharName(m.charId);
+          await globalShowAlert({
+            title: '已達伺服器結晶販售上限',
+            message: `玩家【${player.name}】（角色：${charName}）本週結晶販售已達 90 顆上限！\n無法再增加擊破紀錄。`,
+            type: 'warning',
+            confirmText: '我知道了',
+          });
           return;
         }
       }

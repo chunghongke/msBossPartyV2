@@ -153,7 +153,7 @@ export function CharacterCard({
 
     const message = isFilteredAllDone
       ? `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 重設為未完成嗎？（不影響每月黑魔法師）`
-      : `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 標記為已完成嗎？（常態 BOSS 最多標記至每週 12 隻上限，不包含每月黑魔法師）`;
+      : `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 標記為已完成嗎？（常態 BOSS 最多標記至每週 12 隻或玩家 90 顆上限，不包含每月黑魔法師）`;
 
     const confirmed = await showConfirm({
       title,
@@ -373,7 +373,7 @@ export function CharacterCard({
                 <div className="flex items-center justify-between text-[10px] font-black text-sky-900 dark:text-sky-300 leading-none mb-0.5">
                   <span>販售結晶數量</span>
                   {crystalCountStats.isExpectedOverLimit && (
-                    <span className="text-rose-600 dark:text-rose-400 font-bold">⚠️ 超過 {crystalCountStats.maxLabel} 顆上限</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">⚠️ 超過 12 顆上限</span>
                   )}
                   {crystalCountStats.sold === crystalCountStats.max && !crystalCountStats.isExpectedOverLimit && (
                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">✨ 已達上限</span>

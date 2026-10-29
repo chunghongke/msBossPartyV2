@@ -5,22 +5,34 @@ import { getBoss } from '@/data/bosses';
 import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
 
 export interface CrystalCountStats {
-  sold: number;
-  expected: number;
-  max: number; // 12 或 13 (當週有黑魔法師可賣時為 13)
-  maxLabel: string; // '12' 或 '12+1'
-  hasMonthlyAvailable: boolean; // 當週是否有黑魔額度 (本週完成或本月待攻略)
-  isMonthlySoldInPastWeek: boolean; // 黑魔是否已在先前週次售出
-  isOverLimit: boolean;
-  isExpectedOverLimit: boolean;
+  sold: number; // 本週總已賣出結晶數 (含當週擊破之黑魔法師)
+  expected: number; // 本週預計總結晶數 (常態周王 + 若當週已擊破黑魔則 +1)
+  weeklyBossSold: number; // 純每週常態 BOSS 已賣出
+  weeklyBossExpected: number; // 純每週常態 BOSS 目前設定數量
+  max: number; // 單角色上限 (若當週攻略黑魔為 13，否則為 12)
+  maxLabel: string; // '12+1' 或 '12'
+  hasMonthlyAvailable: boolean; // 是否有排定黑魔
+  isMonthlyDoneThisWeek: boolean; // 黑魔是否於本週擊破
+  isMonthlySoldInPastWeek: boolean; // 黑魔是否已於本月先前週次擊破
+  isOverLimit: boolean; // 是否超過角色上限 (weeklyBossSold > 12 或 sold > max)
+  isExpectedOverLimit: boolean; // 排定周王是否超過 12 顆上限 (weeklyBossExpected > 12)
+  monthlySold: number; // 本月黑魔已完成數量
+  monthlyExpected: number; // 本月黑魔設定數量
 }
 
 export interface PlayerCrystalCountStats {
+  weeklySold: number; // 本週已賣結晶總數 (包含當週擊破之黑魔法師)
+  weeklyExpected: number; // 目前設定的周王數量 (不包含黑魔法師)
+  weeklyBossSold: number; // 純每週常態 BOSS 已賣出
+  weeklyBossExpected: number; // 純每週常態 BOSS 目前設定數量
+  monthlySold: number; // 本月黑魔已完成數量
+  monthlyExpected: number; // 本月黑魔設定數量
+  monthlySoldThisWeek: number; // 本週擊破之黑魔數量
+  max: number; // 90 (周王數量上限)
+  isOverLimit: boolean; // 週王已賣出數量是否超過 90 (不包含黑魔法師)
+  isExpectedOverLimit: boolean; // 週王設定數量是否超過 90 (不包含黑魔法師)
   totalSold: number;
   totalExpected: number;
-  max: number;
-  isOverLimit: boolean;
-  isExpectedOverLimit: boolean;
 }
 
 export interface CrystalMesoStats {
@@ -64,7 +76,6 @@ export function useCalculator(store: StoreData) {
       let weeklyExpected = 0;
       let monthlyEarned = 0;
       let monthlyExpected = 0;
-      const currentWeekKey = getCurrentResetWeekKey();
 
       const processEntry = (bossId: string, entryIndex: number) => {
         const boss = getBoss(bossId);
@@ -85,17 +96,10 @@ export function useCalculator(store: StoreData) {
         const perPlayerValue = Math.floor(boss.crystalValue / teamSize);
 
         if (boss.isMonthly) {
+          // 💡 黑魔法師（每月 BOSS）：一個月結算一次，整月期間均維持當月預計與完成收益，不隨每週重算
+          monthlyExpected += perPlayerValue;
           if (rec?.isCompleted) {
-            // 若為本週擊破（或無週次紀錄之舊資料），計入本週已獲得與預計
-            const isDoneThisWeek = !rec.completedWeekKey || rec.completedWeekKey === currentWeekKey;
-            if (isDoneThisWeek) {
-              monthlyEarned += perPlayerValue;
-              monthlyExpected += perPlayerValue;
-            }
-            // 若為先前週次擊破：結晶已在先前賣掉，本週不重複計入
-          } else {
-            // 本月尚未擊破：預期本週打完可領取
-            monthlyExpected += perPlayerValue;
+            monthlyEarned += perPlayerValue;
           }
         } else {
           // 常態每週 BOSS
@@ -128,9 +132,11 @@ export function useCalculator(store: StoreData) {
    */
   const calculateCrystalCount = useCallback(
     (character: Character): CrystalCountStats => {
-      let sold = 0;
-      let expected = 0;
-      let hasMonthlyAvailable = false;
+      let weeklyBossSold = 0;
+      let weeklyBossExpected = 0;
+      let monthlySold = 0;
+      let monthlyExpected = 0;
+      let isMonthlyDoneThisWeek = false;
       let isMonthlySoldInPastWeek = false;
       const currentWeekKey = getCurrentResetWeekKey();
 
@@ -142,27 +148,22 @@ export function useCalculator(store: StoreData) {
         const rec = store.weeklyRecords[recKey];
 
         if (boss.isMonthly) {
+          // 💡 黑魔法師（每月 BOSS）：獨立統計數量
+          monthlyExpected += 1;
           if (rec?.isCompleted) {
+            monthlySold += 1;
             const isDoneThisWeek = !rec.completedWeekKey || rec.completedWeekKey === currentWeekKey;
             if (isDoneThisWeek) {
-              // 本週擊破黑魔法師：本週可賣 12 + 1 顆，本週 sold + 1, expected + 1
-              hasMonthlyAvailable = true;
-              sold += 1;
-              expected += 1;
+              isMonthlyDoneThisWeek = true;
             } else {
-              // 已經在前幾週擊破並售出：本週無法再打，不計入本週，不佔本週額度
               isMonthlySoldInPastWeek = true;
             }
-          } else {
-            // 本月尚未擊破：當週若擊破可享 12 + 1 額度，expected + 1
-            hasMonthlyAvailable = true;
-            expected += 1;
           }
         } else {
           // 每週常態 BOSS
-          expected += 1;
+          weeklyBossExpected += 1;
           if (rec?.isCompleted) {
-            sold += 1;
+            weeklyBossSold += 1;
           }
         }
       };
@@ -170,44 +171,73 @@ export function useCalculator(store: StoreData) {
       (character.bossIds || []).forEach((bId) => processEntry(bId, 1));
       (character.resetBossIds || []).forEach((bId) => processEntry(bId, 2));
 
-      const max = hasMonthlyAvailable ? 13 : 12;
-      const maxLabel = hasMonthlyAvailable ? '12+1' : '12';
+      // 💡 點選黑魔法師卡片完成時，該週的結晶已賣數量也要 +1 (12+1)
+      const sold = weeklyBossSold + (isMonthlyDoneThisWeek ? 1 : 0);
+      const expected = weeklyBossExpected + (isMonthlyDoneThisWeek ? 1 : 0);
+      const max = isMonthlyDoneThisWeek ? 13 : 12;
+      const maxLabel = isMonthlyDoneThisWeek ? '12+1' : '12';
 
       return {
         sold,
         expected,
+        weeklyBossSold,
+        weeklyBossExpected,
         max,
         maxLabel,
-        hasMonthlyAvailable,
+        hasMonthlyAvailable: monthlyExpected > 0,
+        isMonthlyDoneThisWeek,
         isMonthlySoldInPastWeek,
-        isOverLimit: sold > max,
-        isExpectedOverLimit: expected > max,
+        isOverLimit: weeklyBossSold > 12 || sold > max,
+        isExpectedOverLimit: weeklyBossExpected > 12,
+        monthlySold,
+        monthlyExpected,
       };
     },
     [store]
   );
 
   /**
-   * 計算玩家（同伺服器名下所有角色）本週販售結晶數量總和
-   * 同伺服器每週上限 90 顆 (包含每週常態、重置 2 刷與黑魔法師，只要 crystalValue > 0)
+   * 計算玩家（同伺服器名下所有角色）結晶數量總和
+   * 周王每週上限 90 顆（不包含黑魔法師）；當週擊破黑魔法師時，該週已賣數量 +1
    */
   const calculatePlayerCrystalCount = useCallback(
     (characters: Character[]): PlayerCrystalCountStats => {
-      let totalSold = 0;
-      let totalExpected = 0;
+      let weeklyBossSold = 0;
+      let weeklyBossExpected = 0;
+      let monthlySold = 0;
+      let monthlyExpected = 0;
+      let monthlySoldThisWeek = 0;
 
       (characters || []).forEach((char) => {
         const stats = calculateCrystalCount(char);
-        totalSold += stats.sold;
-        totalExpected += stats.expected;
+        weeklyBossSold += stats.weeklyBossSold;
+        weeklyBossExpected += stats.weeklyBossExpected;
+        monthlySold += stats.monthlySold;
+        monthlyExpected += stats.monthlyExpected;
+        if (stats.isMonthlyDoneThisWeek) {
+          monthlySoldThisWeek += 1;
+        }
       });
 
+      // 💡 點選黑魔法師卡片完成時，該週的結晶數量也要 +1
+      const weeklySold = weeklyBossSold + monthlySoldThisWeek;
+      // 💡 每週 BOSS 數量上限為 90 個的限制 (不包含黑魔法師)
+      const weeklyExpected = weeklyBossExpected;
+
       return {
-        totalSold,
-        totalExpected,
+        weeklySold,
+        weeklyExpected,
+        weeklyBossSold,
+        weeklyBossExpected,
+        monthlySold,
+        monthlyExpected,
+        monthlySoldThisWeek,
+        totalSold: weeklySold,
+        totalExpected: weeklyExpected,
         max: 90,
-        isOverLimit: totalSold > 90,
-        isExpectedOverLimit: totalExpected > 90,
+        // 💡 90 顆上限僅限制每週常態 BOSS（不包含黑魔法師）
+        isOverLimit: weeklyBossSold > 90,
+        isExpectedOverLimit: weeklyBossExpected > 90,
       };
     },
     [calculateCrystalCount]

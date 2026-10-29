@@ -715,7 +715,7 @@ export function CompactCharacterRow({
 
     const message = isFilteredAllDone
       ? `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 重設為未完成嗎？（不影響每月黑魔法師）`
-      : `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 標記為已完成嗎？（常態 BOSS 最多標記至每週 12 隻上限，不包含每月黑魔法師）`;
+      : `確定要將「${character.name}」的${modeText === '全部' ? '所有每週' : modeText} BOSS 標記為已完成嗎？（常態 BOSS 最多標記至每週 12 隻或玩家 90 顆上限，不包含每月黑魔法師）`;
 
     const confirmed = await showConfirm({
       title,
@@ -906,7 +906,7 @@ export function CompactCharacterRow({
                   : 'bg-[#F0F7FF] dark:bg-slate-800 border-[#BAE6FD] dark:border-slate-700 text-[#0369A1] dark:text-sky-300'
               )}
               title={`本週結晶販售數量：已賣出 ${crystalCountStats.sold} / 上限 ${crystalCountStats.maxLabel} 顆${
-                crystalCountStats.hasMonthlyAvailable ? '（每週 12 顆 ＋ 每月黑魔法師 1 顆）' : ''
+                crystalCountStats.isMonthlyDoneThisWeek ? '（含當週黑魔法師 1 顆）' : ''
               }${
                 crystalCountStats.isMonthlySoldInPastWeek ? '（每月黑魔已於先前週次售出，不佔本週額度）' : ''
               }${
@@ -915,7 +915,7 @@ export function CompactCharacterRow({
                   : ''
               }${
                 crystalCountStats.isExpectedOverLimit
-                  ? ` ⚠️ 注意：排定數量超過 ${crystalCountStats.maxLabel} 顆上限！`
+                  ? ` ⚠️ 注意：排定周王數量超過 12 顆上限！`
                   : crystalCountStats.sold === crystalCountStats.max
                   ? ` ✨ 已達角色 ${crystalCountStats.maxLabel} 顆販售上限`
                   : ''

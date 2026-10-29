@@ -892,81 +892,77 @@ export function PlayerNavBar({
 
               {/* 右側常駐控制群：結晶數量 ＋ 結晶楓幣統計 ＋ 同步立繪 ＋ 新增角色按鈕 (永不被推擠出畫面) */}
               <div className="flex items-center gap-1.5 shrink-0 pl-1">
-                {/* 全部角色的結晶販售數量總和膠囊 (伺服器每週上限 90 顆) */}
-                {playerCrystalCount && (playerCrystalCount.totalExpected > 0 || playerCrystalCount.totalSold > 0) && (
+                {/* 全部角色的每週常態結晶楓幣與周王數量總和膠囊 */}
+                {formatCrystal && (weeklyCrystalExpected > 0 || (crystalExpected > 0 && monthlyCrystalExpected === 0) || (playerCrystalCount && playerCrystalCount.weeklyExpected > 0)) && (
                   <div
                     className={cn(
-                      'flex items-center gap-1 px-2.5 py-1 rounded-xl border-1.5 shadow-2xs text-xs select-none shrink-0 transition-colors',
-                      playerCrystalCount.totalSold > 90 || playerCrystalCount.totalExpected > 90
+                      'flex items-center gap-1.5 px-2.5 py-1 rounded-xl border-1.5 shadow-2xs text-xs select-none shrink-0 transition-colors',
+                      playerCrystalCount?.isExpectedOverLimit || playerCrystalCount?.isOverLimit
                         ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-200'
-                        : playerCrystalCount.totalSold === 90
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
-                        : 'bg-[#F0F7FF] dark:bg-slate-800 border-[#BAE6FD] dark:border-slate-700 text-[#0369A1] dark:text-sky-300'
+                        : 'bg-[#FFF8E7] dark:bg-slate-800 border-[#D4B982] dark:border-slate-700'
                     )}
-                    title={`本週結晶販售數量：已賣出 ${playerCrystalCount.totalSold} 顆 / 伺服器每週上限 90 顆${
-                      playerCrystalCount.totalExpected > playerCrystalCount.totalSold
-                        ? ` (預計共 ${playerCrystalCount.totalExpected} 顆)`
-                        : ''
-                    }${
-                      playerCrystalCount.totalExpected > 90
-                        ? ' ⚠️ 注意：預計總數超過 90 顆每週上限！'
-                        : playerCrystalCount.totalSold >= 90
-                        ? ' ✨ 已達伺服器 90 顆販售上限'
-                        : ''
-                    }`}
-                  >
-                    <span className="text-sm">💎</span>
-                    <span className="font-fredoka font-black text-xs sm:text-sm">
-                      {playerCrystalCount.totalSold} / 90
-                    </span>
-                    {playerCrystalCount.totalExpected > playerCrystalCount.totalSold && (
-                      <span className="text-[10px] opacity-75 font-fredoka font-bold hidden xl:inline">
-                        ({playerCrystalCount.totalExpected})
-                      </span>
-                    )}
-                    {playerCrystalCount.totalExpected > 90 && (
-                      <span className="text-xs" title="注意：預計販售數量超過 90 顆每週上限！">
-                        ⚠️
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* 全部角色的每週常態結晶楓幣總和膠囊 */}
-                {formatCrystal && (weeklyCrystalExpected > 0 || (crystalExpected > 0 && monthlyCrystalExpected === 0)) && (
-                  <div
-                    className="flex items-center gap-1 px-2.5 py-1 bg-[#FFF8E7] dark:bg-slate-800 rounded-xl border-1.5 border-[#D4B982] dark:border-slate-700 shadow-2xs text-xs select-none shrink-0"
                     title={`每週常態 BOSS 結晶收益：已獲得 ${formatCrystal(
                       weeklyCrystalExpected > 0 ? weeklyCrystalEarned : crystalEarned
                     )} / 預計 ${formatCrystal(
                       weeklyCrystalExpected > 0 ? weeklyCrystalExpected : crystalExpected
-                    )}`}
+                    )}${
+                      playerCrystalCount
+                        ? `，販售數量：本週已賣出 ${playerCrystalCount.weeklySold} 顆${
+                            playerCrystalCount.monthlySoldThisWeek > 0 ? `（含當週黑魔 ${playerCrystalCount.monthlySoldThisWeek} 顆）` : ''
+                          } / 目前設定周王 ${playerCrystalCount.weeklyExpected} 顆（周王上限 90 顆）`
+                        : ''
+                    }${
+                      playerCrystalCount?.isExpectedOverLimit
+                        ? ' ⚠️ 注意：目前設定的周王數量超過 90 顆每週上限！'
+                        : playerCrystalCount?.isOverLimit
+                        ? ' ⚠️ 注意：本週賣出的周王結晶超過 90 顆每週上限！'
+                        : ''
+                    }`}
                   >
                     <span className="text-sm">🪙</span>
                     <span className="font-fredoka font-black text-amber-700 dark:text-amber-300 text-xs sm:text-sm">
                       {formatCrystal(weeklyCrystalExpected > 0 ? weeklyCrystalEarned : crystalEarned)} /{' '}
                       {formatCrystal(weeklyCrystalExpected > 0 ? weeklyCrystalExpected : crystalExpected)}
                     </span>
+                    {playerCrystalCount && (playerCrystalCount.weeklyExpected > 0 || playerCrystalCount.weeklySold > 0) && (
+                      <span className="font-fredoka font-bold text-stone-500 dark:text-slate-400 text-[11px] sm:text-xs">
+                        ({playerCrystalCount.weeklySold} / {playerCrystalCount.weeklyExpected})
+                      </span>
+                    )}
+                    {(playerCrystalCount?.isExpectedOverLimit || playerCrystalCount?.isOverLimit) && (
+                      <span className="text-xs" title="注意：周王數量超過 90 顆每週上限！">
+                        ⚠️
+                      </span>
+                    )}
                   </div>
                 )}
 
-                {/* 黑魔法師每月結晶楓幣總和膠囊 (當有排定或獲得黑魔法師時獨立拆開顯示) */}
+                {/* 黑魔法師每月結晶楓幣與黑魔數量總和膠囊 (當有排定或獲得黑魔法師時獨立拆開顯示) */}
                 {formatCrystal && (monthlyCrystalExpected > 0 || monthlyCrystalEarned > 0) && (
                   <div
                     className={cn(
-                      'flex items-center gap-1 px-2.5 py-1 rounded-xl border-1.5 shadow-2xs text-xs select-none shrink-0 transition-colors',
+                      'flex items-center gap-1.5 px-2.5 py-1 rounded-xl border-1.5 shadow-2xs text-xs select-none shrink-0 transition-colors',
                       monthlyCrystalEarned >= monthlyCrystalExpected && monthlyCrystalEarned > 0
                         ? 'bg-purple-100/90 dark:bg-purple-950/60 border-purple-400 dark:border-purple-700 text-purple-900 dark:text-purple-200'
                         : 'bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 dark:bg-slate-800 border-amber-400/70 dark:border-purple-800 text-indigo-950 dark:text-purple-200'
                     )}
                     title={`黑魔法師（每月 BOSS）結晶收益：已獲得 ${formatCrystal(monthlyCrystalEarned)} / 預計 ${formatCrystal(
                       monthlyCrystalExpected
-                    )}`}
+                    )}${
+                      playerCrystalCount
+                        ? `，販售數量：本月已完成 ${playerCrystalCount.monthlySold} 顆 / 目前設定 ${playerCrystalCount.monthlyExpected} 顆`
+                        : ''
+                    }`}
                   >
                     <span className="text-xs">🌙</span>
                     <span className="font-fredoka font-black text-xs sm:text-sm">
                       {formatCrystal(monthlyCrystalEarned)} / {formatCrystal(monthlyCrystalExpected)}
                     </span>
+                    {playerCrystalCount && (playerCrystalCount.monthlyExpected > 0 || playerCrystalCount.monthlySold > 0) && (
+                      <span className="font-fredoka font-bold text-purple-700/80 dark:text-purple-300/80 text-[11px] sm:text-xs">
+                        ({playerCrystalCount.monthlySold} / {playerCrystalCount.monthlyExpected})
+                      </span>
+                    )}
                   </div>
                 )}
 

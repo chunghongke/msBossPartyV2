@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { AlertCircle, AlertTriangle, CheckCircle2, HelpCircle, Info, Copy } from 'lucide-react';
@@ -24,6 +24,27 @@ interface AlertContextType {
 
 const AlertContext = createContext<AlertContextType | null>(null);
 
+// ── 全域非 React 元件（如 Zustand Store）專用彈窗橋接 ──
+let _globalAlert: ((options: string | AlertOptions) => Promise<void>) | null = null;
+let _globalConfirm: ((options: string | AlertOptions) => Promise<boolean>) | null = null;
+
+export const globalShowAlert = (options: string | AlertOptions): Promise<void> => {
+  if (_globalAlert) {
+    return _globalAlert(options);
+  }
+  const msg = typeof options === 'string' ? options : options.message;
+  window.alert(msg);
+  return Promise.resolve();
+};
+
+export const globalShowConfirm = (options: string | AlertOptions): Promise<boolean> => {
+  if (_globalConfirm) {
+    return _globalConfirm(options);
+  }
+  const msg = typeof options === 'string' ? options : options.message;
+  return Promise.resolve(window.confirm(msg));
+};
+
 export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [config, setConfig] = useState<AlertOptions>({ message: '', type: 'info' });
@@ -32,7 +53,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const resolveRef = useRef<((value: any) => void) | null>(null);
 
-  const showAlert = (opts: string | AlertOptions): Promise<void> => {
+  const showAlert = useCallback((opts: string | AlertOptions): Promise<void> => {
     const options = typeof opts === 'string' ? { message: opts, type: 'info' as AlertType } : opts;
     return new Promise<void>((resolve) => {
       resolveRef.current = () => resolve();
@@ -44,9 +65,9 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       setIsOpen(true);
     });
-  };
+  }, []);
 
-  const showConfirm = (opts: string | AlertOptions): Promise<boolean> => {
+  const showConfirm = useCallback((opts: string | AlertOptions): Promise<boolean> => {
     const options = typeof opts === 'string' ? { message: opts, type: 'confirm' as AlertType } : opts;
     return new Promise<boolean>((resolve) => {
       resolveRef.current = (val: boolean) => resolve(val);
@@ -60,7 +81,16 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       setIsOpen(true);
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    _globalAlert = showAlert;
+    _globalConfirm = showConfirm;
+    return () => {
+      _globalAlert = null;
+      _globalConfirm = null;
+    };
+  }, [showAlert, showConfirm]);
 
   const showPrompt = (opts: string | AlertOptions): Promise<string | null> => {
     const options = typeof opts === 'string' ? { message: opts, type: 'prompt' as AlertType } : opts;
