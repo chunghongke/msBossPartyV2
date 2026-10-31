@@ -20,6 +20,7 @@ export interface Team {
   memberTargets: MemberTarget[];
   memberCharIds?: string[];
   schedule?: TeamSchedule | null;
+  clearTime?: number | null; // 攻略時間 memo (分鐘，1~30)
 }
 
 export type ShardMode = 'shares' | 'quantity';
@@ -36,6 +37,7 @@ export interface WeeklyRecord {
   lastWeekShardShares?: number | null;
   shardQuantity?: number | null;
   lastWeekShardQuantity?: number | null;
+  clearTime?: number | null; // 攻略時間 memo (分鐘，1~30)
 }
 
 export interface Guest {

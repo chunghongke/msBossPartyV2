@@ -3,6 +3,7 @@ import { Character } from '@/types/player';
 import { StoreData } from '@/types/party';
 import { getBoss } from '@/data/bosses';
 import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
+import { checkIsSoloTeam, checkIsPartyTeam, TeamFilterMode, getEffectiveClearTime } from '@/utils/teamFilter';
 
 export interface CrystalCountStats {
   sold: number; // 本週總已賣出結晶數 (含當週擊破之黑魔法師)
@@ -33,6 +34,13 @@ export interface PlayerCrystalCountStats {
   isExpectedOverLimit: boolean; // 週王設定數量是否超過 90 (不包含黑魔法師)
   totalSold: number;
   totalExpected: number;
+}
+
+export interface CharacterClearTimeStats {
+  total: number; // 總攻略時間 (分鐘)
+  completed: number; // 已攻略時間 (已完成 BOSS 的時間總和，分鐘)
+  remaining: number; // 剩餘攻略時間 (未完成 BOSS 的時間總和，分鐘)
+  count: number; // 設定了時間的 BOSS 數量
 }
 
 export interface CrystalMesoStats {
@@ -375,10 +383,58 @@ export function useCalculator(store: StoreData) {
     [store.weeklyRecords]
   );
 
+  /**
+   * 計算角色的攻略時間 (分鐘 memo)：
+   * 包含排定的每週常態 BOSS、重置券 BOSS 與每月黑魔法師之 clearTime 總和
+   * 支援依據隊伍過濾模式 (全部 'all'、個人 'solo'、多人 'party') 篩選
+   */
+  const calculateClearTime = useCallback(
+    (character: Character, teamFilter: TeamFilterMode = 'all'): CharacterClearTimeStats => {
+      let total = 0;
+      let completed = 0;
+      let count = 0;
+
+      const processEntry = (bossId: string, entryIndex: number) => {
+        const boss = getBoss(bossId);
+        if (!boss) return;
+
+        if (teamFilter === 'solo' && !checkIsSoloTeam(character.id, boss, entryIndex, store)) {
+          return;
+        }
+        if (teamFilter === 'party' && !checkIsPartyTeam(character.id, boss, entryIndex, store)) {
+          return;
+        }
+
+        const recKey = `rec_${character.id}_${bossId}_${entryIndex}`;
+        const rec = store.weeklyRecords[recKey];
+        const effectiveClearTime = getEffectiveClearTime(recKey, character.id, bossId, entryIndex, store);
+        if (effectiveClearTime) {
+          total += effectiveClearTime;
+          count += 1;
+          if (rec?.isCompleted) {
+            completed += effectiveClearTime;
+          }
+        }
+      };
+
+      (character.bossIds || []).forEach((bId) => processEntry(bId, 1));
+      (character.resetBossIds || []).forEach((bId) => processEntry(bId, 2));
+
+      return {
+        total,
+        completed,
+        remaining: Math.max(0, total - completed),
+        count,
+      };
+    },
+    [store]
+  );
+
   return {
     calculateCrystal,
     calculateCrystalCount,
     calculatePlayerCrystalCount,
+    calculateClearTime,
     getRemovedCompletedBosses,
     calculateShard,
     getProgress,

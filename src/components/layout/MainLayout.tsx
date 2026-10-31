@@ -34,6 +34,7 @@ interface MainLayoutProps {
   onOpenDeletePlayerModal?: (player: Player) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal: (recordKey: string, boss: Boss, team: any) => void;
+  onOpenClearTimeModal: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
   onOpenResetConfig: (character: Character, playerName: string) => void;
   onOpenRenameModal: (character: Character, playerName: string) => void;
@@ -53,6 +54,7 @@ export function MainLayout({
   onOpenDeletePlayerModal,
   onOpenPartyModal,
   onOpenShardModal,
+  onOpenClearTimeModal,
   onOpenEditBosses,
   onOpenResetConfig,
   onOpenRenameModal,
@@ -517,6 +519,7 @@ export function MainLayout({
                             onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}
                             onOpenShardModal={onOpenShardModal}
+                            onOpenClearTimeModal={onOpenClearTimeModal}
                             onOpenEditBosses={onOpenEditBosses}
                             onOpenResetConfig={onOpenResetConfig}
                             onOpenRenameModal={onOpenRenameModal}
@@ -535,6 +538,7 @@ export function MainLayout({
                             onToggleAllBosses={toggleAllCharacterBosses}
                             onOpenPartyModal={onOpenPartyModal}
                             onOpenShardModal={onOpenShardModal}
+                            onOpenClearTimeModal={onOpenClearTimeModal}
                             onOpenEditBosses={onOpenEditBosses}
                             onOpenResetConfig={onOpenResetConfig}
                             onOpenRenameModal={onOpenRenameModal}

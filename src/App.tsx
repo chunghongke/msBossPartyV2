@@ -30,6 +30,7 @@ function AppContent() {
         onOpenAddCharacterModal={controller.openAddCharacterModal}
         onOpenPartyModal={controller.openPartyModal}
         onOpenShardModal={controller.openShardModal}
+        onOpenClearTimeModal={controller.openClearTimeModal}
         onOpenEditBosses={(char, pName) => controller.openEditBosses(char, pName || char.playerName || '')}
         onOpenResetConfig={(char, pName) => controller.openResetConfig(char, pName || char.playerName || '')}
         onOpenRenameModal={(char) => controller.openRenameModal(char)}

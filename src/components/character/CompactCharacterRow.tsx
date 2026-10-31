@@ -10,8 +10,8 @@ import { useStore } from '@/store';
 import { cn } from '@/utils/cn';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import { BossCell } from './BossCell';
-import { Edit2, Ticket, Sparkles, UserX, Users, Clock, CheckCheck, RotateCcw } from 'lucide-react';
-import { checkIsSoloTeam, TeamFilterMode } from '@/utils/teamFilter';
+import { Edit2, Ticket, Sparkles, UserX, Users, Clock, CheckCheck, RotateCcw, Timer } from 'lucide-react';
+import { checkIsSoloTeam, TeamFilterMode, getEffectiveClearTime } from '@/utils/teamFilter';
 import { getCurrentResetWeekKey } from '@/hooks/useWeeklyReset';
 
 interface CompactCharacterRowProps {
@@ -24,6 +24,7 @@ interface CompactCharacterRowProps {
   ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal: (recordKey: string, boss: Boss, team: Team | null) => void;
+  onOpenClearTimeModal?: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
   onOpenResetConfig: (character: Character, playerName: string) => void;
   onOpenRenameModal: (character: Character, playerName: string) => void;
@@ -69,6 +70,7 @@ function SingleRowBossPill({
   onToggleStatus,
   onOpenPartyModal,
   onOpenShardModal,
+  onOpenClearTimeModal,
   onShowScheduleInfo,
 }: {
   boss: Boss;
@@ -84,11 +86,13 @@ function SingleRowBossPill({
   ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal?: (recordKey: string, boss: Boss, team: Team | null) => void;
+  onOpenClearTimeModal?: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
 }) {
-  const { getCharName } = useStore();
+  const { getCharName, store } = useStore();
   const recordKey = `rec_${charId}_${boss.id}_${entryIndex}`;
   const isCompleted = Boolean(record?.isCompleted);
+  const effectiveClearTime = getEffectiveClearTime(recordKey, charId, boss.id, entryIndex, store);
 
   // 解析成員
   const rawMembers = team ? team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex })) : [];
@@ -196,126 +200,149 @@ function SingleRowBossPill({
         )}
       </div>
 
-      {/* 中間：BOSS 名稱、難度標籤與隊伍簡稱 */}
-      <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.2">
-        <div className="flex items-center gap-0.5 leading-tight truncate">
-          {boss.isMonthly && (
+      {/* 資訊內容區塊：上下雙行排版 */}
+      <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+        {/* 上行：難度 + BOSS 名稱 (左) ─── 攻略時間 + 出團時間 (右) */}
+        <div className="flex items-center justify-between gap-1 min-w-0 leading-tight">
+          <div className="flex items-center gap-0.5 min-w-0 truncate">
+            {boss.isMonthly && (
+              <span
+                className={cn(
+                  'px-1 py-0.2 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-amber-300/60 shadow-2xs',
+                  isCompleted && 'opacity-60 grayscale'
+                )}
+              >
+                每月
+              </span>
+            )}
+            {boss.isSeasonal && (
+              <span
+                className={cn(
+                  'px-1 py-0.2 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-white/80 shadow-2xs',
+                  isCompleted && 'opacity-60 grayscale'
+                )}
+              >
+                {boss.seasonBadge || 'S'}
+              </span>
+            )}
             <span
               className={cn(
-                'px-1 py-0.2 rounded-full bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-700 text-white text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-amber-300/60 shadow-2xs',
+                'px-0.5 rounded text-[8px] font-black uppercase tracking-tight shrink-0',
+                diffConf.tagClass,
                 isCompleted && 'opacity-60 grayscale'
               )}
             >
-              每月
+              {diffConf.label}
             </span>
-          )}
-          {boss.isSeasonal && (
             <span
               className={cn(
-                'px-1 py-0.2 rounded-full bg-gradient-to-r from-[#E2E6F0] via-[#C8D0E7] to-[#A8B4D6] text-[#373F60] text-[7.5px] font-black uppercase tracking-tight shrink-0 border border-white/80 shadow-2xs',
-                isCompleted && 'opacity-60 grayscale'
+                'font-black text-[10.5px] truncate transition-colors',
+                isCompleted ? 'text-stone-400 dark:text-slate-500 line-through/70' : 'text-[#3E2F20] dark:text-slate-100'
               )}
             >
-              {boss.seasonBadge || 'S'}
+              {cleanZhName}
             </span>
-          )}
-          <span
-            className={cn(
-              'px-0.5 rounded text-[8px] font-black uppercase tracking-tight shrink-0',
-              diffConf.tagClass,
-              isCompleted && 'opacity-60 grayscale'
+          </div>
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            {scheduleText && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (team && onShowScheduleInfo) onShowScheduleInfo(team);
+                  else if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
+                }}
+                className="p-0.5 rounded bg-purple-500/15 border border-purple-400/40 text-purple-700 dark:text-purple-300 hover:bg-purple-500/25 flex items-center shrink-0 cursor-pointer"
+                title={`出團時間: ${scheduleText}`}
+              >
+                <Clock className="w-2 h-2" />
+              </span>
             )}
-          >
-            {diffConf.label}
-          </span>
-          <span
-            className={cn(
-              'font-black text-[11px] truncate transition-colors',
-              isCompleted ? 'text-stone-400 dark:text-slate-500 line-through/70' : 'text-[#3E2F20] dark:text-slate-100'
+
+            {effectiveClearTime && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (canManage && onOpenClearTimeModal) {
+                    onOpenClearTimeModal(recordKey, boss, effectiveClearTime ?? null, getCharName(charId));
+                  }
+                }}
+                className="px-1 py-0.2 rounded bg-amber-500/15 border border-amber-400/30 text-amber-800 dark:text-amber-300 font-mono font-bold text-[8px] hover:bg-amber-500/25 flex items-center gap-0.5 shrink-0 cursor-pointer leading-none"
+                title={`攻略時間: ${effectiveClearTime} 分鐘 (點擊修改)`}
+              >
+                <Timer className="w-2 h-2 text-amber-600 dark:text-amber-400" />
+                <span>{effectiveClearTime}m</span>
+              </span>
             )}
-          >
-            {cleanZhName}
-          </span>
+          </div>
         </div>
 
-        {/* 隊友名稱標籤 (單人 / 隊友名字) */}
-        <div className="flex items-center gap-0.5 text-[9px] text-stone-500 dark:text-slate-400 font-bold truncate">
-          {isMultiParty ? (
-            <span className="text-amber-700 dark:text-amber-300 font-black truncate flex items-center gap-0.5">
-              <Users className="w-2 h-2 shrink-0" />
-              <span className="truncate">{teamText}</span>
+        {/* 下行：隊友名稱標籤 (左) ─── 艾里溫碎片 (右) */}
+        <div className="flex items-center justify-between gap-1 min-w-0 leading-tight">
+          <div className="flex items-center gap-0.5 text-[9px] text-stone-500 dark:text-slate-400 font-bold min-w-0 truncate">
+            {isMultiParty ? (
+              <span
+                className="text-amber-700 dark:text-amber-300 font-black truncate flex items-center gap-0.5 min-w-0"
+                title={`隊伍成員：${teamText}`}
+              >
+                <Users className="w-2 h-2 shrink-0" />
+                <span className="truncate">{teamText}</span>
+              </span>
+            ) : (
+              <span className="text-slate-400 text-[8.5px]">單人</span>
+            )}
+          </div>
+
+          {boss.erionVestiges > 0 && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManage && isMultiParty && onOpenShardModal) {
+                  onOpenShardModal(recordKey, boss, team || null);
+                }
+              }}
+              className={cn(
+                'px-1 py-0.2 rounded font-black text-[7.5px] flex items-center gap-0.5 transition-all shrink-0 leading-none',
+                isMultiParty
+                  ? (record?.shardShares === null || record?.shardShares === undefined) &&
+                    (record?.shardQuantity === null || record?.shardQuantity === undefined)
+                    ? canManage
+                      ? 'bg-amber-500/20 border border-amber-400 text-amber-800 dark:text-amber-300 animate-pulse cursor-pointer'
+                      : 'bg-amber-500/10 border border-amber-400/30 text-amber-800/60 dark:text-amber-300/60 cursor-default'
+                    : canManage
+                      ? 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982] dark:border-slate-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer shadow-2xs'
+                      : 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982]/60 dark:border-slate-700 text-amber-800/70 dark:text-amber-300/70 cursor-default shadow-none'
+                  : 'bg-black/5 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-stone-600 dark:text-slate-400 opacity-75 cursor-default'
+              )}
+              title={
+                isMultiParty
+                  ? (record?.shardShares === null || record?.shardShares === undefined) &&
+                    (record?.shardQuantity === null || record?.shardQuantity === undefined)
+                    ? canManage
+                      ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
+                      : '尚未設定艾里溫碎片分配 (唯讀)'
+                    : canManage
+                      ? '點擊設定艾里溫碎片分配'
+                      : '艾里溫碎片分配 (唯讀)'
+                  : '單人隊伍自動全拿碎片'
+              }
+            >
+              <Sparkles className="w-2 h-2 text-amber-500" />
+              <span>
+                {!isMultiParty
+                  ? `${boss.maxPartySize}/${boss.maxPartySize}份`
+                  : record?.shardMode === 'quantity'
+                  ? record.shardQuantity !== null && record.shardQuantity !== undefined
+                    ? `${record.shardQuantity}顆`
+                    : `?/${boss.erionVestiges}顆`
+                  : record?.shardShares !== null && record?.shardShares !== undefined
+                  ? `${record.shardShares}/${boss.maxPartySize}份`
+                  : `?/${boss.maxPartySize}份`}
+              </span>
             </span>
-          ) : (
-            <span className="text-slate-400 text-[8.5px]">單人</span>
           )}
         </div>
       </div>
-
-      {/* 右側小膠囊：出團時間 / 艾里溫碎片 */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        {boss.erionVestiges > 0 && (
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              if (canManage && isMultiParty && onOpenShardModal) {
-                onOpenShardModal(recordKey, boss, team || null);
-              }
-            }}
-            className={cn(
-              'px-1 py-0.2 rounded font-black text-[8px] flex items-center gap-0.5 transition-all',
-              isMultiParty
-                ? (record?.shardShares === null || record?.shardShares === undefined) &&
-                  (record?.shardQuantity === null || record?.shardQuantity === undefined)
-                  ? canManage
-                    ? 'bg-amber-500/20 border border-amber-400 text-amber-800 dark:text-amber-300 animate-pulse cursor-pointer'
-                    : 'bg-amber-500/10 border border-amber-400/30 text-amber-800/60 dark:text-amber-300/60 cursor-default'
-                  : canManage
-                    ? 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982] dark:border-slate-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer shadow-2xs'
-                    : 'bg-[#FFF8E7] dark:bg-slate-800 border border-[#D4B982]/60 dark:border-slate-700 text-amber-800/70 dark:text-amber-300/70 cursor-default shadow-none'
-                : 'bg-black/5 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-stone-600 dark:text-slate-400 opacity-75 cursor-default'
-            )}
-            title={
-              isMultiParty
-                ? (record?.shardShares === null || record?.shardShares === undefined) &&
-                  (record?.shardQuantity === null || record?.shardQuantity === undefined)
-                  ? canManage
-                    ? '⚠️ 尚未設定艾里溫碎片分配，點擊立即設定'
-                    : '尚未設定艾里溫碎片分配 (唯讀)'
-                  : canManage
-                    ? '點擊設定艾里溫碎片分配'
-                    : '艾里溫碎片分配 (唯讀)'
-                : '單人隊伍自動全拿碎片'
-            }
-          >
-            <Sparkles className="w-2 h-2 text-amber-500" />
-            <span>
-              {!isMultiParty
-                ? `${boss.maxPartySize}/${boss.maxPartySize}份`
-                : record?.shardMode === 'quantity'
-                ? record.shardQuantity !== null && record.shardQuantity !== undefined
-                  ? `${record.shardQuantity}顆`
-                  : `?/${boss.erionVestiges}顆`
-                : record?.shardShares !== null && record?.shardShares !== undefined
-                ? `${record.shardShares}/${boss.maxPartySize}份`
-                : `?/${boss.maxPartySize}份`}
-            </span>
-          </span>
-        )}
-
-        {scheduleText && (
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              if (team && onShowScheduleInfo) onShowScheduleInfo(team);
-              else if (canManage) onOpenPartyModal(charId, boss.id, entryIndex);
-            }}
-            className="px-1 py-0.2 rounded bg-purple-500/15 border border-purple-400/40 text-purple-700 dark:text-purple-300 font-mono font-bold text-[8px] hover:bg-purple-500/25 flex items-center gap-0.5 shrink-0 cursor-pointer"
-            title={`出團時間: ${scheduleText}`}
-          >
-            <Clock className="w-2 h-2" />
-          </span>
-        )}
-        </div>
       </div>
     </HoverCard.Trigger>
 
@@ -338,6 +365,7 @@ function SingleRowBossPill({
             onToggleStatus={onToggleStatus}
             onOpenPartyModal={onOpenPartyModal}
             onOpenShardModal={onOpenShardModal}
+            onOpenClearTimeModal={onOpenClearTimeModal}
             onShowScheduleInfo={onShowScheduleInfo}
           />
         </HoverCard.Content>
@@ -358,6 +386,7 @@ function TopRowMonthlyBossCard({
   onToggleStatus,
   onOpenPartyModal,
   onOpenShardModal,
+  onOpenClearTimeModal,
   onShowScheduleInfo,
 }: {
   boss: Boss;
@@ -373,12 +402,14 @@ function TopRowMonthlyBossCard({
   ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal?: (recordKey: string, boss: Boss, team: Team | null) => void;
+  onOpenClearTimeModal?: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
 }) {
-  const { getCharName } = useStore();
+  const { getCharName, store } = useStore();
   const currentWeekKey = getCurrentResetWeekKey();
   const recordKey = `rec_${charId}_${boss.id}_${entryIndex}`;
   const isCompleted = Boolean(record?.isCompleted);
+  const effectiveClearTime = getEffectiveClearTime(recordKey, charId, boss.id, entryIndex, store);
   const isDoneThisWeek = isCompleted && (!record?.completedWeekKey || record.completedWeekKey === currentWeekKey);
   const isDoneInPastWeek = isCompleted && record?.completedWeekKey && record.completedWeekKey !== currentWeekKey;
 
@@ -550,6 +581,23 @@ function TopRowMonthlyBossCard({
             </button>
           )}
 
+          {/* 攻略時間 memo 標記 */}
+          {effectiveClearTime && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManage && onOpenClearTimeModal) {
+                  onOpenClearTimeModal(recordKey, boss, effectiveClearTime ?? null, getCharName(charId));
+                }
+              }}
+              className="text-amber-700 dark:text-amber-300 font-mono font-bold text-[8.5px] hover:text-amber-600 flex items-center gap-0.5 shrink-0 cursor-pointer"
+              title={`攻略時間: ${effectiveClearTime} 分鐘 (點擊修改)`}
+            >
+              <Timer className="w-2.5 h-2.5" />
+              <span>{effectiveClearTime}m</span>
+            </span>
+          )}
+
           {/* 完成打勾標記 */}
           {isCompleted && (
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black shrink-0 leading-none" title="已擊破">
@@ -579,6 +627,7 @@ function TopRowMonthlyBossCard({
             onToggleStatus={onToggleStatus}
             onOpenPartyModal={onOpenPartyModal}
             onOpenShardModal={onOpenShardModal}
+            onOpenClearTimeModal={onOpenClearTimeModal}
             onShowScheduleInfo={onShowScheduleInfo}
           />
         </HoverCard.Content>
@@ -595,6 +644,7 @@ export function CompactCharacterRow({
   onToggleAllBosses,
   onOpenPartyModal,
   onOpenShardModal,
+  onOpenClearTimeModal,
   onOpenEditBosses,
   onOpenResetConfig,
   onOpenRenameModal,
@@ -605,13 +655,23 @@ export function CompactCharacterRow({
 }: CompactCharacterRowProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { showConfirm } = useAlert();
-  const { calculateCrystal, calculateCrystalCount, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
+  const {
+    calculateCrystal,
+    calculateCrystalCount,
+    calculateClearTime,
+    calculateShard,
+    getProgress,
+    formatCrystal,
+    formatShardNumber,
+    getRemovedCompletedBosses,
+  } = useCalculator(store);
 
   const isSelf = currentPlayer?.name === playerName;
   const isOwnerOrAdmin = canManageChar(playerName);
 
   const crystalStats = calculateCrystal(character);
   const crystalCountStats = calculateCrystalCount(character);
+  const clearTimeStats = calculateClearTime(character, teamFilter);
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
   const removedCompletedList = getRemovedCompletedBosses(character);
@@ -948,6 +1008,48 @@ export function CompactCharacterRow({
             </div>
           )}
 
+          {/* ⏱️ 攻略時間膠囊 */}
+          <div
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.2 rounded border text-[10.5px] select-none transition-colors shrink-0',
+              clearTimeStats.total > 0
+                ? 'bg-[#F0FDF4] dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                : 'bg-stone-100/80 dark:bg-slate-800/60 border-stone-200 dark:border-slate-700 text-stone-500 dark:text-slate-400'
+            )}
+            title={`本角色 ${teamFilter === 'solo' ? '個人隊伍' : teamFilter === 'party' ? '團打王' : '總'}攻略時間：${clearTimeStats.total} 分鐘${
+              clearTimeStats.total >= 60
+                ? `（約 ${Math.floor(clearTimeStats.total / 60)} 小時 ${clearTimeStats.total % 60} 分鐘）`
+                : ''
+            }${
+              clearTimeStats.completed > 0
+                ? `\n已攻略完成：${clearTimeStats.completed} 分鐘 / 剩餘：${clearTimeStats.remaining} 分鐘`
+                : ''
+            }${
+              clearTimeStats.count > 0
+                ? `\n已設定 ${clearTimeStats.count} 隻 ${teamFilter === 'solo' ? '個人隊伍 ' : teamFilter === 'party' ? '團打 ' : ''}BOSS 攻略時間 memo`
+                : '\n尚未於任何 BOSS 卡片設定攻略時間'
+            }`}
+          >
+            <Timer className={cn('w-2.5 h-2.5 shrink-0', clearTimeStats.total > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'opacity-60')} />
+            {teamFilter !== 'all' && (
+              <span className="text-[9.5px] opacity-75 font-bold mr-0.5">
+                {teamFilter === 'solo' ? '個人' : '團打'}
+              </span>
+            )}
+            <span className="font-fredoka font-black">
+              {clearTimeStats.total > 0
+                ? clearTimeStats.total >= 60
+                  ? `${clearTimeStats.total}分 (${Math.floor(clearTimeStats.total / 60)}h${clearTimeStats.total % 60 > 0 ? `${clearTimeStats.total % 60}m` : ''})`
+                  : `${clearTimeStats.total} 分鐘`
+                : '0 分鐘'}
+            </span>
+            {clearTimeStats.completed > 0 && clearTimeStats.completed < clearTimeStats.total && (
+              <span className="text-[9.5px] opacity-75 font-fredoka font-bold hidden sm:inline">
+                (已打{clearTimeStats.completed}m)
+              </span>
+            )}
+          </div>
+
           {/* 🌙 每月 BOSS 獨立專屬小卡片 (放在艾里溫碎片右側，高度與上方一致，顯眼邊框包覆) */}
           {monthlyBossEntries.map(({ boss, entryIndex }) => {
             const recKey = `rec_${character.id}_${boss.id}_${entryIndex}`;
@@ -967,6 +1069,7 @@ export function CompactCharacterRow({
                 onToggleStatus={onToggleStatus}
                 onOpenPartyModal={onOpenPartyModal}
                 onOpenShardModal={onOpenShardModal}
+                onOpenClearTimeModal={onOpenClearTimeModal}
                 onShowScheduleInfo={onShowScheduleInfo}
               />
             );
@@ -1124,6 +1227,7 @@ export function CompactCharacterRow({
                       onToggleStatus={onToggleStatus}
                       onOpenPartyModal={onOpenPartyModal}
                       onOpenShardModal={onOpenShardModal}
+                      onOpenClearTimeModal={onOpenClearTimeModal}
                       onShowScheduleInfo={onShowScheduleInfo}
                     />
                   </div>

@@ -70,3 +70,45 @@ export function saveLocalPlayerTeamFilter(playerName: string, filter: TeamFilter
     localStorage.setItem(`boss_party_team_filter_${playerName}`, filter);
   } catch {}
 }
+
+/**
+ * 取得指定 BOSS 隊伍的有效攻略時間 memo (分鐘)
+ * 1. 優先取該角色的 record.clearTime
+ * 2. 若未設定，取 team.clearTime
+ * 3. 若未設定，檢查該隊伍是否有其他隊友已設定 record.clearTime (同隊隊友共享)
+ */
+export function getEffectiveClearTime(
+  recordKey: string,
+  charId: string,
+  bossId: string,
+  entryIndex: number,
+  store: StoreData
+): number | null {
+  const rec = store.weeklyRecords?.[recordKey];
+  if (rec && typeof rec.clearTime === 'number' && rec.clearTime > 0) {
+    return rec.clearTime;
+  }
+
+  const teamId = rec?.teamId || `single_${charId}_${bossId}_${entryIndex}`;
+  if (!teamId || teamId.startsWith('single_')) {
+    return null;
+  }
+
+  const team = store.teams?.[teamId];
+  if (team && typeof team.clearTime === 'number' && team.clearTime > 0) {
+    return team.clearTime;
+  }
+
+  // 檢查同隊伍中是否有其他隊友已設定 clearTime
+  if (store.weeklyRecords) {
+    for (const r of Object.values(store.weeklyRecords)) {
+      if (r && r.teamId === teamId && typeof r.clearTime === 'number' && r.clearTime > 0) {
+        if (r.bossId === bossId) {
+          return r.clearTime;
+        }
+      }
+    }
+  }
+
+  return null;
+}

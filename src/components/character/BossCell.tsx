@@ -4,7 +4,8 @@ import { getBossCleanName } from '@/data/bosses';
 import { WeeklyRecord, Team } from '@/types/party';
 import { useStore } from '@/store';
 import { cn } from '@/utils/cn';
-import { Users, Clock, Sparkles, MoreVertical } from 'lucide-react';
+import { getEffectiveClearTime } from '@/utils/teamFilter';
+import { Users, Clock, Sparkles, MoreVertical, Timer } from 'lucide-react';
 
 interface BossCellProps {
   boss: Boss;
@@ -20,6 +21,7 @@ interface BossCellProps {
   ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal?: (recordKey: string, boss: Boss, team: Team | null) => void;
+  onOpenClearTimeModal?: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) => void;
   onShowScheduleInfo?: (team: Team) => void;
 }
 
@@ -56,11 +58,13 @@ export function BossCell({
   onToggleStatus,
   onOpenPartyModal,
   onOpenShardModal,
+  onOpenClearTimeModal,
   onShowScheduleInfo,
 }: BossCellProps) {
-  const { getCharName } = useStore();
+  const { getCharName, store } = useStore();
   const recordKey = `rec_${charId}_${boss.id}_${entryIndex}`;
   const isCompleted = Boolean(record?.isCompleted);
+  const effectiveClearTime = getEffectiveClearTime(recordKey, charId, boss.id, entryIndex, store);
 
   // 解析隊伍成員與有效人數
   const rawMembers = team ? team.memberTargets || (team.memberCharIds || []).map((id) => ({ charId: id, entryIndex })) : [];
@@ -369,8 +373,38 @@ export function BossCell({
           )}
         </div>
 
-        {/* 右側：出團時間排程膠囊 + 齒輪選單 */}
+        {/* 右側：攻略時間 memo + 出團時間排程膠囊 + 齒輪選單 */}
         <div className="flex items-center gap-1 shrink-0">
+          {onOpenClearTimeModal && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManage) {
+                  onOpenClearTimeModal(recordKey, boss, effectiveClearTime ?? null, getCharName(charId));
+                }
+              }}
+              className={cn(
+                'px-2 py-0.5 rounded-md font-mono font-bold text-[11px] flex items-center gap-1 border transition-all',
+                effectiveClearTime
+                  ? 'bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 border-amber-400/60 shadow-xs hover:bg-amber-50 dark:hover:bg-slate-700 cursor-pointer'
+                  : canManage
+                  ? 'bg-black/5 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border-transparent hover:border-slate-300 text-[10px] cursor-pointer'
+                  : 'bg-black/5 dark:bg-slate-800 text-slate-400/60 dark:text-slate-500 border-transparent text-[10px] cursor-default'
+              )}
+              title={
+                effectiveClearTime
+                  ? `攻略時間：${effectiveClearTime} 分鐘 (點擊修改)`
+                  : canManage
+                  ? '點擊設定攻略時間 memo'
+                  : '未設定攻略時間 (唯讀)'
+              }
+            >
+              <Timer className={cn('w-3 h-3', effectiveClearTime ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400')} />
+              <span>{effectiveClearTime ? `${effectiveClearTime}分` : (canManage ? '攻略時間' : '未設定')}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={(e) => {

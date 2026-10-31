@@ -421,6 +421,19 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         schedule: recSched || tmpSched ? { recurring: recSched, tempOverride: tmpSched } : null,
       };
 
+      // 檢查隊伍成員或 BOSS 難度是否更換，若更換則自動清除該 BOSS 的攻略時間 memo
+      const origRec = store.weeklyRecords[`rec_${charId}_${bossId}_${entryIndex}`];
+      const origTeamId = origRec?.teamId || `single_${charId}_${bossId}_${entryIndex}`;
+      const initialTeam = store.teams[origTeamId];
+      const initialMembers = initialTeam?.memberTargets || [{ charId, entryIndex }];
+      const initialMemberKeys = new Set(initialMembers.map((m) => `${m.charId}_${m.entryIndex}`));
+      const currentMemberKeys = new Set(memberTargets.map((m) => `${m.charId}_${m.entryIndex}`));
+
+      const isMembersChanged =
+        isDifficultyChanged ||
+        initialMemberKeys.size !== currentMemberKeys.size ||
+        [...currentMemberKeys].some((k) => !initialMemberKeys.has(k));
+
       const updatedRecords: Record<string, any> = {};
       memberTargets.forEach((t) => {
         // 💡 Guest 僅作為隊伍成員存在於 teams.memberTargets 中，不建立獨立且衝突的 weeklyRecords
@@ -435,8 +448,27 @@ export function PartyModal({ isOpen, onClose, charId, bossId, entryIndex }: Part
         updatedRecords[key] = {
           ...existing,
           teamId: newTeamId,
+          ...(isMembersChanged ? { clearTime: null } : {}),
         };
       });
+
+      // 若成員更換，也將被移出隊伍的原成員之 clearTime 清除為 null
+      if (isMembersChanged) {
+        initialMembers.forEach((oldM) => {
+          if (!currentMemberKeys.has(`${oldM.charId}_${oldM.entryIndex}`)) {
+            if (!oldM.charId.startsWith('guest_')) {
+              const oldKey = `rec_${oldM.charId}_${bossId}_${oldM.entryIndex}`;
+              const existingOld = store.weeklyRecords[oldKey];
+              if (existingOld) {
+                updatedRecords[oldKey] = {
+                  ...existingOld,
+                  clearTime: null,
+                };
+              }
+            }
+          }
+        });
+      }
 
       if (isDifficultyChanged) {
         // 1. 構建更新後的角色 bossIds 清單

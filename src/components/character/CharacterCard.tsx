@@ -9,7 +9,7 @@ import { useAlert } from '@/contexts/AlertContext';
 import { BossCell } from './BossCell';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils/cn';
-import { Edit2, Ticket, Sparkles, UserX, CheckCheck, RotateCcw } from 'lucide-react';
+import { Edit2, Ticket, Sparkles, UserX, CheckCheck, RotateCcw, Timer } from 'lucide-react';
 import { checkIsSoloTeam, checkIsPartyTeam, TeamFilterMode } from '@/utils/teamFilter';
 
 interface CharacterCardProps {
@@ -22,6 +22,7 @@ interface CharacterCardProps {
   ) => void;
   onOpenPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   onOpenShardModal: (recordKey: string, boss: Boss, team: Team | null) => void;
+  onOpenClearTimeModal?: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) => void;
   onOpenEditBosses: (character: Character, playerName: string) => void;
   onOpenResetConfig: (character: Character, playerName: string) => void;
   onOpenRenameModal: (character: Character, playerName: string) => void;
@@ -39,6 +40,7 @@ export function CharacterCard({
   onToggleStatus,
   onOpenPartyModal,
   onOpenShardModal,
+  onOpenClearTimeModal,
   onOpenEditBosses,
   onOpenResetConfig,
   onOpenRenameModal,
@@ -50,13 +52,23 @@ export function CharacterCard({
 }: CharacterCardProps) {
   const { currentPlayer, canManageChar } = useAuth();
   const { showConfirm } = useAlert();
-  const { calculateCrystal, calculateCrystalCount, calculateShard, getProgress, formatCrystal, formatShardNumber, getRemovedCompletedBosses } = useCalculator(store);
+  const {
+    calculateCrystal,
+    calculateCrystalCount,
+    calculateClearTime,
+    calculateShard,
+    getProgress,
+    formatCrystal,
+    formatShardNumber,
+    getRemovedCompletedBosses,
+  } = useCalculator(store);
 
   const isSelf = currentPlayer?.name === playerName;
   const isOwnerOrAdmin = canManageChar(playerName);
 
   const crystalStats = calculateCrystal(character);
   const crystalCountStats = calculateCrystalCount(character);
+  const clearTimeStats = calculateClearTime(character, teamFilter);
   const shardStats = calculateShard(character);
   const progressStats = getProgress(character);
   const removedCompletedList = getRemovedCompletedBosses(character);
@@ -408,7 +420,40 @@ export function CharacterCard({
               </div>
             </div>
 
-            {/* 3. 綠色樹葉擊破進度膠囊 */}
+            {/* 4. 攻略時間膠囊 */}
+            <div className="flex items-center gap-2.5 px-3 py-2 bg-[#F0FDF4] dark:bg-emerald-950/40 rounded-xl border-2 border-emerald-400/70 dark:border-emerald-800 shadow-sm">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 via-teal-500 to-green-600 border-1.5 border-emerald-700 flex items-center justify-center text-white shadow-xs shrink-0 font-bold">
+                <Timer className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between text-[10px] font-black text-emerald-900 dark:text-emerald-300 leading-none mb-0.5">
+                  <span>
+                    {teamFilter === 'solo' ? '個人攻略時間' : teamFilter === 'party' ? '團打攻略時間' : '總攻略時間'}
+                  </span>
+                  {clearTimeStats.completed > 0 && clearTimeStats.total > 0 && (
+                    <span className="text-emerald-700 dark:text-emerald-300 font-bold">
+                      已打 {clearTimeStats.completed} 分
+                    </span>
+                  )}
+                </div>
+                <div className="font-fredoka font-black text-sm text-emerald-950 dark:text-emerald-200 truncate">
+                  {clearTimeStats.total > 0 ? (
+                    <>
+                      {clearTimeStats.total} 分鐘
+                      {clearTimeStats.total >= 60 && (
+                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 ml-1">
+                          ({Math.floor(clearTimeStats.total / 60)}小時{clearTimeStats.total % 60 > 0 ? `${clearTimeStats.total % 60}分` : ''})
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-stone-400 dark:text-slate-500 text-xs font-normal">未設定時間</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 5. 綠色樹葉擊破進度膠囊 */}
             <div className="flex items-center gap-2.5 px-3 py-2 bg-[#EEF8EE] dark:bg-emerald-950/40 rounded-xl border-2 border-emerald-400/70 dark:border-emerald-800 shadow-sm">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 border-1.5 border-emerald-800 flex items-center justify-center text-sm shadow-xs shrink-0">
                 🍃
@@ -550,6 +595,7 @@ export function CharacterCard({
                         onToggleStatus={onToggleStatus}
                         onOpenPartyModal={onOpenPartyModal}
                         onOpenShardModal={onOpenShardModal}
+                        onOpenClearTimeModal={onOpenClearTimeModal}
                         onShowScheduleInfo={onShowScheduleInfo}
                       />
                     </div>

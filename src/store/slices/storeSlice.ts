@@ -531,16 +531,101 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
 
   updateWeeklyRecord: async (recordKey: string, partialRecord: Partial<WeeklyRecord>) => {
     const { store, saveStoreToCloud } = get();
-    const existing = store.weeklyRecords[recordKey] || {};
-    const nextRecords = {
-      ...store.weeklyRecords,
-      [recordKey]: {
+    const existing = store.weeklyRecords[recordKey];
+    let baseRecord: WeeklyRecord;
+    if (existing) {
+      baseRecord = {
         ...existing,
         ...partialRecord,
-      } as WeeklyRecord,
+      };
+    } else {
+      const parsed = parseRecordKey(recordKey);
+      baseRecord = {
+        charId: parsed?.charId || '',
+        bossId: parsed?.bossId || '',
+        entryIndex: parsed?.entryIndex || 1,
+        teamId: `single_${parsed?.charId || 'char'}_${parsed?.bossId || 'boss'}_${parsed?.entryIndex || 1}`,
+        isCompleted: false,
+        ...partialRecord,
+      };
+    }
+    const nextRecords = {
+      ...store.weeklyRecords,
+      [recordKey]: baseRecord,
     };
+    const nextTeams = { ...store.teams };
+
+    // 💡 若更新項目包含 clearTime，同步更新至該隊伍及所有隊友的每週記錄
+    if ('clearTime' in partialRecord) {
+      let targetTeamId = baseRecord.teamId;
+
+      // 若當前記錄無明確多人隊伍 ID，搜尋 store.teams 是否包含此成員的非單人隊伍
+      if (!targetTeamId || targetTeamId.startsWith('single_')) {
+        for (const [tId, t] of Object.entries(nextTeams)) {
+          if (tId.startsWith('single_')) continue;
+          const hasMember = (t.memberTargets || []).some(
+            (m) => m.charId === baseRecord.charId && m.entryIndex === baseRecord.entryIndex
+          );
+          if (hasMember) {
+            const isSameBoss =
+              tId.includes(`_${baseRecord.bossId}_`) ||
+              Object.values(nextRecords).some((r) => r.teamId === tId && r.bossId === baseRecord.bossId);
+            if (isSameBoss) {
+              targetTeamId = tId;
+              baseRecord.teamId = tId;
+              nextRecords[recordKey] = baseRecord;
+              break;
+            }
+          }
+        }
+      }
+
+      if (targetTeamId && nextTeams[targetTeamId]) {
+        nextTeams[targetTeamId] = {
+          ...nextTeams[targetTeamId],
+          clearTime: partialRecord.clearTime,
+        };
+
+        const team = nextTeams[targetTeamId];
+        const rawMembers =
+          team.memberTargets ||
+          (team.memberCharIds || []).map((id) => ({
+            charId: id,
+            entryIndex: baseRecord.entryIndex,
+          }));
+
+        rawMembers.forEach((m) => {
+          if (m.charId.startsWith('guest_')) return;
+          const mKey = `rec_${m.charId}_${baseRecord.bossId}_${m.entryIndex || baseRecord.entryIndex}`;
+          const existingM = nextRecords[mKey] || store.weeklyRecords[mKey] || {
+            charId: m.charId,
+            bossId: baseRecord.bossId,
+            entryIndex: m.entryIndex || baseRecord.entryIndex,
+            teamId: targetTeamId,
+            isCompleted: false,
+          };
+          nextRecords[mKey] = {
+            ...existingM,
+            teamId: targetTeamId,
+            clearTime: partialRecord.clearTime,
+          };
+        });
+
+        // 同步所有指向該 teamId 的已存在每週記錄
+        Object.entries(nextRecords).forEach(([k, r]) => {
+          if (r && r.teamId === targetTeamId) {
+            nextRecords[k] = {
+              ...r,
+              clearTime: partialRecord.clearTime,
+            };
+          }
+        });
+      }
+    }
+
     await saveStoreToCloud({
       ...store,
+      teams: nextTeams,
       weeklyRecords: nextRecords,
     });
   },
@@ -620,6 +705,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
                 nextWeeklyRecords[soloKey] = {
                   ...nextWeeklyRecords[soloKey],
                   teamId: defaultSingleId,
+                  clearTime: null,
                 };
               }
             } else {
@@ -635,6 +721,17 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
               ...existingTeam,
               memberTargets: remainingMembers,
             };
+            remainingMembers.forEach((m: any) => {
+              if (!m.charId.startsWith('guest_')) {
+                const mKey = `rec_${m.charId}_${oldBId}_${m.entryIndex || 1}`;
+                if (nextWeeklyRecords[mKey]) {
+                  nextWeeklyRecords[mKey] = {
+                    ...nextWeeklyRecords[mKey],
+                    clearTime: null,
+                  };
+                }
+              }
+            });
           }
         }
       });
@@ -702,6 +799,7 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
                   nextWeeklyRecords[recKey] = {
                     ...nextWeeklyRecords[recKey],
                     teamId: defaultSingleId,
+                    clearTime: null,
                   };
                 }
 
@@ -717,6 +815,18 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
               ...existingTeam,
               memberTargets: remainingMembers,
             };
+            const bId = bossId || existingBossId || '';
+            remainingMembers.forEach((m) => {
+              if (!m.charId.startsWith('guest_') && bId) {
+                const recKey = `rec_${m.charId}_${bId}_${m.entryIndex}`;
+                if (nextWeeklyRecords[recKey]) {
+                  nextWeeklyRecords[recKey] = {
+                    ...nextWeeklyRecords[recKey],
+                    clearTime: null,
+                  };
+                }
+              }
+            });
           }
         }
       });
@@ -770,18 +880,31 @@ export const createStoreSlice: AppSlice<StoreSlice> = (setSlice, get) => ({
     const { store, saveStoreToCloud } = get();
     const nextGuests = (store.guests || []).filter((g) => g.id !== guestId);
     const nextTeams = { ...store.teams };
+    const nextWeeklyRecords = { ...store.weeklyRecords };
+    let hasRecordChanges = false;
+
     Object.keys(nextTeams).forEach((tId) => {
+      const hadGuest = (nextTeams[tId].memberTargets || []).some((m) => m.charId === guestId);
       nextTeams[tId] = {
         ...nextTeams[tId],
         memberTargets: (nextTeams[tId].memberTargets || []).filter((m) => m.charId !== guestId),
         memberCharIds: (nextTeams[tId].memberCharIds || []).filter((id) => id !== guestId),
       };
+      if (hadGuest) {
+        Object.entries(nextWeeklyRecords).forEach(([rKey, rVal]) => {
+          if (rVal && rVal.teamId === tId && rVal.clearTime) {
+            nextWeeklyRecords[rKey] = { ...rVal, clearTime: null };
+            hasRecordChanges = true;
+          }
+        });
+      }
     });
 
     await saveStoreToCloud({
       ...store,
       guests: nextGuests,
       teams: nextTeams,
+      weeklyRecords: hasRecordChanges ? nextWeeklyRecords : store.weeklyRecords,
     });
   },
 });

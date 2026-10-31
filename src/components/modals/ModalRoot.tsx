@@ -11,6 +11,7 @@ import { EditCharBossesModal } from './EditCharBossesModal';
 import { ResetConfigModal } from './ResetConfigModal';
 import { PartyModal } from './PartyModal';
 import { ShardShareModal } from './ShardShareModal';
+import { ClearTimeModal } from './ClearTimeModal';
 import { ScheduleInfoModal } from './ScheduleInfoModal';
 import { NotificationModal } from './NotificationModal';
 import { NexonKeyModal } from './NexonKeyModal';
@@ -39,6 +40,7 @@ export interface ModalController {
   openResetConfig: (character: Character, playerName: string) => void;
   openPartyModal: (charId: string, bossId: string, entryIndex: number) => void;
   openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) => void;
+  openClearTimeModal: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) => void;
   openScheduleInfo: (team: Team) => void;
   openDeleteCharModal: (charId: string, playerName: string) => void;
   openDeletePlayerModal: (player: Player) => void;
@@ -66,6 +68,7 @@ export function useModalState() {
   const [resetConfigChar, setResetConfigChar] = useState<{ char: Character; playerName: string } | null>(null);
   const [partyTarget, setPartyTarget] = useState<{ charId: string; bossId: string; entryIndex: number } | null>(null);
   const [shardTarget, setShardTarget] = useState<{ recordKey: string; boss: Boss; team: Team | null; pendingComplete?: boolean } | null>(null);
+  const [clearTimeTarget, setClearTimeTarget] = useState<{ recordKey: string; boss: Boss; initialTime?: number | null; characterName?: string } | null>(null);
   const [scheduleInfoTeam, setScheduleInfoTeam] = useState<Team | null>(null);
   const [deleteCharTarget, setDeleteCharTarget] = useState<{ charId: string; playerName: string } | null>(null);
   const [deletePlayerTarget, setDeletePlayerTarget] = useState<Player | null>(null);
@@ -89,6 +92,8 @@ export function useModalState() {
       openPartyModal: (charId: string, bossId: string, entryIndex: number) => setPartyTarget({ charId, bossId, entryIndex }),
       openShardModal: (recordKey: string, boss: Boss, team: Team | null, pendingComplete?: boolean) =>
         setShardTarget({ recordKey, boss, team, pendingComplete }),
+      openClearTimeModal: (recordKey: string, boss: Boss, initialTime?: number | null, characterName?: string) =>
+        setClearTimeTarget({ recordKey, boss, initialTime, characterName }),
       openScheduleInfo: (team: Team) => setScheduleInfoTeam(team),
       openDeleteCharModal: (charId: string, playerName: string) => setDeleteCharTarget({ charId, playerName }),
       openDeletePlayerModal: (player: Player) => setDeletePlayerTarget(player),
@@ -177,6 +182,17 @@ export function useModalState() {
           boss={shardTarget.boss}
           team={shardTarget.team}
           pendingComplete={shardTarget.pendingComplete}
+        />
+      )}
+
+      {clearTimeTarget && (
+        <ClearTimeModal
+          isOpen={clearTimeTarget !== null}
+          onClose={() => setClearTimeTarget(null)}
+          recordKey={clearTimeTarget.recordKey}
+          boss={clearTimeTarget.boss}
+          initialTime={clearTimeTarget.initialTime}
+          characterName={clearTimeTarget.characterName}
         />
       )}
 
